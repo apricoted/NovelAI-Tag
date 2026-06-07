@@ -18,14 +18,14 @@ IMG_DIR = os.path.join(ROOT, "site", "images")
 os.makedirs(DATA_DIR, exist_ok=True)
 
 # 已知法典 → 短 id（其余用文件名哈希）
-ID_MAP = [("所长", "suozhang")]
+ID_MAP = [("所长常规", "suozhang")]   # 原「所长常规」法典固定用 suozhang（已配图，勿改）；其余按文件名生成唯一 id
 IMG_EXTS = ["jpg", "jpeg", "png", "webp", "gif", "avif"]
 
 def codex_id(stem):
     for key, cid in ID_MAP:
         if key in stem:
             return cid
-    return "codex_" + hashlib.md5(stem.encode("utf-8")).hexdigest()[:6]
+    return "codex_" + hashlib.md5(stem.encode("utf-8")).hexdigest()[:8]
 
 def parse_meta(stem):
     ver = re.search(r"(\d{4}[.\-]\d{1,2}[.\-]?\d{0,2})", stem)
@@ -100,9 +100,8 @@ def build_tree(entries):
         return out
     return to_list(root)
 
-def convert(path):
+def convert(path, cid):
     stem = os.path.splitext(os.path.basename(path))[0]
-    cid = codex_id(stem)
     title, ver, author = parse_meta(stem)
     doc = Document(path)
 
@@ -184,10 +183,18 @@ def convert(path):
 def main():
     docs = sorted(glob.glob(os.path.join(SRC_DIR, "*.docx")))
     index = []
+    seen = {}
     for d in docs:
         if os.path.basename(d).startswith("~$"):
             continue
-        info = convert(d)
+        stem = os.path.splitext(os.path.basename(d))[0]
+        cid = codex_id(stem)
+        if cid in seen:                       # 防撞：同 id 自动加后缀，杜绝互相覆盖
+            seen[cid] += 1
+            cid = f"{cid}_{seen[cid]}"
+        else:
+            seen[cid] = 1
+        info = convert(d, cid)
         index.append({k: info[k] for k in ("id", "title", "version", "author", "entryCount", "imagedCount")})
         print(f"[OK] {info['id']}: {info['entryCount']} entries, "
               f"{info['imagedCount']} imaged, {info['reviewCount']} to review")
