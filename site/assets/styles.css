@@ -26,7 +26,7 @@ button{font-family:inherit;cursor:pointer}
 .brand{font-size:18px;font-weight:800;letter-spacing:1px}
 .brand span{color:var(--accent)}
 .icon-btn{
-  border:none;background:transparent;color:var(--text);font-size:18px;
+  border:none;background:transparent;color:var(--text);font-size:18px;text-decoration:none;
   width:36px;height:36px;border-radius:10px;display:grid;place-items:center;
 }
 .icon-btn:hover{background:var(--tagbg)}
