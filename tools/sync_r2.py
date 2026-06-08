@@ -68,6 +68,32 @@ def sha256_hex(path):
     return h.hexdigest()
 
 
+def manifest_entry(path, sha):
+    stat = path.stat()
+    return {
+        "size": stat.st_size,
+        "mtime_ns": stat.st_mtime_ns,
+        "sha256": sha,
+    }
+
+
+def sha256_cached(path, key, manifest_objects, hash_stats=None):
+    stat = path.stat()
+    cached = (manifest_objects or {}).get(key) or {}
+    if (
+        cached.get("sha256")
+        and cached.get("size") == stat.st_size
+        and cached.get("mtime_ns") == stat.st_mtime_ns
+    ):
+        if hash_stats is not None:
+            hash_stats["hit"] += 1
+        return cached["sha256"]
+
+    if hash_stats is not None:
+        hash_stats["miss"] += 1
+    return sha256_hex(path)
+
+
 def file_rev(paths):
     h = hashlib.sha256()
     for path in paths:
@@ -170,10 +196,15 @@ def key_for(prefix, cid, filename):
     return posixpath.join(prefix.strip("/"), cid, filename).replace("\\", "/")
 
 
-def collect_assets(apply_metadata=False):
+def collect_assets(apply_metadata=False, cfg=None, manifest_objects=None):
     assets = []
     issues = []
     changed_files = []
+    hash_stats = {"hit": 0, "miss": 0}
+    cfg = cfg or {}
+    manifest_objects = manifest_objects or {}
+    image_prefix = cfg.get("image_prefix") or DEFAULT_IMAGE_PREFIX
+    original_prefix = cfg.get("original_prefix") or DEFAULT_ORIGINAL_PREFIX
 
     for codex_path in codex_files():
         codex = load_json(codex_path)
@@ -213,8 +244,14 @@ def collect_assets(apply_metadata=False):
             else:
                 issues.append(f"missing original for imaged entry: {eid}")
 
-            thumb_sha = sha256_hex(thumb_path) if thumb_path.exists() else ""
-            original_sha = sha256_hex(original_path) if original_path and original_path.exists() else ""
+            thumb_key = key_for(image_prefix, cid, image)
+            original_key = key_for(original_prefix, cid, original_name) if original_name else ""
+            thumb_sha = sha256_cached(thumb_path, thumb_key, manifest_objects, hash_stats) if thumb_path.exists() else ""
+            original_sha = (
+                sha256_cached(original_path, original_key, manifest_objects, hash_stats)
+                if original_key and original_path and original_path.exists()
+                else ""
+            )
             if thumb_sha:
                 rev = rev_from_hashes([thumb_sha, original_sha])
                 if entry.get("assetRev") != rev:
@@ -235,7 +272,7 @@ def collect_assets(apply_metadata=False):
             changed_files.append(codex_path)
 
     update_index(apply_metadata=apply_metadata, changed_files=changed_files)
-    return assets, issues, changed_files
+    return assets, issues, changed_files, hash_stats
 
 
 def update_index(apply_metadata=False, changed_files=None):
@@ -417,7 +454,7 @@ def load_manifest():
 
 def write_manifest(cfg, objects):
     data = {
-        "version": 1,
+        "version": 2,
         "bucket": cfg.get("bucket") or DEFAULT_BUCKET,
         "updatedAt": dt.datetime.now(dt.timezone.utc).isoformat(),
         "objects": objects,
@@ -478,7 +515,7 @@ def put_file_with_retries(client, key, path, sha, cache_control, retries, base_d
     return 0, {}, b"", attempts
 
 
-def sync_assets(args, cfg, assets):
+def sync_assets(args, cfg, assets, manifest_objects=None):
     client = R2Client(cfg)
     image_prefix = cfg["image_prefix"]
     original_prefix = cfg["original_prefix"]
@@ -493,7 +530,7 @@ def sync_assets(args, cfg, assets):
     counts = {"checked": 0, "upload": 0, "skip": 0, "fail": 0}
     failures = []
     prefixes = sorted({image_prefix, original_prefix})
-    manifest_objects = load_manifest()
+    manifest_objects = manifest_objects or {}
     next_manifest = {}
     lock = threading.Lock()
 
@@ -515,7 +552,7 @@ def sync_assets(args, cfg, assets):
             continue
         if not needs_upload:
             counts["skip"] += 1
-            next_manifest[key] = {"size": path.stat().st_size, "sha256": sha}
+            next_manifest[key] = manifest_entry(path, sha)
             if args.verbose:
                 print(f"skip {key}: {reason}")
             continue
@@ -557,7 +594,7 @@ def sync_assets(args, cfg, assets):
                         failures.append(f"upload failed {key} after {attempts} attempt(s): {status} {body[:200]!r}")
                 else:
                     with lock:
-                        next_manifest[key] = {"size": path.stat().st_size, "sha256": sha}
+                        next_manifest[key] = manifest_entry(path, sha)
                         if attempts > 1:
                             print(f"uploaded {key} after {attempts} attempts", flush=True)
                     if args.verbose:
@@ -611,7 +648,12 @@ def main():
     need_cfg = not args.metadata_only and not args.dry_run
     cfg = load_config(required=need_cfg)
     apply_metadata = not args.dry_run
-    assets, issues, changed_files = collect_assets(apply_metadata=apply_metadata)
+    manifest_objects = load_manifest()
+    assets, issues, changed_files, hash_stats = collect_assets(
+        apply_metadata=apply_metadata,
+        cfg=cfg,
+        manifest_objects=manifest_objects,
+    )
 
     media_changed = False
     if not args.dry_run:
@@ -620,6 +662,7 @@ def main():
     print("R2 sync scan")
     print(f"assets found: {len(assets)}")
     print(f"issues: {len(issues)}")
+    print(f"hash cache: hit {hash_stats['hit']}, miss {hash_stats['miss']}")
     for issue in issues[:30]:
         print(f"- {issue}")
     if len(issues) > 30:
@@ -637,7 +680,7 @@ def main():
         print("dry-run skipped remote checks because r2_config.json is incomplete.")
         return 0 if not issues else 2
 
-    counts, failures = sync_assets(args, cfg, assets)
+    counts, failures = sync_assets(args, cfg, assets, manifest_objects=manifest_objects)
     print("remote sync")
     for key in ("checked", "upload", "skip", "fail"):
         print(f"{key}: {counts[key]}")
