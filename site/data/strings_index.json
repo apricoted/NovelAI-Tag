@@ -1,0 +1,10 @@
+{
+  "collections": [
+    {
+      "id": "default",
+      "name": "示例合集",
+      "author": "",
+      "file": "strings.json"
+    }
+  ]
+}

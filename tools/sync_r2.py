@@ -196,6 +196,18 @@ def key_for(prefix, cid, filename):
     return posixpath.join(prefix.strip("/"), cid, filename).replace("\\", "/")
 
 
+def collect_strings_assets():
+    assets = []
+    strings_dir = THUMB_DIR / "strings"
+    if not strings_dir.is_dir():
+        return assets
+    for path in sorted(strings_dir.iterdir()):
+        if path.is_file():
+            sha = sha256_hex(path)
+            assets.append(("strings-image", "strings", path.name, path, sha))
+    return assets
+
+
 def collect_assets(apply_metadata=False, cfg=None, manifest_objects=None):
     assets = []
     issues = []
@@ -515,6 +527,91 @@ def put_file_with_retries(client, key, path, sha, cache_control, retries, base_d
     return 0, {}, b"", attempts
 
 
+def sync_strings_assets(args, cfg, assets):
+    if not assets:
+        return {"checked": 0, "upload": 0, "skip": 0, "fail": 0}, []
+
+    client = R2Client(cfg)
+    cache_control = cfg.get("cache_control") or "public, max-age=31536000, immutable"
+    workers = max(1, int(getattr(args, "workers", None) or cfg.get("upload_workers") or DEFAULT_UPLOAD_WORKERS))
+    retries = max(0, int(getattr(args, "retries", None) if getattr(args, "retries", None) is not None else cfg.get("upload_retries", DEFAULT_UPLOAD_RETRIES)))
+    retry_base_delay = float(
+        getattr(args, "retry_base_delay", None)
+        if getattr(args, "retry_base_delay", None) is not None
+        else cfg.get("retry_base_delay", DEFAULT_RETRY_BASE_DELAY)
+    )
+    counts = {"checked": 0, "upload": 0, "skip": 0, "fail": 0}
+    failures = []
+    lock = threading.Lock()
+
+    print("listing remote strings images", flush=True)
+    remote_objects = client.list_objects_v2("images/strings")
+    print(f"remote strings objects: {len(remote_objects)}", flush=True)
+
+    manifest_objects = load_manifest()
+    next_manifest = {}
+
+    pending = []
+    for kind, cid, filename, path, sha in assets:
+        key = "images/strings/" + filename
+        counts["checked"] += 1
+        try:
+            needs_upload, reason = remote_needs_upload(remote_objects, manifest_objects, key, path, sha)
+        except Exception as ex:
+            counts["fail"] += 1
+            failures.append(f"{key}: {ex}")
+            continue
+        if not needs_upload:
+            counts["skip"] += 1
+            next_manifest[key] = manifest_entry(path, sha)
+            continue
+        counts["upload"] += 1
+        if args.dry_run or args.check_only:
+            print(f"would upload {key}: {reason}")
+            continue
+        pending.append((key, path, sha))
+
+    if pending:
+        print(f"uploading {len(pending)} strings image(s) with {workers} worker(s), {retries} retries", flush=True)
+        done = [0]
+
+        def _upload(item):
+            key, path, sha = item
+            def _log_retry(message):
+                with lock:
+                    print(message, flush=True)
+            try:
+                status, _headers, body, attempts = put_file_with_retries(
+                    client, key, path, sha, cache_control, retries, retry_base_delay, log_retry=_log_retry,
+                )
+                if status not in (200, 201):
+                    with lock:
+                        counts["fail"] += 1
+                        failures.append(f"{key}: {status} {body[:200]!r}")
+                else:
+                    with lock:
+                        next_manifest[key] = manifest_entry(path, sha)
+            except Exception as ex:
+                with lock:
+                    counts["fail"] += 1
+                    failures.append(f"{key}: {ex}")
+            finally:
+                with lock:
+                    done[0] += 1
+                if done[0] % 250 == 0 or done[0] == len(pending):
+                    print(f"strings upload: {done[0]}/{len(pending)}, fail {counts['fail']}", flush=True)
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as pool:
+            list(pool.map(_upload, pending))
+
+    if not args.dry_run and not args.check_only and not failures:
+        full_manifest = load_manifest()
+        full_manifest.update(next_manifest)
+        write_manifest(cfg, full_manifest)
+
+    return counts, failures
+
+
 def sync_assets(args, cfg, assets, manifest_objects=None):
     client = R2Client(cfg)
     image_prefix = cfg["image_prefix"]
@@ -655,12 +752,15 @@ def main():
         manifest_objects=manifest_objects,
     )
 
+    strings_assets = collect_strings_assets()
+
     media_changed = False
-    if not args.dry_run:
+    if not args.dry_run and not MEDIA_PATH.exists():
         media_changed = write_media(cfg)
 
     print("R2 sync scan")
-    print(f"assets found: {len(assets)}")
+    print(f"codex assets found: {len(assets)}")
+    print(f"strings images: {len(strings_assets)}")
     print(f"issues: {len(issues)}")
     print(f"hash cache: hit {hash_stats['hit']}, miss {hash_stats['miss']}")
     for issue in issues[:30]:
@@ -684,9 +784,18 @@ def main():
     print("remote sync")
     for key in ("checked", "upload", "skip", "fail"):
         print(f"{key}: {counts[key]}")
-    for failure in failures[:20]:
+
+    strings_counts, strings_failures = sync_strings_assets(args, cfg, strings_assets)
+    print("strings sync")
+    for key in ("checked", "upload", "skip", "fail"):
+        print(f"{key}: {strings_counts[key]}")
+
+    all_failures = failures + strings_failures
+    for failure in all_failures[:20]:
         print(f"- {failure}")
-    if failures:
+    if len(all_failures) > 20:
+        print(f"... {len(all_failures) - 20} more failure(s)")
+    if all_failures:
         return 1
     if args.check_only and counts["upload"]:
         print("check-only found missing or changed remote objects.")

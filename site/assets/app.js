@@ -2,6 +2,8 @@
 
 const $ = (s, r = document) => r.querySelector(s);
 
+const CODEX_R2_BASE = 'https://pub-a66b6b5ffa0d44a89eb7dd6fa1070b58.r2.dev';
+
 const CARD_MIN_WIDTH = 290;
 const GAP = 16;
 const VIRTUAL_BUFFER_UP = 0.8;
@@ -48,7 +50,7 @@ async function init() {
       fetch('data/codexes.json').then(r => r.json()),
       loadMedia(),
     ]);
-    state.media = { ...state.media, ...media };
+    state.media = { ...state.media, ...media, baseUrl: CODEX_R2_BASE };
     const sel = $('#codexSelect');
     sel.innerHTML = codexes.map(c => `<option value="${c.id}">${esc(c.title)}</option>`).join('');
     sel.onchange = () => loadCodex(sel.value);

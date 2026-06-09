@@ -7,6 +7,7 @@ __pycache__/
 Thumbs.db
 *.tmp
 ~$*
+nul
 
 # Word 临时文件
 法典源/~$*
@@ -37,3 +38,4 @@ output/
 
 # 本地 AI 交接说明（不公开；供新会话 / 其它 AI 快速接手）
 CLAUDE.md
+.claude/
