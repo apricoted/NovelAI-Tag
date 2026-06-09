@@ -4,7 +4,7 @@
     "title": "所长常规NovalAI个人法典",
     "version": "2026.5.1",
     "author": "戒红所",
-    "entryCount": 5213,
+    "entryCount": 5215,
     "imagedCount": 4979
   },
   {
@@ -22,5 +22,13 @@
     "author": "戒红所",
     "entryCount": 4421,
     "imagedCount": 4101
+  },
+  {
+    "id": "codex_3f60585d",
+    "title": "涩涩法典(梦神版)",
+    "version": "2026.5.27",
+    "author": "梦神",
+    "entryCount": 351,
+    "imagedCount": 351
   }
 ]

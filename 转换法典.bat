@@ -23,7 +23,7 @@ if errorlevel 1 (
 )
 
 echo == Converting codex .docx files ==
-%PY% tools\convert.py
+%PY% tools\convert.py --archive-sources
 if errorlevel 1 (
   echo.
   echo [FAILED] Conversion error - please send the message above to fix it.
