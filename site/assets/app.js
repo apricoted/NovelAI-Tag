@@ -270,8 +270,24 @@ function selectPath(path, rowEl) {
   $('#search').value = '';
   document.querySelectorAll('.tree-row.active').forEach(r => r.classList.remove('active'));
   rowEl.classList.add('active');
-  if (window.innerWidth <= 600) $('#sidebar').classList.add('hidden');
+  if (window.innerWidth <= 600) $('#sidebar').classList.add('closed');
   applyFilter({ resetScroll: true });
+}
+
+/* 面包屑点击：按路径找到目录行，展开祖先并选中 */
+function selectPathByPath(path) {
+  const key = path.join('\u0001');
+  for (const row of document.querySelectorAll('.tree-row')) {
+    if ((row.dataset.path || '') !== key) continue;
+    let item = row.closest('.tree-item');
+    while (item) {
+      item.classList.remove('collapsed');
+      item = item.parentElement ? item.parentElement.closest('.tree-item') : null;
+    }
+    selectPath(path, row);
+    row.scrollIntoView({ block: 'nearest' });
+    return;
+  }
 }
 
 /* ---------------- 过滤 ---------------- */
@@ -303,12 +319,48 @@ function hasEntryImage(e) {
 
 function updateResultBar() {
   const n = state.list.length;
+  const box = $('#resultInfo');
+  box.innerHTML = '';
+  const q = state.query.trim();
+
+  const crumbs = document.createElement('span');
+  crumbs.className = 'crumbs';
+  const addChip = (label, path, isCurrent) => {
+    const chip = document.createElement(isCurrent ? 'span' : 'button');
+    chip.className = 'crumb' + (isCurrent ? ' current' : '');
+    chip.textContent = label;
+    if (!isCurrent) {
+      chip.type = 'button';
+      chip.onclick = () => selectPathByPath(path);
+    }
+    crumbs.appendChild(chip);
+  };
+  const addSep = () => {
+    const s = document.createElement('span');
+    s.className = 'crumb-sep';
+    s.textContent = '›';
+    crumbs.appendChild(s);
+  };
+  if (q) {
+    addChip('全部', [], false);
+  } else {
+    addChip('全部', [], state.activePath.length === 0);
+    state.activePath.forEach((seg, i) => {
+      addSep();
+      addChip(seg, state.activePath.slice(0, i + 1), i === state.activePath.length - 1);
+    });
+  }
+  box.appendChild(crumbs);
+
+  const count = document.createElement('span');
   let t;
-  if (state.query.trim()) t = `搜索 “${esc(state.query.trim())}”：<b>${n}</b> 条结果`;
-  else if (state.activePath.length) t = `${esc(state.activePath.join(' › '))}：<b>${n}</b> 条`;
+  if (q) t = `搜索 “${esc(q)}”：<b>${n}</b> 条结果`;
   else if (state.onlyFav) t = `⭐ 我的收藏：<b>${n}</b> 条`;
-  else t = `全部 <b>${n}</b> 条词条 · ${state.codex.imagedCount} 条已配图`;
-  $('#resultInfo').innerHTML = t;
+  else if (state.activePath.length) t = `<b>${n}</b> 条`;
+  else t = `共 <b>${n}</b> 条词条 · ${state.codex.imagedCount} 条已配图`;
+  count.innerHTML = t;
+  box.appendChild(count);
+
   $('#empty').hidden = n > 0;
 }
 
@@ -920,7 +972,15 @@ function bindUI() {
   $('#themeBtn').onclick = () => applyTheme(!document.body.classList.contains('dark'));
   applyTheme(localStorage.getItem('fadian-dark') === '1');
 
-  $('#menuBtn').onclick = () => $('#sidebar').classList.toggle('hidden');
+  const sidebar = $('#sidebar');
+  const savedSidebar = localStorage.getItem('fadian-sidebar');
+  if (savedSidebar === 'closed' || (savedSidebar === null && window.innerWidth <= 600)) {
+    sidebar.classList.add('closed');
+  }
+  $('#menuBtn').onclick = () => {
+    sidebar.classList.toggle('closed');
+    localStorage.setItem('fadian-sidebar', sidebar.classList.contains('closed') ? 'closed' : 'open');
+  };
   $('#lightbox').onclick = closeLightbox;
   $('#lightboxPanel').onclick = ev => ev.stopPropagation();
   $('#lightboxClose').onclick = closeLightbox;
@@ -937,6 +997,7 @@ function bindUI() {
 
   /* 智能顶栏：下滑隐藏、上滑立现；搜索聚焦/移动端目录打开时锁定不收 */
   const searchInput = $('#search');
+  const backTopBtn = $('#backTop');
   const mobileQuery = window.matchMedia('(max-width:600px)');
   const setTopbarHidden = hide => document.body.classList.toggle('tb-hidden', hide);
   let lastScrollY = Math.max(0, window.scrollY);
@@ -944,12 +1005,19 @@ function bindUI() {
     const y = Math.max(0, window.scrollY);
     const dy = y - lastScrollY;
     lastScrollY = y;
+    backTopBtn.classList.toggle('show', y > 800);
     if (Math.abs(dy) < 4) return;
     if (document.activeElement === searchInput) { setTopbarHidden(false); return; }
-    if (mobileQuery.matches && !$('#sidebar').classList.contains('hidden')) { setTopbarHidden(false); return; }
+    if (mobileQuery.matches && !sidebar.classList.contains('closed')) { setTopbarHidden(false); return; }
     setTopbarHidden(dy > 0 && y > 120);
   }, { passive: true });
   searchInput.addEventListener('focus', () => setTopbarHidden(false));
+
+  backTopBtn.onclick = () => {
+    setTopbarHidden(false);
+    backTopBtn.classList.remove('show');
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  };
 
   window.addEventListener('resize', () => {
     scheduleRelayout(true);

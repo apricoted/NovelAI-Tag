@@ -76,10 +76,14 @@ body.tb-hidden .topbar{transform:translateY(-100%)}
 .layout{display:flex;align-items:flex-start}
 .sidebar{
   position:sticky;top:var(--topbar-h);align-self:flex-start;flex:0 0 248px;width:248px;
-  height:calc(100vh - var(--topbar-h));overflow-y:auto;background:var(--panel);
+  height:calc(100vh - var(--topbar-h));overflow-y:auto;overflow-x:hidden;background:var(--panel);
   border-right:1px solid var(--line);padding:14px 10px;
-  transition:top .3s cubic-bezier(.22,1,.36,1),height .3s cubic-bezier(.22,1,.36,1);
+  transition:top .3s cubic-bezier(.22,1,.36,1),height .3s cubic-bezier(.22,1,.36,1),
+    flex-basis .3s cubic-bezier(.22,1,.36,1),width .3s cubic-bezier(.22,1,.36,1),
+    padding .3s cubic-bezier(.22,1,.36,1),transform .3s cubic-bezier(.22,1,.36,1);
 }
+.sidebar.closed{flex-basis:0;width:0;padding-left:0;padding-right:0;border-right-color:transparent}
+.sb-head,.tree{width:228px}
 .sb-head{padding:6px 10px 12px}
 .codex-title{display:block;font-weight:700;font-size:15px}
 .codex-meta{display:block;color:var(--muted);font-size:12px;margin-top:2px}
@@ -104,9 +108,19 @@ body.tb-hidden .topbar{transform:translateY(-100%)}
 .tree-children{margin-left:12px;border-left:1px solid var(--line);padding-left:4px}
 .tree-item.collapsed>.tree-children{display:none}
 
-/* ---------- 结果栏 ---------- */
-.result-bar{color:var(--muted);font-size:13px;margin-bottom:14px;min-height:18px}
+/* ---------- 结果栏 / 面包屑 ---------- */
+.result-bar{display:flex;align-items:center;flex-wrap:wrap;gap:8px;color:var(--muted);font-size:13px;margin-bottom:12px;min-height:26px}
 .result-bar b{color:var(--accent)}
+#resultInfo{display:contents}
+.crumbs{display:inline-flex;align-items:center;flex-wrap:wrap;gap:4px}
+.crumb{
+  border:1px solid var(--line);background:var(--card);color:var(--muted);border-radius:999px;
+  padding:3px 11px;font-size:12px;line-height:1.4;
+  transition:color .12s,border-color .12s,background .12s;
+}
+button.crumb:hover{color:var(--accent);border-color:var(--accent);background:var(--accent-soft)}
+.crumb.current{color:var(--accent);border-color:var(--accent);background:var(--accent-soft);font-weight:600}
+.crumb-sep{color:var(--muted);opacity:.6;font-size:11px}
 
 /* ---------- 瀑布流 ---------- */
 .masonry{position:relative;min-height:1px;contain:layout paint}
@@ -232,6 +246,18 @@ body.dark .badge-neg-chip{
   }
 }
 
+/* ---------- 回到顶部 ---------- */
+.back-top{
+  position:fixed;right:26px;bottom:30px;z-index:40;width:42px;height:42px;border-radius:50%;
+  border:1px solid var(--line);background:var(--panel);color:var(--muted);
+  box-shadow:var(--shadow-hover);display:grid;place-items:center;
+  opacity:0;visibility:hidden;transform:translateY(12px);
+  transition:opacity .25s,transform .25s,visibility .25s,color .12s,border-color .12s;
+}
+.back-top.show{opacity:1;visibility:visible;transform:none}
+.back-top:hover{color:var(--accent);border-color:var(--accent)}
+.back-top svg{width:20px;height:20px;stroke:currentColor;stroke-width:2.2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+
 /* ---------- toast ---------- */
 .toast{
   position:fixed;left:50%;bottom:40px;transform:translateX(-50%) translateY(20px);
@@ -305,13 +331,17 @@ body.dark .badge-neg-chip{
 .sentinel{height:1px}
 
 /* ---------- 响应式 ---------- */
-.sidebar.hidden{display:none}
 @media (max-width:600px){
   .topbar{gap:10px;padding:0 10px}
   .topbar-actions{gap:2px}
   .icon-btn,.filter-btn{width:34px;height:34px}
   .github-mark{width:21px;height:21px}
   .sidebar{position:fixed;z-index:25;top:var(--topbar-h);left:0;box-shadow:var(--shadow-hover)}
+  .sidebar.closed{
+    transform:translateX(-110%);box-shadow:none;
+    flex-basis:248px;width:248px;padding:14px 10px;border-right-color:var(--line);
+  }
+  .back-top{right:14px;bottom:18px;width:38px;height:38px}
   .brand{font-size:16px}
   .lightbox{padding:10px}
   .lightbox-panel{width:100%;height:94vh;grid-template-columns:1fr;grid-template-rows:minmax(0,58%) minmax(0,42%)}
