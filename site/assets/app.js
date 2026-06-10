@@ -655,8 +655,7 @@ function setupImage(node, placement) {
   const e = placement.entry;
   const wrap = node.querySelector('.card-img-wrap');
   const img = node.querySelector('.card-img');
-  const thumb = thumbUrl(e);
-  const url = originalUrl(e) || thumb;
+  const url = thumbUrl(e);
   const key = imageKey(e, url);
 
   wrap.hidden = false;
@@ -676,7 +675,7 @@ function setupImage(node, placement) {
 
   img.onload = markLoaded;
   img.onerror = () => {
-    const fallback = thumb && thumb !== img.src ? thumb : localAssetUrl('image', e);
+    const fallback = localAssetUrl('image', e);
     if (fallback && fallback !== img.src && img.dataset.fallbackTried !== '1') {
       img.dataset.fallbackTried = '1';
       img.src = fallback;
