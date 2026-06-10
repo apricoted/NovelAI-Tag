@@ -4,7 +4,7 @@
 (() => {
 
 // ====== 站长配置：把下面引号里的内容替换成 Cloudflare Turnstile 的 Site Key（见配置指南第 1 步） ======
-const TURNSTILE_SITEKEY = '请替换为你的TurnstileSiteKey';
+const TURNSTILE_SITEKEY = '0x4AAAAAADiQT5yadFUv3LhF';
 // 本地调试自动使用官方"永远通过"测试 Key，无需配置
 const TEST_SITEKEY = '1x00000000000000000000AA';
 
