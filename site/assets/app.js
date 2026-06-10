@@ -935,6 +935,22 @@ function bindUI() {
 
   window.addEventListener('scroll', scheduleVirtualUpdate, { passive: true });
 
+  /* 智能顶栏：下滑隐藏、上滑立现；搜索聚焦/移动端目录打开时锁定不收 */
+  const searchInput = $('#search');
+  const mobileQuery = window.matchMedia('(max-width:600px)');
+  const setTopbarHidden = hide => document.body.classList.toggle('tb-hidden', hide);
+  let lastScrollY = Math.max(0, window.scrollY);
+  window.addEventListener('scroll', () => {
+    const y = Math.max(0, window.scrollY);
+    const dy = y - lastScrollY;
+    lastScrollY = y;
+    if (Math.abs(dy) < 4) return;
+    if (document.activeElement === searchInput) { setTopbarHidden(false); return; }
+    if (mobileQuery.matches && !$('#sidebar').classList.contains('hidden')) { setTopbarHidden(false); return; }
+    setTopbarHidden(dy > 0 && y > 120);
+  }, { passive: true });
+  searchInput.addEventListener('focus', () => setTopbarHidden(false));
+
   window.addEventListener('resize', () => {
     scheduleRelayout(true);
   }, { passive: true });
