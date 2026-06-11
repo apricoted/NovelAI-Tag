@@ -62,6 +62,7 @@ async function init() {
     const sel = $('#codexSelect');
     sel.innerHTML = codexes.map(c => `<option value="${c.id}">${esc(c.title)}</option>`).join('');
     sel.onchange = () => loadCodex(sel.value);
+    setupCodexPicker();
     bindUI();
     if (codexes.length) await loadCodex(codexes[0].id);
     else setLoading('还没有可显示的法典数据');
@@ -69,6 +70,45 @@ async function init() {
     console.error(ex);
     setLoading('加载失败，请刷新页面重试');
   }
+}
+
+/* 自绘法典下拉菜单（原生 select 隐藏，仅作值同步） */
+function setupCodexPicker() {
+  const sel = $('#codexSelect');
+  const btn = $('#codexBtn');
+  const menu = $('#codexMenu');
+  if (!btn || !menu) return;
+  const open = () => { menu.hidden = false; btn.classList.add('open'); btn.setAttribute('aria-expanded', 'true'); };
+  const close = () => { menu.hidden = true; btn.classList.remove('open'); btn.setAttribute('aria-expanded', 'false'); };
+  menu.innerHTML = '';
+  for (const c of state.codexes) {
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = 'codex-item';
+    item.dataset.id = c.id;
+    item.setAttribute('role', 'option');
+    item.innerHTML = `<span class="ci-name">${esc(c.title)}</span>` +
+      '<svg class="ck" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 13 4 4L19 7"/></svg>';
+    item.onclick = () => {
+      close();
+      if (sel.value !== c.id) {
+        sel.value = c.id;
+        loadCodex(c.id);
+      }
+    };
+    menu.appendChild(item);
+  }
+  btn.onclick = ev => {
+    ev.stopPropagation();
+    if (menu.hidden) open();
+    else close();
+  };
+  document.addEventListener('click', ev => {
+    if (!menu.hidden && !menu.contains(ev.target)) close();
+  });
+  window.addEventListener('keydown', ev => {
+    if (ev.key === 'Escape' && !menu.hidden) close();
+  });
 }
 
 async function loadMedia() {
@@ -79,14 +119,23 @@ async function loadMedia() {
   return {};
 }
 
+let codexLoadSeq = 0;
 async function loadCodex(id) {
+  const seq = ++codexLoadSeq;
   setLoading('正在加载词条数据…');
   clearMasonry();
   const meta = state.codexes.find(c => c.id === id) || { id };
-  state.codex = await fetchCodex(meta);
+  const codex = await fetchCodex(meta);
+  if (seq !== codexLoadSeq) return;
+  state.codex = codex;
   const c = state.codex;
   $('#codexTitle').textContent = c.title;
   $('#codexMeta').textContent = `${c.author ? c.author + ' · ' : ''}${c.version} · ${c.entryCount} 条`;
+  const codexBtnText = $('#codexBtnText');
+  if (codexBtnText) codexBtnText.textContent = c.title;
+  document.querySelectorAll('#codexMenu .codex-item').forEach(it => {
+    it.classList.toggle('active', it.dataset.id === c.id);
+  });
   state.activePath = [];
   state.query = '';
   $('#search').value = '';
