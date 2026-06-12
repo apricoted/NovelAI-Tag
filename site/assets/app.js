@@ -996,6 +996,74 @@ function fitStageRect(ratio) {
   };
 }
 
+function lightboxItemRatio(e, item, img = null) {
+  const iw = Number(item?.imageWidth || item?.width || item?.thumbWidth || e?.imageWidth || e?.width || e?.thumbWidth || img?.naturalWidth);
+  const ih = Number(item?.imageHeight || item?.height || item?.thumbHeight || e?.imageHeight || e?.height || e?.thumbHeight || img?.naturalHeight);
+  if (iw > 0 && ih > 0) return iw / ih;
+  return 1 / DEFAULT_IMAGE_RATIO;
+}
+
+function applyLightboxFrameSize(e, item, img = null) {
+  const frame = $('#lightboxFrame');
+  const target = fitStageRect(lightboxItemRatio(e, item, img));
+  if (!target.width || !target.height) return;
+  frame.style.width = Math.round(target.width) + 'px';
+  frame.style.height = Math.round(target.height) + 'px';
+}
+
+function resizeLightboxFrame() {
+  const lb = state.lightbox;
+  if (!lb.entry) return;
+  applyLightboxFrameSize(lb.entry, lb.images[lb.index], $('#lightboxImg'));
+}
+
+function resolvedUrl(url) {
+  if (!url) return '';
+  try {
+    return new URL(url, location.href).href;
+  } catch {
+    return String(url);
+  }
+}
+
+function loadDecodedImage(src) {
+  return new Promise((resolve, reject) => {
+    const pre = new Image();
+    pre.decoding = 'async';
+    pre.onload = () => {
+      if (!pre.decode) {
+        resolve(pre);
+        return;
+      }
+      pre.decode().then(() => resolve(pre), reject);
+    };
+    pre.onerror = reject;
+    pre.src = src;
+  });
+}
+
+function lightboxDisplayImg() {
+  const full = $('#lightboxFullImg');
+  if (full && full.classList.contains('ready') && full.naturalWidth) return full;
+  return $('#lightboxImg');
+}
+
+function revealLightboxFullImage(fullImg, src, isCurrent) {
+  fullImg.src = src;
+  const reveal = () => {
+    requestAnimationFrame(() => {
+      if (isCurrent()) fullImg.classList.add('ready');
+    });
+  };
+  if (fullImg.decode) {
+    fullImg.decode().then(reveal, reveal);
+  } else if (fullImg.complete) {
+    reveal();
+  } else {
+    fullImg.onload = reveal;
+  }
+}
+
 function flyIn(sourceEl) {
   const lb = $('#lightbox');
   const from = sourceEl.getBoundingClientRect();
@@ -1032,8 +1100,8 @@ function openLightbox(entry, index = 0, sourceEl = null) {
   lb.classList.remove('flying');
   lb.classList.toggle('folded', localStorage.getItem('fadian-lbinfo') === 'folded');
   lb.classList.toggle('has-thumbs', images.length > 1);
-  renderLightbox();
   lb.hidden = false;
+  renderLightbox();
   void lb.offsetWidth;
   lb.classList.add('is-open');
   if (lbSourceImg && lbSourceImg.naturalWidth && !prefersReducedMotion()) flyIn(lbSourceImg);
@@ -1042,14 +1110,21 @@ function openLightbox(entry, index = 0, sourceEl = null) {
 function closeLightbox() {
   const lb = $('#lightbox');
   if (lb.hidden) return;
+  lbSeq++;
   clearTimeout(lbCloseTimer);
   const done = () => {
     lb.hidden = true;
     lb.classList.remove('is-open', 'flying');
     clearFlyClones();
     const img = $('#lightboxImg');
+    const fullImg = $('#lightboxFullImg');
+    img.onload = null;
     img.onerror = null;
+    fullImg.onload = null;
+    fullImg.onerror = null;
     img.removeAttribute('src');
+    fullImg.removeAttribute('src');
+    fullImg.classList.remove('ready');
     state.lightbox = { entry: null, images: [], index: 0 };
     lbSourceImg = null;
   };
@@ -1058,7 +1133,7 @@ function closeLightbox() {
     done();
     return;
   }
-  const img = $('#lightboxImg');
+  const img = lightboxDisplayImg();
   const src = lbSourceImg;
   const flying = lb.classList.contains('flying');
   lb.classList.remove('is-open');
@@ -1097,31 +1172,37 @@ function renderLightbox() {
   if (!e || !item) return;
   const seq = ++lbSeq;
   const img = $('#lightboxImg');
+  const fullImg = $('#lightboxFullImg');
   const thumbSrc = imageItemUrl('image', e, item);
   const origSrc = imageItemUrl('original', e, item);
+  const origAbs = resolvedUrl(origSrc);
+  const isCurrent = () => seq === lbSeq && state.lightbox.entry === e && state.lightbox.images[state.lightbox.index] === item;
+  applyLightboxFrameSize(e, item, img);
+  fullImg.onload = null;
+  fullImg.onerror = null;
+  fullImg.classList.remove('ready');
+  fullImg.removeAttribute('src');
+  img.onload = () => {
+    if (isCurrent()) applyLightboxFrameSize(e, item, img);
+  };
   img.onerror = () => {
     if (seq !== lbSeq) return;
-    if (origSrc && img.src !== origSrc) img.src = origSrc;
+    if (origSrc && resolvedUrl(img.currentSrc || img.src) !== origAbs) img.src = origSrc;
   };
-  /* 垫底加载：先上缓存缩略图，原图加载完成后无感替换 */
+  /* 垫底加载：缩略图保持可见，原图解码完成后在上层淡入，体感是逐渐变清晰 */
   const showImage = () => {
-    if (seq !== lbSeq) return;
+    if (!isCurrent()) return;
     img.src = thumbSrc || origSrc;
-    img.classList.remove('dip');
     if (origSrc && origSrc !== thumbSrc) {
-      const pre = new Image();
-      pre.onload = () => {
-        if (seq === lbSeq && state.lightbox.entry === e) img.src = origSrc;
-      };
-      pre.src = origSrc;
+      loadDecodedImage(origSrc)
+        .then(pre => {
+          if (!isCurrent()) return;
+          revealLightboxFullImage(fullImg, pre.currentSrc || pre.src, isCurrent);
+        })
+        .catch(() => {});
     }
   };
-  if (img.src) {
-    img.classList.add('dip');
-    window.setTimeout(showImage, 90);
-  } else {
-    showImage();
-  }
+  showImage();
 
   $('#lightboxTitle').textContent = e.title;
   $('#lightboxMeta').textContent = `${lb.index + 1} / ${lb.images.length} · ${e.path.join(' › ')}`;
@@ -1303,6 +1384,8 @@ function bindUI() {
     const lbEl = $('#lightbox');
     lbEl.classList.toggle('folded');
     localStorage.setItem('fadian-lbinfo', lbEl.classList.contains('folded') ? 'folded' : 'open');
+    requestAnimationFrame(resizeLightboxFrame);
+    window.setTimeout(resizeLightboxFrame, 320);
   };
   $('#lightboxClose').onclick = closeLightbox;
   $('#lightboxPrev').onclick = ev => { ev.stopPropagation(); stepLightbox(-1); };
@@ -1349,6 +1432,7 @@ function bindUI() {
   };
 
   window.addEventListener('resize', () => {
+    resizeLightboxFrame();
     scheduleRelayout(true);
   }, { passive: true });
 

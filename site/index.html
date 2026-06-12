@@ -136,7 +136,10 @@
   <button id="lightboxPrev" class="lb-circle lightbox-nav lightbox-prev" type="button" aria-label="上一张">‹</button>
   <button id="lightboxNext" class="lb-circle lightbox-nav lightbox-next" type="button" aria-label="下一张">›</button>
   <div class="lightbox-stage" id="lightboxStage">
-    <img id="lightboxImg" alt="例图">
+    <div class="lightbox-frame" id="lightboxFrame">
+      <img id="lightboxImg" class="lightbox-preview-img" alt="例图">
+      <img id="lightboxFullImg" class="lightbox-full-img" alt="" aria-hidden="true">
+    </div>
   </div>
   <div id="lightboxThumbs" class="lightbox-thumbs" hidden></div>
   <button id="lightboxFold" class="lb-fold" type="button" title="收起 / 展开信息栏" aria-label="收起或展开信息栏">
