@@ -968,6 +968,8 @@ function makeFlyClone(src, rect) {
   const clone = document.createElement('img');
   clone.className = 'lb-fly';
   clone.alt = '';
+  clone.decoding = 'sync';
+  clone.loading = 'eager';
   clone.src = src;
   applyFlyRect(clone, rect, 14);
   document.body.appendChild(clone);
@@ -977,6 +979,12 @@ function makeFlyClone(src, rect) {
 
 function clearFlyClones() {
   document.querySelectorAll('.lb-fly').forEach(n => n.remove());
+}
+
+function removeFlyCloneAfterPaint(clone) {
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => clone.remove());
+  });
 }
 
 function fitStageRect(ratio) {
@@ -996,71 +1004,12 @@ function fitStageRect(ratio) {
   };
 }
 
-function lightboxItemRatio(e, item, img = null) {
-  const iw = Number(item?.imageWidth || item?.width || item?.thumbWidth || e?.imageWidth || e?.width || e?.thumbWidth || img?.naturalWidth);
-  const ih = Number(item?.imageHeight || item?.height || item?.thumbHeight || e?.imageHeight || e?.height || e?.thumbHeight || img?.naturalHeight);
-  if (iw > 0 && ih > 0) return iw / ih;
-  return 1 / DEFAULT_IMAGE_RATIO;
-}
-
-function applyLightboxFrameSize(e, item, img = null) {
-  const frame = $('#lightboxFrame');
-  const target = fitStageRect(lightboxItemRatio(e, item, img));
-  if (!target.width || !target.height) return;
-  frame.style.width = Math.round(target.width) + 'px';
-  frame.style.height = Math.round(target.height) + 'px';
-}
-
-function resizeLightboxFrame() {
-  const lb = state.lightbox;
-  if (!lb.entry) return;
-  applyLightboxFrameSize(lb.entry, lb.images[lb.index], $('#lightboxImg'));
-}
-
 function resolvedUrl(url) {
   if (!url) return '';
   try {
     return new URL(url, location.href).href;
   } catch {
     return String(url);
-  }
-}
-
-function loadDecodedImage(src) {
-  return new Promise((resolve, reject) => {
-    const pre = new Image();
-    pre.decoding = 'async';
-    pre.onload = () => {
-      if (!pre.decode) {
-        resolve(pre);
-        return;
-      }
-      pre.decode().then(() => resolve(pre), reject);
-    };
-    pre.onerror = reject;
-    pre.src = src;
-  });
-}
-
-function lightboxDisplayImg() {
-  const full = $('#lightboxFullImg');
-  if (full && full.classList.contains('ready') && full.naturalWidth) return full;
-  return $('#lightboxImg');
-}
-
-function revealLightboxFullImage(fullImg, src, isCurrent) {
-  fullImg.src = src;
-  const reveal = () => {
-    requestAnimationFrame(() => {
-      if (isCurrent()) fullImg.classList.add('ready');
-    });
-  };
-  if (fullImg.decode) {
-    fullImg.decode().then(reveal, reveal);
-  } else if (fullImg.complete) {
-    reveal();
-  } else {
-    fullImg.onload = reveal;
   }
 }
 
@@ -1078,8 +1027,8 @@ function flyIn(sourceEl) {
   const finish = () => {
     if (finished) return;
     finished = true;
-    clone.remove();
     lb.classList.remove('flying');
+    removeFlyCloneAfterPaint(clone);
   };
   clone.addEventListener('transitionend', finish, { once: true });
   window.setTimeout(finish, 480);
@@ -1117,14 +1066,9 @@ function closeLightbox() {
     lb.classList.remove('is-open', 'flying');
     clearFlyClones();
     const img = $('#lightboxImg');
-    const fullImg = $('#lightboxFullImg');
     img.onload = null;
     img.onerror = null;
-    fullImg.onload = null;
-    fullImg.onerror = null;
     img.removeAttribute('src');
-    fullImg.removeAttribute('src');
-    fullImg.classList.remove('ready');
     state.lightbox = { entry: null, images: [], index: 0 };
     lbSourceImg = null;
   };
@@ -1133,7 +1077,7 @@ function closeLightbox() {
     done();
     return;
   }
-  const img = lightboxDisplayImg();
+  const img = $('#lightboxImg');
   const src = lbSourceImg;
   const flying = lb.classList.contains('flying');
   lb.classList.remove('is-open');
@@ -1172,34 +1116,24 @@ function renderLightbox() {
   if (!e || !item) return;
   const seq = ++lbSeq;
   const img = $('#lightboxImg');
-  const fullImg = $('#lightboxFullImg');
   const thumbSrc = imageItemUrl('image', e, item);
   const origSrc = imageItemUrl('original', e, item);
   const origAbs = resolvedUrl(origSrc);
-  const isCurrent = () => seq === lbSeq && state.lightbox.entry === e && state.lightbox.images[state.lightbox.index] === item;
-  applyLightboxFrameSize(e, item, img);
-  fullImg.onload = null;
-  fullImg.onerror = null;
-  fullImg.classList.remove('ready');
-  fullImg.removeAttribute('src');
-  img.onload = () => {
-    if (isCurrent()) applyLightboxFrameSize(e, item, img);
-  };
+  img.onload = null;
   img.onerror = () => {
     if (seq !== lbSeq) return;
     if (origSrc && resolvedUrl(img.currentSrc || img.src) !== origAbs) img.src = origSrc;
   };
-  /* 垫底加载：缩略图保持可见，原图解码完成后在上层淡入，体感是逐渐变清晰 */
+  /* 垫底加载：先上缩略图，原图加载完成后替换 */
   const showImage = () => {
-    if (!isCurrent()) return;
+    if (seq !== lbSeq) return;
     img.src = thumbSrc || origSrc;
     if (origSrc && origSrc !== thumbSrc) {
-      loadDecodedImage(origSrc)
-        .then(pre => {
-          if (!isCurrent()) return;
-          revealLightboxFullImage(fullImg, pre.currentSrc || pre.src, isCurrent);
-        })
-        .catch(() => {});
+      const pre = new Image();
+      pre.onload = () => {
+        if (seq === lbSeq && state.lightbox.entry === e) img.src = origSrc;
+      };
+      pre.src = origSrc;
     }
   };
   showImage();
@@ -1384,8 +1318,6 @@ function bindUI() {
     const lbEl = $('#lightbox');
     lbEl.classList.toggle('folded');
     localStorage.setItem('fadian-lbinfo', lbEl.classList.contains('folded') ? 'folded' : 'open');
-    requestAnimationFrame(resizeLightboxFrame);
-    window.setTimeout(resizeLightboxFrame, 320);
   };
   $('#lightboxClose').onclick = closeLightbox;
   $('#lightboxPrev').onclick = ev => { ev.stopPropagation(); stepLightbox(-1); };
@@ -1432,7 +1364,6 @@ function bindUI() {
   };
 
   window.addEventListener('resize', () => {
-    resizeLightboxFrame();
     scheduleRelayout(true);
   }, { passive: true });
 
