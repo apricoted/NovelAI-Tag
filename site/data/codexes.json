@@ -8,19 +8,21 @@
     "imagedCount": 5033,
     "source": "戒红所 · 所长常规法典",
     "contributors": [
-      { "name": "戒红所", "role": "法典原作者" }
+      { "name": "戒红所", "role": "法典原作者" },
+      { "name": "拉风de茶", "role": "配图数据提供" }
     ]
   },
   {
     "id": "suozhang_r18",
     "title": "所长色色NovalAI个人法典（合并版）",
     "version": "2026.5.20",
-    "author": "一般所长",
+    "author": "戒红所",
     "entryCount": 9868,
     "imagedCount": 9178,
-    "source": "一般所长 · 所长色色法典（上 + 下 合并）",
+    "source": "戒红所 · 所长色色法典（上 + 下 合并）",
     "contributors": [
-      { "name": "一般所长", "role": "法典原作者" }
+      { "name": "戒红所", "role": "法典原作者" },
+      { "name": "拉风de茶", "role": "配图数据提供" }
     ]
   },
   {
@@ -37,7 +39,8 @@
     "assetPathMode": "relative",
     "source": "梦神 · 涩涩法典",
     "contributors": [
-      { "name": "梦神", "role": "法典原作者 / 数据维护" }
+      { "name": "梦神", "role": "法典原作者 / 数据维护" },
+      { "name": "无间的种", "role": "配图数据提供" }
     ],
     "links": [
       { "label": "数据来源 · prompt-vault-gallery", "url": "https://prompt-vault-gallery.pages.dev" }
