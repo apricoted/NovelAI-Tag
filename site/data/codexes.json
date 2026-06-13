@@ -5,7 +5,15 @@
     "version": "2026.5.20",
     "author": "戒红所",
     "entryCount": 5270,
-    "imagedCount": 5033
+    "imagedCount": 5033,
+    "source": "戒红所 · 所长常规法典",
+    "contributors": [
+      { "name": "戒红所", "role": "法典原作者" },
+      { "name": "（示例）配图整理", "role": "例图收集" }
+    ],
+    "links": [
+      { "label": "所长 AI 教学站", "url": "#" }
+    ]
   },
   {
     "id": "suozhang_r18",
@@ -13,7 +21,11 @@
     "version": "2026.5.20",
     "author": "一般所长",
     "entryCount": 9868,
-    "imagedCount": 9178
+    "imagedCount": 9178,
+    "source": "一般所长 · 所长色色法典（上 + 下 合并）",
+    "contributors": [
+      { "name": "一般所长", "role": "法典原作者" }
+    ]
   },
   {
     "id": "codex_3f60585d",
@@ -26,6 +38,13 @@
     "fallbackDataUrl": "data/codex_3f60585d.json",
     "fallbackVersion": "本地快照",
     "assetBaseUrl": "https://prompt-vault-gallery.pages.dev",
-    "assetPathMode": "relative"
+    "assetPathMode": "relative",
+    "source": "梦神 · 涩涩法典",
+    "contributors": [
+      { "name": "梦神", "role": "法典原作者 / 数据维护" }
+    ],
+    "links": [
+      { "label": "数据来源 · prompt-vault-gallery", "url": "https://prompt-vault-gallery.pages.dev" }
+    ]
   }
 ]

@@ -116,17 +116,41 @@ body.dark .codex-menu{border-color:rgba(255,255,255,.12)}
 .layout{display:flex;align-items:flex-start;gap:14px;padding:0 14px}
 .sidebar{
   position:sticky;top:var(--topbar-h);align-self:flex-start;flex:0 0 248px;width:248px;
-  height:calc(100vh - var(--topbar-h) - 12px);overflow-y:auto;overflow-x:hidden;
+  height:calc(100vh - var(--topbar-h) - 12px);overflow:hidden;
+  display:flex;flex-direction:column;
   background:var(--glass);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
   border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);
   padding:14px 10px;
-  scrollbar-width:thin;scrollbar-color:var(--line) transparent;
   transition:top .3s cubic-bezier(.22,1,.36,1),height .3s cubic-bezier(.22,1,.36,1),
     flex-basis .3s cubic-bezier(.22,1,.36,1),width .3s cubic-bezier(.22,1,.36,1),
     padding .3s cubic-bezier(.22,1,.36,1),transform .3s cubic-bezier(.22,1,.36,1);
 }
 .sidebar.closed{flex-basis:0;width:0;padding-left:0;padding-right:0;border-color:transparent;box-shadow:none}
-.sb-head,.tree{width:228px}
+.sb-head{width:228px;flex:none}
+.tree{
+  width:228px;flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;
+  scrollbar-width:thin;scrollbar-color:var(--line) transparent;
+}
+.sb-foot{width:228px;flex:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
+.sb-foot-link{
+  display:flex;align-items:center;gap:7px;text-decoration:none;
+  color:var(--accent);font-size:12.5px;font-weight:600;
+  border:1px solid var(--line);border-radius:10px;padding:8px 10px;
+  background:var(--accent-soft);transition:border-color .12s;
+}
+.sb-foot-link:hover{border-color:var(--accent)}
+.sb-foot-link svg{width:14px;height:14px;flex:none;stroke:currentColor;stroke-width:2;fill:none}
+.sb-foot-link span{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sb-tip{
+  display:flex;align-items:flex-start;gap:8px;text-align:left;width:100%;
+  border:none;background:var(--tagbg);border-radius:10px;padding:9px 11px;
+  color:var(--muted);font-size:12px;line-height:1.55;cursor:pointer;
+  transition:background .12s;
+}
+.sb-tip:hover{background:var(--tagbg-hover)}
+.sb-tip-ico{flex:none;font-size:13px;line-height:1.4}
+.sb-tip-text{flex:1;transition:opacity .28s}
+.sb-tip-text.fade{opacity:0}
 .sb-head{padding:6px 10px 12px}
 .codex-title{display:block;font-weight:700;font-size:15px}
 .codex-meta{display:block;color:var(--muted);font-size:12px;margin-top:2px}
@@ -153,11 +177,40 @@ body.dark .codex-menu{border-color:rgba(255,255,255,.12)}
 
 /* ---------- 法典横幅 / 分类轨道 ---------- */
 .codex-banner{
+  position:relative;
   display:flex;align-items:center;gap:14px;background:var(--panel);
   border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);
   padding:12px 16px;margin-bottom:12px;
 }
 .codex-banner:empty{display:none}
+.banner-about-btn{
+  position:absolute;right:12px;top:12px;width:28px;height:28px;border-radius:50%;
+  border:1px solid var(--line);background:var(--tagbg);color:var(--muted);
+  display:grid;place-items:center;transition:color .12s,border-color .12s;
+}
+.banner-about-btn:hover,.banner-about-btn.open{color:var(--accent);border-color:var(--accent)}
+.banner-about-btn svg{width:16px;height:16px;stroke:currentColor;stroke-width:2;fill:none}
+.banner-pop{
+  position:absolute;right:12px;top:46px;z-index:20;width:min(280px,calc(100% - 24px));
+  background:var(--glass);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow-hover);
+  padding:13px 15px;animation:settingsIn .16s ease;
+}
+body.dark .banner-pop{border-color:rgba(255,255,255,.12)}
+.bp-sub{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.5px;margin:10px 0 6px}
+.bp-sub:first-child{margin-top:0}
+.bp-source{font-size:13px;font-weight:600}
+.bp-contrib{display:flex;flex-wrap:wrap;gap:6px}
+.bp-chip{
+  display:inline-flex;align-items:baseline;gap:5px;font-size:12px;
+  background:var(--tagbg);border:1px solid var(--line);border-radius:999px;padding:3px 10px;
+}
+.bp-chip small{color:var(--muted);font-size:10px}
+.bp-link{
+  display:flex;align-items:center;gap:7px;text-decoration:none;color:var(--accent);
+  font-size:12.5px;padding:5px 0;
+}
+.bp-link svg{width:13px;height:13px;flex:none;stroke:currentColor;stroke-width:2;fill:none}
 .banner-cover{width:84px;height:62px;border-radius:10px;overflow:hidden;background:var(--tagbg);flex:none}
 .banner-cover img{width:100%;height:100%;object-fit:cover;display:block}
 .banner-info{flex:1;min-width:0}
@@ -391,6 +444,28 @@ body.dark .settings-panel{border-color:rgba(255,255,255,.12)}
 .switch input:checked + i{background:var(--accent);border-color:var(--accent)}
 .switch input:checked + i::after{transform:translateX(18px)}
 
+/* 关于本站（设置框内） */
+.about-block{border-top:1px solid var(--line);margin-top:8px;padding-top:14px}
+.about-h{font-size:14px;font-weight:800;margin:0 0 8px}
+.about-intro{font-size:12.5px;color:var(--muted);line-height:1.65;margin:0 0 6px}
+.about-sub{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.5px;margin:14px 0 7px}
+.about-links{display:flex;flex-direction:column;gap:7px}
+.about-link{
+  display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--text);
+  background:var(--tagbg);border:1px solid var(--line);border-radius:11px;padding:9px 12px;
+  transition:border-color .12s,background .12s;
+}
+.about-link:hover{border-color:var(--accent);background:var(--tagbg-hover)}
+.al-text{min-width:0;flex:1}
+.al-label{font-size:13px;font-weight:600}
+.al-desc{font-size:11px;color:var(--muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.al-ext{flex:none;color:var(--muted)}
+.al-ext svg{width:15px;height:15px;stroke:currentColor;stroke-width:2;fill:none}
+.about-tips{margin:0;padding-left:18px;font-size:12px;color:var(--muted);line-height:1.75}
+.about-tips li{margin:2px 0}
+.about-credits{margin-top:14px;font-size:11px;color:var(--muted);line-height:1.65}
+.about-credits p{margin:0 0 4px}
+
 /* ---------- toast ---------- */
 .toast{
   position:fixed;left:50%;bottom:40px;transform:translateX(-50%) translateY(20px);
@@ -456,6 +531,13 @@ body.dark .lightbox-info{border-color:rgba(255,255,255,.12)}
 .lightbox.folded .lb-fold svg{transform:rotate(180deg)}
 .lightbox-head h2{font-size:18px;line-height:1.35;margin:0 0 4px}
 .lightbox-meta{font-size:12px;color:var(--muted);word-break:break-word}
+.lightbox-credit{
+  display:inline-flex;align-items:center;gap:6px;margin-top:8px;
+  font-size:12px;color:var(--accent);text-decoration:none;
+  background:var(--accent-soft);border-radius:999px;padding:4px 11px;
+}
+a.lightbox-credit:hover{text-decoration:underline}
+.lightbox-credit svg{width:13px;height:13px;flex:none;stroke:currentColor;stroke-width:2;fill:none}
 .lightbox-actions{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}
 .lightbox-actions button,.section-head button{
   border:none;background:var(--tagbg);color:#fff;font-weight:800;

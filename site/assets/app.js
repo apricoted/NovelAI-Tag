@@ -53,16 +53,19 @@ async function init() {
   try {
     setLoading('正在加载法典索引…');
     state.favs = new Set(JSON.parse(localStorage.getItem('fadian-favs') || '[]'));
-    const [codexes, media] = await Promise.all([
+    const [codexes, media, about] = await Promise.all([
       fetch('data/codexes.json').then(r => r.json()),
       loadMedia(),
+      loadAbout(),
     ]);
     state.codexes = codexes;
     state.media = { ...state.media, ...media };
+    state.about = about;
     const sel = $('#codexSelect');
     sel.innerHTML = codexes.map(c => `<option value="${c.id}">${esc(c.title)}</option>`).join('');
     sel.onchange = () => loadCodex(sel.value);
     setupCodexPicker();
+    setupAbout();
     bindUI();
     if (codexes.length) await loadCodex(codexes[0].id);
     else setLoading('还没有可显示的法典数据');
@@ -181,6 +184,14 @@ async function loadMedia() {
   return {};
 }
 
+async function loadAbout() {
+  try {
+    const res = await fetch('data/about.json', { cache: 'no-store' });
+    if (res.ok) return res.json();
+  } catch {}
+  return { links: [], tips: [], credits: [] };
+}
+
 let codexLoadSeq = 0;
 async function loadCodex(id) {
   const seq = ++codexLoadSeq;
@@ -255,6 +266,9 @@ function normalizeCodex(data, meta = {}) {
     assetBaseUrl: stripTrailingSlash(meta.assetBaseUrl || meta.baseUrl || data.assetBaseUrl || ''),
     assetPathMode: meta.assetPathMode || data.assetPathMode || (meta.dataUrl ? 'relative' : 'codex'),
     dataUrl: meta.dataUrl || data.dataUrl || '',
+    source: meta.source || data.source || '',
+    contributors: meta.contributors || data.contributors || [],
+    links: meta.links || data.links || [],
   };
   codex.entries = (data.entries || []).map((entry, i) => normalizeEntry(entry, codex, i));
   codex.entryCount = Number(codex.entryCount || codex.entries.length);
@@ -496,6 +510,7 @@ function renderCodexHeader() {
     `<div class="banner-progress"><div class="bp-track"><div class="bp-fill" style="width:${pct}%"></div></div>` +
     `<span class="bp-text">${c.imagedCount} / ${c.entryCount} 已配图</span></div>` +
     `</div>`;
+  renderBannerAbout(c, banner);
   const rail = $('#chipRail');
   if (!rail) return;
   rail.innerHTML = '';
@@ -524,6 +539,148 @@ function updateRailActive() {
   rail.querySelectorAll('.rail-chip').forEach(ch => {
     ch.classList.toggle('active', head !== null && (ch.dataset.path || '') === head);
   });
+}
+
+/* 法典「关于」气泡：来源 / 贡献者 / 相关链接 */
+const EXT_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/></svg>';
+
+function renderBannerAbout(c, banner) {
+  const contributors = Array.isArray(c.contributors) ? c.contributors : [];
+  const links = Array.isArray(c.links) ? c.links : [];
+  if (!c.source && !contributors.length && !links.length) return;
+
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'banner-about-btn';
+  btn.title = '关于本法典';
+  btn.setAttribute('aria-label', '关于本法典');
+  btn.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>';
+
+  const pop = document.createElement('div');
+  pop.className = 'banner-pop';
+  pop.hidden = true;
+  let html = '';
+  if (c.source) html += `<div class="bp-sub">来源</div><div class="bp-source">${esc(c.source)}</div>`;
+  if (contributors.length) {
+    html += '<div class="bp-sub">贡献者</div><div class="bp-contrib">';
+    for (const p of contributors) {
+      const name = typeof p === 'string' ? p : (p.name || '');
+      const role = typeof p === 'string' ? '' : (p.role || '');
+      if (!name) continue;
+      html += `<span class="bp-chip">${esc(name)}${role ? `<small>${esc(role)}</small>` : ''}</span>`;
+    }
+    html += '</div>';
+  }
+  const validLinks = links.filter(l => l && l.url && l.url !== '#');
+  if (validLinks.length) {
+    html += '<div class="bp-sub">相关链接</div>';
+    for (const l of validLinks) {
+      html += `<a class="bp-link" href="${esc(l.url)}" target="_blank" rel="noopener">${EXT_ICON}<span>${esc(l.label || l.url)}</span></a>`;
+    }
+  }
+  pop.innerHTML = html;
+
+  btn.onclick = ev => {
+    ev.stopPropagation();
+    const show = pop.hidden;
+    pop.hidden = !show;
+    btn.classList.toggle('open', show);
+  };
+  document.addEventListener('click', ev => {
+    if (!pop.hidden && !pop.contains(ev.target) && ev.target !== btn) {
+      pop.hidden = true;
+      btn.classList.remove('open');
+    }
+  });
+
+  banner.appendChild(btn);
+  banner.appendChild(pop);
+}
+
+/* 关于本站（设置框）+ 侧栏小贴士轮播 */
+let tipTimer = 0;
+let tipIndex = 0;
+function setupAbout() {
+  const about = state.about || {};
+  const links = Array.isArray(about.links) ? about.links : [];
+  const tips = Array.isArray(about.tips) ? about.tips : [];
+  const credits = Array.isArray(about.credits) ? about.credits : [];
+
+  const intro = $('#aboutIntro');
+  if (intro) intro.textContent = about.intro || '';
+
+  const linkBox = $('#aboutLinks');
+  if (linkBox) {
+    linkBox.innerHTML = '';
+    for (const l of links) {
+      if (!l || !l.label) continue;
+      const real = l.url && l.url !== '#';
+      const el = document.createElement(real ? 'a' : 'div');
+      el.className = 'about-link';
+      if (real) { el.href = l.url; el.target = '_blank'; el.rel = 'noopener'; }
+      el.innerHTML =
+        `<span class="al-text"><span class="al-label">${esc(l.label)}</span>` +
+        `<span class="al-desc">${esc(l.desc || (real ? l.url : '链接待补充'))}</span></span>` +
+        (real ? `<span class="al-ext">${EXT_ICON}</span>` : '');
+      linkBox.appendChild(el);
+    }
+  }
+
+  const tipBox = $('#aboutTips');
+  if (tipBox) {
+    tipBox.innerHTML = '';
+    for (const t of tips) {
+      const li = document.createElement('li');
+      li.textContent = t;
+      tipBox.appendChild(li);
+    }
+  }
+
+  const credBox = $('#aboutCredits');
+  if (credBox) {
+    credBox.innerHTML = '';
+    for (const c of credits) {
+      const p = document.createElement('p');
+      p.textContent = c;
+      credBox.appendChild(p);
+    }
+  }
+
+  /* 侧栏底：常驻友链 + 轮播贴士 */
+  const foot = $('#sbFoot');
+  const footLink = $('#sbFootLink');
+  if (footLink && links.length && links[0].label) {
+    const l = links[0];
+    const real = l.url && l.url !== '#';
+    footLink.innerHTML =
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>' +
+      `<span>${esc(l.label)}</span>`;
+    if (real) { footLink.href = l.url; footLink.removeAttribute('aria-disabled'); }
+    else { footLink.removeAttribute('href'); footLink.title = '链接待补充'; }
+    footLink.hidden = false;
+  }
+  const tipText = $('#sbTipText');
+  if (foot && tipText && tips.length) {
+    tipIndex = Math.floor(Math.random() * tips.length);
+    tipText.textContent = tips[tipIndex];
+    const rotate = () => {
+      tipText.classList.add('fade');
+      window.setTimeout(() => {
+        tipIndex = (tipIndex + 1) % tips.length;
+        tipText.textContent = tips[tipIndex];
+        tipText.classList.remove('fade');
+      }, 280);
+    };
+    const restart = () => {
+      clearInterval(tipTimer);
+      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        tipTimer = window.setInterval(rotate, 9000);
+      }
+    };
+    $('#sbTip').onclick = () => { rotate(); restart(); };
+    restart();
+    foot.hidden = false;
+  }
 }
 
 /* ---------------- 虚拟瀑布流 ---------------- */
@@ -1140,6 +1297,22 @@ function renderLightbox() {
 
   $('#lightboxTitle').textContent = e.title;
   $('#lightboxMeta').textContent = `${lb.index + 1} / ${lb.images.length} · ${e.path.join(' › ')}`;
+
+  const credit = item.credit || item.author || e.credit || e.author || '';
+  const creditUrl = item.creditUrl || item.authorUrl || e.creditUrl || e.authorUrl || '';
+  const creditEl = $('#lightboxCredit');
+  if (credit) {
+    creditEl.innerHTML =
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8M5 20a7 7 0 0 1 14 0"/></svg>' +
+      `<span>${esc(credit)}</span>`;
+    if (creditUrl) { creditEl.href = creditUrl; creditEl.target = '_blank'; creditEl.rel = 'noopener'; }
+    else creditEl.removeAttribute('href');
+    creditEl.hidden = false;
+  } else {
+    creditEl.hidden = true;
+    creditEl.removeAttribute('href');
+  }
+
   $('#lightboxTags').textContent = e.tags || '';
   $('#lightboxNegative').textContent = e.negative || '';
   $('#lightboxNote').textContent = e.note || '';

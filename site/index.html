@@ -64,6 +64,13 @@
       <span id="codexMeta" class="codex-meta"></span>
     </div>
     <nav id="tree" class="tree"></nav>
+    <div id="sbFoot" class="sb-foot" hidden>
+      <a id="sbFootLink" class="sb-foot-link" href="#" target="_blank" rel="noopener" hidden></a>
+      <button id="sbTip" class="sb-tip" type="button" title="换一条小贴士">
+        <span class="sb-tip-ico" aria-hidden="true">💡</span>
+        <span id="sbTipText" class="sb-tip-text"></span>
+      </button>
+    </div>
   </aside>
 
   <main class="main" id="main">
@@ -126,6 +133,16 @@
       <span class="soon">即将推出</span>
       <label class="switch"><input type="checkbox" disabled><i></i></label>
     </div>
+
+    <div class="about-block">
+      <h3 class="about-h">关于本站</h3>
+      <p id="aboutIntro" class="about-intro"></p>
+      <div class="about-sub">友情链接</div>
+      <div id="aboutLinks" class="about-links"></div>
+      <div class="about-sub">使用技巧</div>
+      <ul id="aboutTips" class="about-tips"></ul>
+      <div id="aboutCredits" class="about-credits"></div>
+    </div>
   </div>
 </div>
 
@@ -146,6 +163,7 @@
       <div class="lightbox-head">
         <h2 id="lightboxTitle"></h2>
         <div id="lightboxMeta" class="lightbox-meta"></div>
+        <a id="lightboxCredit" class="lightbox-credit" hidden></a>
       </div>
       <div class="lightbox-actions">
         <button id="copyAll" type="button">复制全部</button>
