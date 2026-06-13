@@ -544,6 +544,14 @@ function updateRailActive() {
 /* 法典「关于」气泡：来源 / 贡献者 / 相关链接 */
 const EXT_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/></svg>';
 
+function closeBannerAbout() {
+  const openBtn = document.querySelector('.banner-about-btn.open');
+  const openPop = document.querySelector('.banner-pop:not([hidden])');
+  if (!openBtn || !openPop) return;
+  openPop.hidden = true;
+  openBtn.classList.remove('open');
+}
+
 function renderBannerAbout(c, banner) {
   const contributors = Array.isArray(c.contributors) ? c.contributors : [];
   const links = Array.isArray(c.links) ? c.links : [];
@@ -583,15 +591,10 @@ function renderBannerAbout(c, banner) {
   btn.onclick = ev => {
     ev.stopPropagation();
     const show = pop.hidden;
+    closeBannerAbout();
     pop.hidden = !show;
     btn.classList.toggle('open', show);
   };
-  document.addEventListener('click', ev => {
-    if (!pop.hidden && !pop.contains(ev.target) && ev.target !== btn) {
-      pop.hidden = true;
-      btn.classList.remove('open');
-    }
-  });
 
   banner.appendChild(btn);
   banner.appendChild(pop);
@@ -1473,10 +1476,18 @@ function bindUI() {
   $('#aboutBtn').onclick = () => { aboutMask.hidden = false; };
   $('#aboutClose').onclick = () => { aboutMask.hidden = true; };
   aboutMask.onclick = ev => { if (ev.target === aboutMask) aboutMask.hidden = true; };
+  document.addEventListener('click', ev => {
+    const openBtn = document.querySelector('.banner-about-btn.open');
+    const openPop = document.querySelector('.banner-pop:not([hidden])');
+    if (!openBtn || !openPop) return;
+    if (openBtn.contains(ev.target) || openPop.contains(ev.target)) return;
+    closeBannerAbout();
+  });
   window.addEventListener('keydown', ev => {
     if (ev.key !== 'Escape') return;
     if (!settingsMask.hidden) settingsMask.hidden = true;
     if (!aboutMask.hidden) aboutMask.hidden = true;
+    closeBannerAbout();
   });
   $('#lightbox').onclick = ev => {
     if (ev.target.id === 'lightbox' || ev.target.id === 'lightboxStage') closeLightbox();
