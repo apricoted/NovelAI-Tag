@@ -45,5 +45,17 @@
     "links": [
       { "label": "数据来源 · prompt-vault-gallery", "url": "https://prompt-vault-gallery.pages.dev" }
     ]
+  },
+  {
+    "id": "codex_70c0e66f",
+    "title": "叫我千藤就好了の衣柜",
+    "version": "2026.3.1",
+    "author": "叫我千藤就好了",
+    "entryCount": 125,
+    "imagedCount": 124,
+    "source": "叫我千藤就好了 · 叫我千藤就好了の衣柜",
+    "contributors": [
+      { "name": "叫我千藤就好了", "role": "法典原作者" }
+    ]
   }
 ]
