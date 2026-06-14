@@ -875,6 +875,26 @@ def codex_summary_from_file(path, meta_keys):
         return None
     return {k: data.get(k) for k in meta_keys}, data
 
+def keep_about_fields(old_meta, new_meta):
+    if not isinstance(old_meta, dict):
+        return new_meta
+    merged = {
+        k: old_meta[k]
+        for k in ("source", "contributors", "links")
+        if k in old_meta
+    }
+    merged.update(new_meta)
+    return merged
+
+def merge_kept_index_meta(old_meta, file_meta):
+    if not isinstance(old_meta, dict):
+        return file_meta
+    if old_meta.get("dataUrl"):
+        return old_meta
+    merged = dict(old_meta)
+    merged.update(file_meta)
+    return merged
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -894,6 +914,7 @@ def main():
         docs.append(d)
     META_KEYS = ("id", "title", "version", "author", "entryCount", "imagedCount")
     existing_index = load_existing_index()
+    existing_by_id = {item.get("id"): item for item in existing_index if isinstance(item, dict) and item.get("id")}
     produced_infos = []
     seen = {}
     produced = set()
@@ -909,7 +930,8 @@ def main():
             seen[cid] = 1
         info = convert(d, cid)
         produced.add(info["id"])
-        produced_infos.append({k: info[k] for k in META_KEYS})
+        base_info = {k: info[k] for k in META_KEYS}
+        produced_infos.append(keep_about_fields(existing_by_id.get(info["id"]), base_info))
         print(f"[OK] {info['id']}: {info['entryCount']} entries, "
               f"{info['imagedCount']} imaged, {info['reviewCount']} to review")
 
@@ -938,7 +960,7 @@ def main():
             emitted.add(cid)
         elif cid in kept_by_id:
             summary, kept = kept_by_id[cid]
-            index.append(summary)
+            index.append(merge_kept_index_meta(old, summary))
             emitted.add(cid)
             print(f"[KEEP] {cid}: kept from existing data (no docx) - {kept.get('entryCount')} entries")
 
