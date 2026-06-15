@@ -177,6 +177,9 @@ def codex_files():
     for path in sorted(DATA_DIR.glob("*.json")):
         if path.name in ("codexes.json", "media.json"):
             continue
+        data = load_json(path, {})
+        if not isinstance(data, dict) or not isinstance(data.get("entries"), list):
+            continue
         yield path
 
 

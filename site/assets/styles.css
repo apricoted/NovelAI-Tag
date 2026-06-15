@@ -436,6 +436,25 @@ body.dark .settings-panel{border-color:rgba(255,255,255,.12)}
 }
 .switch input:checked + i{background:var(--accent);border-color:var(--accent)}
 .switch input:checked + i::after{transform:translateX(18px)}
+/* 已可用的开关：覆盖占位项的灰禁用样式 */
+.switch.live,.switch.live input{opacity:1;cursor:pointer}
+.set-live{
+  display:inline-block;font-size:10px;font-weight:800;letter-spacing:.5px;color:#fff;
+  background:var(--accent);border-radius:999px;padding:1px 7px;margin-left:6px;vertical-align:middle;
+}
+.set-desc code{
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;
+  background:var(--tagbg);border:1px solid var(--line);border-radius:4px;padding:0 4px;
+}
+/* SD 模式顶栏常驻角标 */
+.sd-badge{
+  flex:none;font-size:11px;font-weight:800;letter-spacing:.5px;color:#fff;cursor:pointer;
+  background:linear-gradient(135deg,var(--accent),#7c5cff);border:none;border-radius:8px;
+  padding:6px 10px;white-space:nowrap;box-shadow:0 2px 8px var(--accent-soft);
+  display:inline-flex;align-items:center;gap:4px;transition:filter .15s;
+}
+.sd-badge::before{content:"⇄";font-weight:900}
+.sd-badge:hover{filter:brightness(1.08)}
 
 /* 关于本站面板 */
 .about-intro{font-size:12.5px;color:var(--muted);line-height:1.65;margin:0 0 6px}
