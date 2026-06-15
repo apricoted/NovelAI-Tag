@@ -365,10 +365,10 @@ body.dark .badge-neg-chip{
   .masonry.is-relayouting .card-img-wrap,
   .masonry.is-relayouting .card-tags,
   .topbar,.sidebar,
-  .lightbox,.lightbox-stage,.lightbox-info,.lb-fold,.lb-circle,.lb-fly,#lightboxImg,.lightbox-thumbs{
+  .lightbox,.lightbox-stage,.lightbox-info,.lb-fold,.lb-circle,.lb-fly,#lightboxImg,.lightbox-thumbs,
+  .settings-mask,.settings-panel,.sd-badge{
     transition:none;
   }
-  .settings-panel{animation:none}
 }
 
 /* ---------- 回到顶部 ---------- */
@@ -387,15 +387,19 @@ body.dark .badge-neg-chip{
 .settings-mask{
   position:fixed;inset:0;z-index:70;display:grid;place-items:center;padding:20px;
   background:rgba(15,18,30,.45);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+  opacity:0;transition:opacity .2s ease;
 }
+.settings-mask.show{opacity:1}
 .settings-panel{
   position:relative;width:min(560px,94vw);max-height:min(660px,90vh);overflow-y:auto;
   background:var(--glass);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
   border:1px solid var(--line);border-radius:22px;box-shadow:var(--shadow-hover);
   padding:22px 24px 14px;
   scrollbar-width:thin;scrollbar-color:var(--line) transparent;
-  animation:settingsIn .2s ease;
+  opacity:0;transform:translateY(12px) scale(.97);
+  transition:opacity .2s ease,transform .25s cubic-bezier(.22,1,.36,1);
 }
+.settings-mask.show .settings-panel{opacity:1;transform:none}
 body.dark .settings-panel{border-color:rgba(255,255,255,.12)}
 @keyframes settingsIn{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:none}}
 .settings-close{
@@ -451,8 +455,11 @@ body.dark .settings-panel{border-color:rgba(255,255,255,.12)}
   flex:none;font-size:11px;font-weight:800;letter-spacing:.5px;color:#fff;cursor:pointer;
   background:linear-gradient(135deg,var(--accent),#7c5cff);border:none;border-radius:8px;
   padding:6px 10px;white-space:nowrap;box-shadow:0 2px 8px var(--accent-soft);
-  display:inline-flex;align-items:center;gap:4px;transition:filter .15s;
+  display:inline-flex;align-items:center;gap:4px;
+  opacity:0;transform:translateY(-4px) scale(.92);pointer-events:none;
+  transition:opacity .2s ease,transform .2s cubic-bezier(.22,1,.36,1),filter .15s;
 }
+.sd-badge.show{opacity:1;transform:none;pointer-events:auto}
 .sd-badge::before{content:"⇄";font-weight:900}
 .sd-badge:hover{filter:brightness(1.08)}
 
@@ -614,6 +621,11 @@ body.dark .lb-circle{border-color:rgba(255,255,255,.14)}
   .icon-btn,.filter-btn{width:34px;height:34px}
   .github-mark{width:20px;height:20px}
   .nav-link,.github-btn{display:none}
+  .sd-badge{
+    width:34px;height:34px;padding:0;justify-content:center;border-radius:10px;
+    font-size:0;box-shadow:none;
+  }
+  .sd-badge::before{content:"SD";font-size:11px;letter-spacing:0}
   .search-wrap{order:20;flex:0 0 100%;max-width:none}
   #search{height:36px}
   .layout{padding:0 8px;gap:8px}

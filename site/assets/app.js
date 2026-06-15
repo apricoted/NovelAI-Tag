@@ -1557,16 +1557,33 @@ function bindUI() {
   /* SD 复制模式：设置里的开关 + 顶栏常驻角标（开着才显示，点角标可关），状态存 localStorage */
   const sdToggle = $('#sdModeToggle');
   const sdBadge = $('#sdBadge');
-  const applySdMode = on => {
+  let sdBadgeTimer;
+  const showSdBadge = (on, animate) => {
+    if (!sdBadge) return;
+    clearTimeout(sdBadgeTimer);
+    if (on) {
+      sdBadge.hidden = false;
+      if (animate) void sdBadge.offsetWidth;   // 强制回流，让淡入过渡生效
+      sdBadge.classList.add('show');
+    } else {
+      sdBadge.classList.remove('show');
+      if (animate && !prefersReducedMotion()) {
+        sdBadgeTimer = setTimeout(() => { sdBadge.hidden = true; }, 240);  // 等淡出动画结束再收起占位
+      } else {
+        sdBadge.hidden = true;
+      }
+    }
+  };
+  const applySdMode = (on, animate = true) => {
     state.sdMode = on;
     if (sdToggle) sdToggle.checked = on;
-    if (sdBadge) sdBadge.hidden = !on;
     document.body.classList.toggle('sd-mode', on);
     localStorage.setItem('fadian-sdmode', on ? '1' : '0');
+    showSdBadge(on, animate);
   };
   if (sdToggle) sdToggle.onchange = e => applySdMode(e.target.checked);
   if (sdBadge) sdBadge.onclick = () => applySdMode(false);
-  applySdMode(localStorage.getItem('fadian-sdmode') === '1');
+  applySdMode(localStorage.getItem('fadian-sdmode') === '1', false);  // 初始化不做动画
 
   const sidebar = $('#sidebar');
   const savedSidebar = localStorage.getItem('fadian-sidebar');
@@ -1578,15 +1595,29 @@ function bindUI() {
     localStorage.setItem('fadian-sidebar', sidebar.classList.contains('closed') ? 'closed' : 'open');
   };
 
-  /* 设置 / 关于 悬浮框：开关三件套（按钮/遮罩/Esc） */
+  /* 设置 / 关于 悬浮框：开关三件套（按钮/遮罩/Esc），带淡入淡出 */
   const settingsMask = $('#settings');
   const aboutMask = $('#about');
-  $('#settingsBtn').onclick = () => { settingsMask.hidden = false; };
-  $('#settingsClose').onclick = () => { settingsMask.hidden = true; };
-  settingsMask.onclick = ev => { if (ev.target === settingsMask) settingsMask.hidden = true; };
-  $('#aboutBtn').onclick = () => { aboutMask.hidden = false; };
-  $('#aboutClose').onclick = () => { aboutMask.hidden = true; };
-  aboutMask.onclick = ev => { if (ev.target === aboutMask) aboutMask.hidden = true; };
+  const maskTimers = new WeakMap();
+  const openMask = mask => {
+    clearTimeout(maskTimers.get(mask));
+    mask.hidden = false;
+    void mask.offsetWidth;            // 强制回流，让淡入过渡生效
+    mask.classList.add('show');
+  };
+  const closeMask = mask => {
+    mask.classList.remove('show');
+    if (prefersReducedMotion()) { mask.hidden = true; return; }
+    maskTimers.set(mask, setTimeout(() => {
+      if (!mask.classList.contains('show')) mask.hidden = true;   // 期间未被重新打开才真正收起
+    }, 240));
+  };
+  $('#settingsBtn').onclick = () => openMask(settingsMask);
+  $('#settingsClose').onclick = () => closeMask(settingsMask);
+  settingsMask.onclick = ev => { if (ev.target === settingsMask) closeMask(settingsMask); };
+  $('#aboutBtn').onclick = () => openMask(aboutMask);
+  $('#aboutClose').onclick = () => closeMask(aboutMask);
+  aboutMask.onclick = ev => { if (ev.target === aboutMask) closeMask(aboutMask); };
   document.addEventListener('click', ev => {
     const openBtn = document.querySelector('.banner-about-btn.open');
     const openPop = document.querySelector('.banner-pop:not([hidden])');
@@ -1596,8 +1627,8 @@ function bindUI() {
   });
   window.addEventListener('keydown', ev => {
     if (ev.key !== 'Escape') return;
-    if (!settingsMask.hidden) settingsMask.hidden = true;
-    if (!aboutMask.hidden) aboutMask.hidden = true;
+    if (!settingsMask.hidden) closeMask(settingsMask);
+    if (!aboutMask.hidden) closeMask(aboutMask);
     closeBannerAbout();
   });
   $('#lightbox').onclick = ev => {
