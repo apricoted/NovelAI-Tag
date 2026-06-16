@@ -31,6 +31,7 @@ const state = {
   sdMode: false,      // 复制时把 NAI 权重转成 Stable Diffusion 格式
   favs: new Set(),    // 收藏集合，键为 codexId:entryId
   loadedImages: new Set(),
+  seenAnimated: new Set(),
   lightbox: {
     entry: null,
     images: [],
@@ -216,7 +217,9 @@ async function loadCodex(id) {
   });
   state.activePath = [];
   state.query = '';
+  state.seenAnimated.clear();
   $('#search').value = '';
+  updateSearchClear();
   renderTree();
   renderCodexHeader();
   applyFilter({ resetScroll: true });
@@ -905,17 +908,42 @@ function makeCard(placement) {
   }
 
   node.onclick = () => copyEntry(e, node);
+  maybeAnimateCardEntry(node, placement);
   return node;
 }
 
 function updateCardPosition(node, placement) {
   node.style.width = `${placement.width}px`;
   node.style.height = `${placement.height}px`;
-  node.style.transform = `translate3d(${placement.left}px, ${placement.top}px, 0)`;
+  node.style.setProperty('--card-x', `${placement.left}px`);
+  node.style.setProperty('--card-y', `${placement.top}px`);
+  if (!node.style.getPropertyValue('--entry-offset')) node.style.setProperty('--entry-offset', '0px');
+  node.style.transform = 'translate3d(var(--card-x), calc(var(--card-y) + var(--entry-offset, 0px)), 0)';
   const wrap = node.querySelector('.card-img-wrap');
   if (wrap && placement.imageHeight) wrap.style.height = `${placement.imageHeight}px`;
   const tags = node.querySelector('.card-tags');
   if (tags) tags.style.height = `${placement.tagsHeight}px`;
+}
+
+function maybeAnimateCardEntry(node, placement) {
+  if (prefersReducedMotion() || relayoutAnimating || !state.codex) return;
+  const key = `${state.codex.id}:${placement.entry.id}`;
+  if (state.seenAnimated.has(key)) return;
+  state.seenAnimated.add(key);
+
+  const delay = Math.min(210, placement.col * 30 + (placement.index % Math.max(1, state.colN)) * 10);
+  node.style.setProperty('--entry-offset', '18px');
+  node.style.setProperty('--entry-delay', `${delay}ms`);
+  node.classList.add('card-enter');
+  requestAnimationFrame(() => {
+    if (!node.isConnected) return;
+    node.classList.add('is-entered');
+    node.style.setProperty('--entry-offset', '0px');
+  });
+  window.setTimeout(() => {
+    node.classList.remove('card-enter', 'is-entered');
+    node.style.removeProperty('--entry-delay');
+  }, delay + 560);
 }
 
 function calibrateCardHeight(node, placement) {
@@ -1177,6 +1205,8 @@ let toastTimer;
 function toast(msg) {
   const t = $('#toast');
   t.textContent = '✓ ' + msg;
+  t.classList.remove('show');
+  void t.offsetWidth;
   t.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove('show'), 1600);
@@ -1415,6 +1445,8 @@ function renderLightbox() {
   $('#copyAll').onclick = ev => { ev.stopPropagation(); copyText(combinedPrompt(e), `已复制正向+负面：${e.title}`); };
   $('#copyRawTag').hidden = !item.rawTag;
   $('#copyRawTag').onclick = ev => { ev.stopPropagation(); copyText(item.rawTag, `已复制当前图 raw tag：${e.title}`); };
+  const actions = document.querySelector('.lightbox-actions');
+  if (actions) actions.hidden = $('#copyAll').hidden && $('#copyRawTag').hidden;
 
   const prev = $('#lightboxPrev');
   const next = $('#lightboxNext');
@@ -1531,7 +1563,10 @@ function originalUrl(e) {
 /* ---------------- 交互绑定 ---------------- */
 function bindUI() {
   let st;
-  $('#search').oninput = e => {
+  const searchInput = $('#search');
+  const searchClear = $('#searchClear');
+  searchInput.oninput = e => {
+    updateSearchClear();
     clearTimeout(st);
     st = setTimeout(() => {
       state.query = e.target.value;
@@ -1541,6 +1576,17 @@ function bindUI() {
       applyFilter({ resetScroll: true });
     }, 180);
   };
+  if (searchClear) {
+    searchClear.onclick = () => {
+      if (!searchInput.value) return;
+      clearTimeout(st);
+      searchInput.value = '';
+      state.query = '';
+      updateSearchClear();
+      applyFilter({ resetScroll: true });
+      searchInput.focus();
+    };
+  }
 
   $('#onlyImaged').onchange = e => { state.onlyImaged = e.target.checked; applyFilter({ resetScroll: true }); };
   $('#onlyFav').onchange = e => { state.onlyFav = e.target.checked; applyFilter({ resetScroll: true }); };
@@ -1653,7 +1699,6 @@ function bindUI() {
   window.addEventListener('scroll', scheduleVirtualUpdate, { passive: true });
 
   /* 智能顶栏：下滑隐藏、上滑立现；搜索聚焦/移动端目录打开时锁定不收 */
-  const searchInput = $('#search');
   const backTopBtn = $('#backTop');
   const mobileQuery = window.matchMedia('(max-width:600px)');
   const setTopbarHidden = hide => document.body.classList.toggle('tb-hidden', hide);
@@ -1669,6 +1714,13 @@ function bindUI() {
     setTopbarHidden(dy > 0 && y > 120);
   }, { passive: true });
   searchInput.addEventListener('focus', () => setTopbarHidden(false));
+  window.addEventListener('keydown', ev => {
+    if (ev.key !== '/' || ev.ctrlKey || ev.metaKey || ev.altKey) return;
+    const tag = document.activeElement && document.activeElement.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || !$('#lightbox').hidden || !$('#settings').hidden || !$('#about').hidden) return;
+    ev.preventDefault();
+    searchInput.focus();
+  });
 
   /* 分类轨道：纵向滚轮转横向滚动 */
   const rail = $('#chipRail');
@@ -1698,6 +1750,12 @@ function bindUI() {
     });
     ro.observe($('#main'));
   }
+}
+
+function updateSearchClear() {
+  const btn = $('#searchClear');
+  const input = $('#search');
+  if (btn && input) btn.hidden = !input.value;
 }
 
 function clamp(v, min, max) {

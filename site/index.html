@@ -24,6 +24,9 @@
   <div class="search-wrap">
     <span class="search-ico">🔍</span>
     <input id="search" type="search" placeholder="搜索词条或 tag（中 / 英）…" autocomplete="off">
+    <button id="searchClear" class="search-clear" type="button" aria-label="清空搜索" title="清空搜索" hidden>
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 4.5 11.5 11.5M11.5 4.5 4.5 11.5"/></svg>
+    </button>
   </div>
 
   <label class="filter-btn" title="只看有图" aria-label="只看有图">
@@ -176,6 +179,7 @@
       <div class="lightbox-head">
         <h2 id="lightboxTitle"></h2>
         <div id="lightboxMeta" class="lightbox-meta"></div>
+        <div class="lightbox-tip">拖入 NovelAI 获取元数据</div>
         <a id="lightboxCredit" class="lightbox-credit" hidden></a>
       </div>
       <div class="lightbox-actions">
