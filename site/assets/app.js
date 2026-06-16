@@ -26,12 +26,14 @@ const state = {
   itemWidth: 0,
   activePath: [],     // 选中的目录路径
   query: '',
+  searchPlan: null,
   onlyImaged: false,
   onlyFav: false,
   sdMode: false,      // 复制时把 NAI 权重转成 Stable Diffusion 格式
   favs: new Set(),    // 收藏集合，键为 codexId:entryId
   loadedImages: new Set(),
   seenAnimated: new Set(),
+  sourceNoticesShown: new Set(),
   pendingUrlState: null,
   suppressUrlSync: false,
   lightbox: {
@@ -244,6 +246,7 @@ async function loadCodex(id, options = {}) {
     window.setTimeout(() => openEntryDeepLink(urlState.entry), 180);
   }
   setLoading('');
+  notifyCodexDataStatus(c);
 }
 
 async function fetchCodex(meta) {
@@ -262,10 +265,13 @@ async function fetchCodex(meta) {
     data = await fetchJson(meta.fallbackDataUrl, 'default');
     sourceMeta = {
       ...meta,
+      sourceDataUrl: meta.dataUrl,
       dataUrl: '',
       assetBaseUrl: '',
       assetPathMode: 'codex',
       dataStatus: '本地快照',
+      dataNotice: '外部数据源加载失败，已使用本地快照',
+      dataError: ex.message || String(ex),
       version: meta.fallbackVersion || meta.version || data.version,
     };
   }
@@ -291,8 +297,11 @@ function normalizeCodex(data, meta = {}) {
     assetBaseUrl: stripTrailingSlash(meta.assetBaseUrl || meta.baseUrl || data.assetBaseUrl || ''),
     assetPathMode: meta.assetPathMode || data.assetPathMode || (meta.dataUrl ? 'relative' : 'codex'),
     dataUrl: meta.dataUrl || data.dataUrl || '',
+    sourceDataUrl: meta.sourceDataUrl || data.sourceDataUrl || meta.dataUrl || data.dataUrl || '',
     fallbackDataUrl: meta.fallbackDataUrl || data.fallbackDataUrl || '',
     dataStatus: meta.dataStatus || data.dataStatus || (meta.dataUrl ? '外部源' : '本地数据'),
+    dataNotice: meta.dataNotice || data.dataNotice || '',
+    dataError: meta.dataError || data.dataError || '',
     source: meta.source || data.source || '',
     contributors: meta.contributors || data.contributors || [],
     links: meta.links || data.links || [],
@@ -382,6 +391,29 @@ function codexStatusLabel(c) {
   return '本地数据';
 }
 
+function codexStatusClass(c) {
+  const label = codexStatusLabel(c);
+  if (label.includes('快照') || label.includes('失败')) return 'warn';
+  if (label.includes('外部')) return 'remote';
+  return 'local';
+}
+
+function codexStatusTitle(c) {
+  if (c?.dataNotice) return c.dataNotice;
+  if (c?.dataUrl) return `当前读取外部源：${c.dataUrl}`;
+  if (c?.sourceDataUrl && c?.fallbackDataUrl) return `外部源：${c.sourceDataUrl}\n回退快照：${c.fallbackDataUrl}`;
+  if (c?.fallbackDataUrl) return `本地快照：${c.fallbackDataUrl}`;
+  return '当前读取本地数据';
+}
+
+function notifyCodexDataStatus(c) {
+  if (!c?.dataNotice) return;
+  const key = `data:${c.id}:${c.dataStatus}:${c.dataError || c.dataNotice}`;
+  if (state.sourceNoticesShown.has(key)) return;
+  state.sourceNoticesShown.add(key);
+  toast(c.dataNotice);
+}
+
 function setLoading(text) {
   const el = $('#loading');
   if (!el) return;
@@ -461,10 +493,11 @@ function selectPathByPath(path) {
 
 /* ---------------- 过滤 ---------------- */
 function applyFilter(options = {}) {
-  const q = state.query.trim().toLowerCase();
+  const plan = parseSearchQuery(state.query);
+  state.searchPlan = plan;
   let list = state.codex.entries;
-  if (q) {
-    list = list.filter(e => searchableText(e).includes(q));
+  if (plan.raw) {
+    list = list.filter(e => matchSearchPlan(e, plan));
   } else if (state.activePath.length) {
     const p = state.activePath;
     list = list.filter(e => p.every((seg, i) => e.path[i] === seg));
@@ -480,6 +513,176 @@ function searchableText(e) {
   return [e.title, e.tags, e.negative, e.note, e.rawTags, ...(e.path || [])]
     .join('\n')
     .toLowerCase();
+}
+
+function parseSearchQuery(raw) {
+  const input = String(raw || '').trim();
+  if (!input) return { raw: '', isSyntax: false, text: '', highlightTerms: [] };
+  const tokens = splitQueryTokens(input);
+  const plan = {
+    raw: input,
+    isSyntax: false,
+    text: '',
+    path: null,
+    hasImage: null,
+    fav: null,
+    author: '',
+    highlightTerms: [],
+  };
+  const terms = [];
+  let invalidSyntax = false;
+
+  for (const token of tokens) {
+    const match = token.match(/^(path|has|fav|author):(.+)$/i);
+    if (!match) {
+      terms.push(token);
+      continue;
+    }
+    plan.isSyntax = true;
+    const key = match[1].toLowerCase();
+    const value = match[2].trim();
+    if (!value) {
+      invalidSyntax = true;
+      break;
+    }
+    if (key === 'path') {
+      const path = value.split('/').map(seg => seg.trim()).filter(Boolean);
+      if (!path.length) invalidSyntax = true;
+      else plan.path = path;
+    } else if (key === 'has') {
+      const v = value.toLowerCase();
+      if (['image', 'img', 'true', 'yes', '有图'].includes(v)) plan.hasImage = true;
+      else if (['noimage', 'none', 'false', 'no', '无图'].includes(v)) plan.hasImage = false;
+      else invalidSyntax = true;
+    } else if (key === 'fav') {
+      const v = value.toLowerCase();
+      if (['true', '1', 'yes', '收藏'].includes(v)) plan.fav = true;
+      else if (['false', '0', 'no', '未收藏'].includes(v)) plan.fav = false;
+      else invalidSyntax = true;
+    } else if (key === 'author') {
+      plan.author = value.toLowerCase();
+    }
+    if (invalidSyntax) break;
+  }
+
+  if (invalidSyntax) {
+    return {
+      raw: input,
+      isSyntax: false,
+      text: input.toLowerCase(),
+      highlightTerms: highlightTermsFromText(input),
+    };
+  }
+
+  plan.text = terms.join(' ').trim().toLowerCase();
+  plan.highlightTerms = highlightTermsFromText(terms.join(' '));
+  if (!plan.isSyntax) {
+    plan.text = input.toLowerCase();
+    plan.highlightTerms = highlightTermsFromText(input);
+  }
+  return plan;
+}
+
+function splitQueryTokens(input) {
+  const tokens = [];
+  let buf = '';
+  let quote = '';
+  for (const ch of input) {
+    if (quote) {
+      if (ch === quote) quote = '';
+      else buf += ch;
+      continue;
+    }
+    if (ch === '"' || ch === "'") {
+      quote = ch;
+      continue;
+    }
+    if (/\s/.test(ch)) {
+      if (buf) {
+        tokens.push(buf);
+        buf = '';
+      }
+      continue;
+    }
+    buf += ch;
+  }
+  if (buf) tokens.push(buf);
+  return tokens;
+}
+
+function matchSearchPlan(e, plan) {
+  if (!plan.isSyntax) return searchableText(e).includes(plan.text);
+  if (plan.text && !searchableText(e).includes(plan.text)) return false;
+  if (plan.path && !pathMatchesQuery(e.path || [], plan.path)) return false;
+  if (plan.hasImage !== null && hasEntryImage(e) !== plan.hasImage) return false;
+  if (plan.fav !== null && state.favs.has(favKey(e)) !== plan.fav) return false;
+  if (plan.author && !entryAuthorText(e).includes(plan.author)) return false;
+  return true;
+}
+
+function pathMatchesQuery(path, queryPath) {
+  if (!queryPath.length) return true;
+  const joined = path.join('/').toLowerCase();
+  const qJoined = queryPath.join('/').toLowerCase();
+  if (joined.includes(qJoined)) return true;
+  return queryPath.every(seg => path.some(p => String(p).toLowerCase().includes(seg.toLowerCase())));
+}
+
+function entryAuthorText(e) {
+  const imageAuthors = entryImages(e).flatMap(img => [img.author, img.credit]);
+  const contributors = Array.isArray(state.codex?.contributors) ? state.codex.contributors.map(p => typeof p === 'string' ? p : `${p.name || ''} ${p.role || ''}`) : [];
+  return [state.codex?.author, state.codex?.source, e.author, e.credit, ...imageAuthors, ...contributors]
+    .join('\n')
+    .toLowerCase();
+}
+
+function highlightTermsFromText(text) {
+  const terms = String(text || '')
+    .split(/[\s,，、]+/)
+    .map(s => s.trim())
+    .filter(Boolean);
+  return [...new Set(terms.map(s => s.toLowerCase()))]
+    .sort((a, b) => b.length - a.length)
+    .slice(0, 10);
+}
+
+function currentHighlightTerms() {
+  return state.searchPlan?.highlightTerms || [];
+}
+
+function renderHighlightedText(el, text, terms = []) {
+  if (!el) return;
+  const raw = String(text || '');
+  const needles = terms.filter(Boolean);
+  if (!needles.length) {
+    el.textContent = raw;
+    return;
+  }
+  const lower = raw.toLowerCase();
+  const frag = document.createDocumentFragment();
+  let pos = 0;
+  while (pos < raw.length) {
+    let bestIndex = -1;
+    let bestTerm = '';
+    for (const term of needles) {
+      const index = lower.indexOf(term, pos);
+      if (index === -1) continue;
+      if (bestIndex === -1 || index < bestIndex || (index === bestIndex && term.length > bestTerm.length)) {
+        bestIndex = index;
+        bestTerm = term;
+      }
+    }
+    if (bestIndex === -1) {
+      frag.appendChild(document.createTextNode(raw.slice(pos)));
+      break;
+    }
+    if (bestIndex > pos) frag.appendChild(document.createTextNode(raw.slice(pos, bestIndex)));
+    const mark = document.createElement('mark');
+    mark.textContent = raw.slice(bestIndex, bestIndex + bestTerm.length);
+    frag.appendChild(mark);
+    pos = bestIndex + bestTerm.length;
+  }
+  el.replaceChildren(frag);
 }
 
 function hasEntryImage(e) {
@@ -523,7 +726,7 @@ function updateResultBar() {
 
   const count = document.createElement('span');
   let t;
-  if (q) t = `搜索 “${esc(q)}”：<b>${n}</b> 条结果`;
+  if (q) t = `${state.searchPlan?.isSyntax ? '筛选' : '搜索'} “${esc(q)}”：<b>${n}</b> 条结果`;
   else if (state.onlyFav) t = `⭐ 我的收藏：<b>${n}</b> 条`;
   else if (state.activePath.length) t = `<b>${n}</b> 条`;
   else t = `共 <b>${n}</b> 条词条 · ${state.codex.imagedCount} 条已配图`;
@@ -596,11 +799,13 @@ function renderCodexHeader() {
   if (!banner) return;
   const cover = c.entries.find(hasEntryImage);
   const pct = c.entryCount ? Math.round((c.imagedCount / c.entryCount) * 100) : 0;
+  const metaText = [c.author, c.version].filter(Boolean).join(' · ');
+  const statusLabel = codexStatusLabel(c);
   banner.innerHTML =
     `<div class="banner-cover">${cover ? `<img src="${esc(thumbUrl(cover))}" alt="">` : ''}</div>` +
     `<div class="banner-info">` +
     `<div class="banner-title">${esc(c.title)}</div>` +
-    `<div class="banner-meta">${esc(c.author || '')}${c.author ? ' · ' : ''}${esc(c.version || '')}</div>` +
+    `<div class="banner-meta"><span>${esc(metaText)}</span><span class="data-pill ${codexStatusClass(c)}" title="${esc(codexStatusTitle(c))}">${esc(statusLabel)}</span></div>` +
     `<div class="banner-progress"><div class="bp-track"><div class="bp-fill" style="width:${pct}%"></div></div>` +
     `<span class="bp-text">${c.imagedCount} / ${c.entryCount} 已配图</span></div>` +
     `</div>`;
@@ -649,7 +854,7 @@ function closeBannerAbout() {
 function renderBannerAbout(c, banner) {
   const contributors = Array.isArray(c.contributors) ? c.contributors : [];
   const links = Array.isArray(c.links) ? c.links : [];
-  if (!c.source && !contributors.length && !links.length) return;
+  if (!c.source && !contributors.length && !links.length && !c.dataStatus) return;
 
   const btn = document.createElement('button');
   btn.type = 'button';
@@ -663,6 +868,7 @@ function renderBannerAbout(c, banner) {
   pop.hidden = true;
   let html = '';
   if (c.source) html += `<div class="bp-sub">来源</div><div class="bp-source">${esc(c.source)}</div>`;
+  html += `<div class="bp-sub">数据</div><div class="bp-data"><span class="data-pill ${codexStatusClass(c)}">${esc(codexStatusLabel(c))}</span>${c.dataNotice ? `<small>${esc(c.dataNotice)}</small>` : ''}</div>`;
   if (contributors.length) {
     html += '<div class="bp-sub">贡献者</div><div class="bp-contrib">';
     for (const p of contributors) {
@@ -713,7 +919,10 @@ function renderCodexArchive() {
     ['配图', `${c.imagedCount} / ${c.entryCount} (${pct}%)`],
     ['数据', codexStatusLabel(c)],
   ];
-  if (c.dataUrl) statRows.push(['源地址', c.dataUrl]);
+  if (c.dataNotice) statRows.push(['状态说明', c.dataNotice]);
+  if (c.dataError) statRows.push(['失败原因', c.dataError]);
+  if (c.sourceDataUrl) statRows.push(['外部源', c.sourceDataUrl]);
+  else if (c.dataUrl) statRows.push(['源地址', c.dataUrl]);
   if (c.fallbackDataUrl) statRows.push(['回退', c.fallbackDataUrl]);
   body.innerHTML =
     `<div class="archive-hero">` +
@@ -992,7 +1201,7 @@ function makeCard(placement) {
   updateCardPosition(node, placement);
 
   node.querySelector('.card-title').textContent = e.title;
-  node.querySelector('.card-tags').textContent = e.tags;
+  renderHighlightedText(node.querySelector('.card-tags'), e.tags, currentHighlightTerms());
   node.querySelector('.card-path').textContent = e.path.join(' › ');
   if (e.isNew) node.querySelector('.badge-new').hidden = false;
 
@@ -1129,22 +1338,40 @@ function setupImage(node, placement) {
   const e = placement.entry;
   const wrap = node.querySelector('.card-img-wrap');
   const img = node.querySelector('.card-img');
+  const retryBtn = node.querySelector('.img-retry');
   const url = thumbUrl(e);
   const key = imageKey(e, url);
 
   wrap.hidden = false;
   wrap.style.height = `${placement.imageHeight}px`;
-  wrap.classList.add('is-loading');
   img.alt = e.title;
 
+  const markLoading = () => {
+    wrap.classList.add('is-loading');
+    wrap.classList.remove('is-error');
+    img.classList.remove('is-loaded');
+    if (retryBtn) retryBtn.hidden = true;
+  };
   const markLoaded = () => {
     state.loadedImages.add(key);
     wrap.classList.remove('is-loading', 'is-error');
     img.classList.add('is-loaded');
+    if (retryBtn) retryBtn.hidden = true;
   };
-  const load = () => {
+  const markError = () => {
+    wrap.classList.remove('is-loading');
+    wrap.classList.add('is-error');
+    if (retryBtn) retryBtn.hidden = false;
+    notifyImageLoadError(e);
+  };
+  const load = (retry = false) => {
     node._imageTimer = 0;
-    img.src = url;
+    markLoading();
+    if (retry) {
+      img.dataset.fallbackTried = '';
+      state.loadedImages.delete(key);
+    }
+    img.src = retry ? cacheBustUrl(url) : url;
   };
 
   img.onload = markLoaded;
@@ -1155,17 +1382,35 @@ function setupImage(node, placement) {
       img.src = fallback;
       return;
     }
-    wrap.classList.remove('is-loading');
-    wrap.classList.add('is-error');
+    markError();
   };
 
+  markLoading();
   if (state.loadedImages.has(key)) load();
   else node._imageTimer = window.setTimeout(load, IMAGE_LOAD_DELAY);
 
+  if (retryBtn) {
+    retryBtn.onclick = ev => {
+      ev.stopPropagation();
+      load(true);
+    };
+  }
   wrap.querySelector('.zoom-btn').onclick = ev => {
     ev.stopPropagation();
     openLightbox(e, 0, wrap.querySelector('.card-img'));
   };
+}
+
+function cacheBustUrl(url) {
+  if (!url) return url;
+  return `${url}${url.includes('?') ? '&' : '?'}retry=${Date.now()}`;
+}
+
+function notifyImageLoadError(e) {
+  const key = `image:${state.codex?.id || ''}`;
+  if (state.sourceNoticesShown.has(key)) return;
+  state.sourceNoticesShown.add(key);
+  toast(`有图片加载失败，可在卡片上点击重试：${e.title}`);
 }
 
 function cleanupCard(node) {
@@ -1539,7 +1784,11 @@ function renderLightbox() {
   img.onload = null;
   img.onerror = () => {
     if (seq !== lbSeq) return;
-    if (origSrc && resolvedUrl(img.currentSrc || img.src) !== origAbs) img.src = origSrc;
+    if (origSrc && resolvedUrl(img.currentSrc || img.src) !== origAbs) {
+      img.src = origSrc;
+      return;
+    }
+    notifyImageLoadError(e);
   };
   /* 垫底加载：先上缩略图，原图加载完成后替换 */
   const showImage = () => {
@@ -1573,7 +1822,7 @@ function renderLightbox() {
     creditEl.removeAttribute('href');
   }
 
-  $('#lightboxTags').textContent = e.tags || '';
+  renderHighlightedText($('#lightboxTags'), e.tags || '', currentHighlightTerms());
   $('#lightboxNegative').textContent = e.negative || '';
   $('#lightboxNote').textContent = e.note || '';
   $('#negativeBlock').hidden = !e.negative;
