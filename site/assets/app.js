@@ -31,6 +31,9 @@ const state = {
   sdMode: false,      // 复制时把 NAI 权重转成 Stable Diffusion 格式
   favs: new Set(),    // 收藏集合，键为 codexId:entryId
   loadedImages: new Set(),
+  seenAnimated: new Set(),
+  pendingUrlState: null,
+  suppressUrlSync: false,
   lightbox: {
     entry: null,
     images: [],
@@ -68,7 +71,11 @@ async function init() {
     setupCodexPicker();
     setupAbout();
     bindUI();
-    if (codexes.length) await loadCodex(codexes[0].id);
+    state.pendingUrlState = readUrlState();
+    const initialId = state.codexes.some(c => c.id === state.pendingUrlState.codex)
+      ? state.pendingUrlState.codex
+      : codexes[0]?.id;
+    if (codexes.length) await loadCodex(initialId, { urlState: state.pendingUrlState, replaceUrl: true });
     else setLoading('还没有可显示的法典数据');
   } catch (ex) {
     console.error(ex);
@@ -111,6 +118,7 @@ function setupCodexPicker() {
   };
   menu.innerHTML = '';
   state.codexes.forEach((c, i) => {
+    const pct = c.entryCount ? Math.round((Number(c.imagedCount || 0) / Number(c.entryCount || 1)) * 100) : 0;
     const item = document.createElement('button');
     item.type = 'button';
     item.className = 'codex-item';
@@ -119,7 +127,13 @@ function setupCodexPicker() {
     item.setAttribute('role', 'option');
     item.setAttribute('aria-selected', 'false');
     item.tabIndex = -1;
-    item.innerHTML = `<span class="ci-name">${esc(c.title)}</span>` +
+    item.innerHTML =
+      `<span class="ci-mark">${String(i + 1).padStart(2, '0')}</span>` +
+      `<span class="ci-main">` +
+      `<span class="ci-name">${esc(c.title)}</span>` +
+      `<span class="ci-meta">${esc(c.author || '未知作者')} · ${Number(c.entryCount || 0)} 条 · ${pct}% 配图 · ${esc(codexStatusLabel(c))}</span>` +
+      `<span class="ci-bar"><i style="width:${pct}%"></i></span>` +
+      `</span>` +
       '<svg class="ck" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 13 4 4L19 7"/></svg>';
     item.onclick = () => choose(item);
     menu.appendChild(item);
@@ -194,7 +208,7 @@ async function loadAbout() {
 }
 
 let codexLoadSeq = 0;
-async function loadCodex(id) {
+async function loadCodex(id, options = {}) {
   const seq = ++codexLoadSeq;
   setLoading('正在加载词条数据…');
   clearMasonry();
@@ -214,12 +228,21 @@ async function loadCodex(id) {
     it.classList.toggle('active', active);
     it.setAttribute('aria-selected', active ? 'true' : 'false');
   });
-  state.activePath = [];
-  state.query = '';
-  $('#search').value = '';
+  const urlState = options.urlState && (!options.urlState.codex || options.urlState.codex === c.id)
+    ? options.urlState
+    : null;
+  state.activePath = urlState?.path?.length ? urlState.path : [];
+  state.query = urlState?.q || '';
+  state.seenAnimated.clear();
+  $('#search').value = state.query;
+  updateSearchClear();
   renderTree();
   renderCodexHeader();
   applyFilter({ resetScroll: true });
+  syncUrlState({ replace: options.replaceUrl !== false, entry: urlState?.entry || '' });
+  if (urlState?.entry) {
+    window.setTimeout(() => openEntryDeepLink(urlState.entry), 180);
+  }
   setLoading('');
 }
 
@@ -242,6 +265,7 @@ async function fetchCodex(meta) {
       dataUrl: '',
       assetBaseUrl: '',
       assetPathMode: 'codex',
+      dataStatus: '本地快照',
       version: meta.fallbackVersion || meta.version || data.version,
     };
   }
@@ -267,6 +291,8 @@ function normalizeCodex(data, meta = {}) {
     assetBaseUrl: stripTrailingSlash(meta.assetBaseUrl || meta.baseUrl || data.assetBaseUrl || ''),
     assetPathMode: meta.assetPathMode || data.assetPathMode || (meta.dataUrl ? 'relative' : 'codex'),
     dataUrl: meta.dataUrl || data.dataUrl || '',
+    fallbackDataUrl: meta.fallbackDataUrl || data.fallbackDataUrl || '',
+    dataStatus: meta.dataStatus || data.dataStatus || (meta.dataUrl ? '外部源' : '本地数据'),
     source: meta.source || data.source || '',
     contributors: meta.contributors || data.contributors || [],
     links: meta.links || data.links || [],
@@ -349,6 +375,13 @@ function stripTrailingSlash(url) {
   return String(url || '').replace(/\/+$/, '');
 }
 
+function codexStatusLabel(c) {
+  if (c?.dataStatus) return c.dataStatus;
+  if (c?.dataUrl) return '外部源';
+  if (c?.fallbackDataUrl) return '本地快照';
+  return '本地数据';
+}
+
 function setLoading(text) {
   const el = $('#loading');
   if (!el) return;
@@ -361,8 +394,9 @@ function setLoading(text) {
 function renderTree() {
   const nav = $('#tree');
   nav.innerHTML = '';
+  const searching = state.query.trim();
   const all = document.createElement('div');
-  all.className = 'tree-row active';
+  all.className = 'tree-row' + (!searching && !state.activePath.length ? ' active' : '');
   all.dataset.path = '';
   all.innerHTML = `<span class="tw-arrow"></span><span class="tw-name">全部</span><span class="tw-count">${state.codex.entryCount}</span>`;
   all.onclick = () => selectPath([], all);
@@ -374,9 +408,11 @@ function buildNodes(nodes, parent, prefix, depth) {
   for (const nd of nodes) {
     const path = prefix.concat(nd.name);
     const item = document.createElement('div');
-    item.className = 'tree-item' + (depth >= 1 ? ' collapsed' : '');
+    const active = !state.query.trim() && samePath(path, state.activePath);
+    const activeAncestor = pathStartsWith(state.activePath, path);
+    item.className = 'tree-item' + (depth >= 1 && !activeAncestor ? ' collapsed' : '');
     const row = document.createElement('div');
-    row.className = 'tree-row';
+    row.className = 'tree-row' + (active ? ' active' : '');
     row.dataset.path = path.join('\u0001');
     const hasKids = nd.children && nd.children.length;
     row.innerHTML =
@@ -399,10 +435,12 @@ function selectPath(path, rowEl) {
   state.activePath = path;
   state.query = '';
   $('#search').value = '';
+  updateSearchClear();
   document.querySelectorAll('.tree-row.active').forEach(r => r.classList.remove('active'));
   rowEl.classList.add('active');
   if (window.innerWidth <= 600) $('#sidebar').classList.add('closed');
   applyFilter({ resetScroll: true });
+  syncUrlState();
 }
 
 /* 面包屑点击：按路径找到目录行，展开祖先并选中 */
@@ -496,6 +534,61 @@ function updateResultBar() {
   updateRailActive();
 }
 
+function readUrlState() {
+  const params = new URLSearchParams(location.search);
+  const hash = new URLSearchParams(String(location.hash || '').replace(/^#/, ''));
+  const path = (params.get('path') || '')
+    .split('/')
+    .map(seg => seg.trim())
+    .filter(Boolean);
+  return {
+    codex: params.get('codex') || '',
+    path,
+    q: params.get('q') || '',
+    entry: params.get('entry') || hash.get('entry') || '',
+  };
+}
+
+function syncUrlState({ replace = true, entry } = {}) {
+  if (state.suppressUrlSync || !state.codex) return;
+  const params = new URLSearchParams();
+  params.set('codex', state.codex.id);
+  const q = state.query.trim();
+  if (q) params.set('q', q);
+  else if (state.activePath.length) params.set('path', state.activePath.join('/'));
+  const entryId = entry === undefined ? (state.lightbox.entry?.id || '') : entry;
+  if (entryId) params.set('entry', entryId);
+  const next = `${location.pathname}?${params.toString()}`;
+  if (next === location.pathname + location.search && !location.hash) return;
+  history[replace ? 'replaceState' : 'pushState'](null, '', next);
+}
+
+function openEntryDeepLink(entryId) {
+  if (!state.codex || !entryId) return;
+  const entry = state.codex.entries.find(e => e.id === entryId);
+  if (!entry) return;
+  if (!state.query && !state.activePath.length && entry.path?.length) {
+    state.activePath = entry.path;
+    renderTree();
+    applyFilter({ resetScroll: true });
+  }
+  const index = state.list.findIndex(e => e.id === entry.id);
+  const placement = index >= 0 ? state.placements[index] : null;
+  if (placement) {
+    const top = Math.max(0, placement.top + $('#masonry').getBoundingClientRect().top + window.scrollY - 120);
+    window.scrollTo({ top, left: 0, behavior: 'auto' });
+    updateVirtualCards(true);
+  }
+  if (hasEntryImage(entry)) {
+    const node = index >= 0 ? state.nodes.get(index) : null;
+    const img = node?.querySelector('.card-img');
+    openLightbox(entry, 0, img || null);
+  } else {
+    toast('这个词条还没有例图');
+    syncUrlState({ entry: '' });
+  }
+}
+
 /* ---------------- 法典横幅 / 分类轨道 ---------------- */
 function renderCodexHeader() {
   const c = state.codex;
@@ -587,7 +680,12 @@ function renderBannerAbout(c, banner) {
       html += `<a class="bp-link" href="${esc(l.url)}" target="_blank" rel="noopener">${EXT_ICON}<span>${esc(l.label || l.url)}</span></a>`;
     }
   }
+  html += '<button class="bp-archive" type="button">查看完整档案</button>';
   pop.innerHTML = html;
+  pop.querySelector('.bp-archive')?.addEventListener('click', ev => {
+    ev.stopPropagation();
+    document.dispatchEvent(new CustomEvent('openCodexArchive', { detail: { trigger: ev.currentTarget } }));
+  });
 
   btn.onclick = ev => {
     ev.stopPropagation();
@@ -599,6 +697,37 @@ function renderBannerAbout(c, banner) {
 
   banner.appendChild(btn);
   banner.appendChild(pop);
+}
+
+function renderCodexArchive() {
+  const c = state.codex;
+  const body = $('#archiveBody');
+  if (!c || !body) return;
+  const pct = c.entryCount ? Math.round((c.imagedCount / c.entryCount) * 100) : 0;
+  const contributors = Array.isArray(c.contributors) ? c.contributors : [];
+  const links = (Array.isArray(c.links) ? c.links : []).filter(l => l && l.url && l.url !== '#');
+  const statRows = [
+    ['作者', c.author || '未标注'],
+    ['版本', c.version || '未标注'],
+    ['词条', `${c.entryCount} 条`],
+    ['配图', `${c.imagedCount} / ${c.entryCount} (${pct}%)`],
+    ['数据', codexStatusLabel(c)],
+  ];
+  if (c.dataUrl) statRows.push(['源地址', c.dataUrl]);
+  if (c.fallbackDataUrl) statRows.push(['回退', c.fallbackDataUrl]);
+  body.innerHTML =
+    `<div class="archive-hero">` +
+    `<div><div class="archive-title">${esc(c.title)}</div><div class="archive-sub">${esc(c.source || '本地整理数据')}</div></div>` +
+    `<div class="archive-pct">${pct}%<span>配图率</span></div>` +
+    `</div>` +
+    `<div class="archive-grid">${statRows.map(([k, v]) => `<div class="archive-kv"><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join('')}</div>` +
+    (contributors.length ? `<div class="archive-section"><h3>贡献者</h3><div class="archive-chips">${contributors.map(p => {
+      const name = typeof p === 'string' ? p : (p.name || '');
+      const role = typeof p === 'string' ? '' : (p.role || '');
+      return name ? `<span>${esc(name)}${role ? `<small>${esc(role)}</small>` : ''}</span>` : '';
+    }).join('')}</div></div>` : '') +
+    (links.length ? `<div class="archive-section"><h3>相关链接</h3>${links.map(l => `<a class="archive-link" href="${esc(l.url)}" target="_blank" rel="noopener">${EXT_ICON}<span>${esc(l.label || l.url)}</span></a>`).join('')}</div>` : '') +
+    `<div class="archive-section"><h3>说明</h3><p>本站保留原法典结构，优先服务看图选词和一键复制。外部源法典会优先读取线上数据，失败时使用本地快照。</p></div>`;
 }
 
 /* 关于本站（设置框）+ 侧栏小贴士轮播 */
@@ -905,17 +1034,50 @@ function makeCard(placement) {
   }
 
   node.onclick = () => copyEntry(e, node);
+  maybeAnimateCardEntry(node, placement);
   return node;
+}
+
+function samePath(a, b) {
+  return a.length === b.length && a.every((seg, i) => seg === b[i]);
+}
+
+function pathStartsWith(path, prefix) {
+  return prefix.length <= path.length && prefix.every((seg, i) => seg === path[i]);
 }
 
 function updateCardPosition(node, placement) {
   node.style.width = `${placement.width}px`;
   node.style.height = `${placement.height}px`;
-  node.style.transform = `translate3d(${placement.left}px, ${placement.top}px, 0)`;
+  node.style.setProperty('--card-x', `${placement.left}px`);
+  node.style.setProperty('--card-y', `${placement.top}px`);
+  if (!node.style.getPropertyValue('--entry-offset')) node.style.setProperty('--entry-offset', '0px');
+  node.style.transform = 'translate3d(var(--card-x), calc(var(--card-y) + var(--entry-offset, 0px)), 0)';
   const wrap = node.querySelector('.card-img-wrap');
   if (wrap && placement.imageHeight) wrap.style.height = `${placement.imageHeight}px`;
   const tags = node.querySelector('.card-tags');
   if (tags) tags.style.height = `${placement.tagsHeight}px`;
+}
+
+function maybeAnimateCardEntry(node, placement) {
+  if (prefersReducedMotion() || relayoutAnimating || !state.codex) return;
+  const key = `${state.codex.id}:${placement.entry.id}`;
+  if (state.seenAnimated.has(key)) return;
+  state.seenAnimated.add(key);
+
+  const delay = Math.min(210, placement.col * 30 + (placement.index % Math.max(1, state.colN)) * 10);
+  node.style.setProperty('--entry-offset', '18px');
+  node.style.setProperty('--entry-delay', `${delay}ms`);
+  node.classList.add('card-enter');
+  requestAnimationFrame(() => {
+    if (!node.isConnected) return;
+    node.classList.add('is-entered');
+    node.style.setProperty('--entry-offset', '0px');
+  });
+  window.setTimeout(() => {
+    node.classList.remove('card-enter', 'is-entered');
+    node.style.removeProperty('--entry-delay');
+  }, delay + 560);
 }
 
 function calibrateCardHeight(node, placement) {
@@ -1177,6 +1339,8 @@ let toastTimer;
 function toast(msg) {
   const t = $('#toast');
   t.textContent = '✓ ' + msg;
+  t.classList.remove('show');
+  void t.offsetWidth;
   t.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove('show'), 1600);
@@ -1197,6 +1361,7 @@ function toggleFav(e, btn) {
 let lbSeq = 0;
 let lbCloseTimer = 0;
 let lbSourceImg = null;
+let lbFocusReturn = null;
 
 function prefersReducedMotion() {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1299,12 +1464,16 @@ function openLightbox(entry, index = 0, sourceEl = null) {
   renderLightbox();
   void lb.offsetWidth;
   lb.classList.add('is-open');
+  syncUrlState({ entry: entry.id });
+  lbFocusReturn = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  window.setTimeout(() => $('#lightboxClose')?.focus(), 0);
   if (lbSourceImg && lbSourceImg.naturalWidth && !prefersReducedMotion()) flyIn(lbSourceImg);
 }
 
 function closeLightbox() {
   const lb = $('#lightbox');
   if (lb.hidden) return;
+  syncUrlState({ entry: '' });
   lbSeq++;
   clearTimeout(lbCloseTimer);
   const done = () => {
@@ -1317,6 +1486,8 @@ function closeLightbox() {
     img.removeAttribute('src');
     state.lightbox = { entry: null, images: [], index: 0 };
     lbSourceImg = null;
+    if (lbFocusReturn?.isConnected) lbFocusReturn.focus();
+    lbFocusReturn = null;
   };
   if (prefersReducedMotion()) {
     lb.classList.remove('is-open');
@@ -1415,6 +1586,8 @@ function renderLightbox() {
   $('#copyAll').onclick = ev => { ev.stopPropagation(); copyText(combinedPrompt(e), `已复制正向+负面：${e.title}`); };
   $('#copyRawTag').hidden = !item.rawTag;
   $('#copyRawTag').onclick = ev => { ev.stopPropagation(); copyText(item.rawTag, `已复制当前图 raw tag：${e.title}`); };
+  const actions = document.querySelector('.lightbox-actions');
+  if (actions) actions.hidden = $('#copyAll').hidden && $('#copyRawTag').hidden;
 
   const prev = $('#lightboxPrev');
   const next = $('#lightboxNext');
@@ -1531,16 +1704,35 @@ function originalUrl(e) {
 /* ---------------- 交互绑定 ---------------- */
 function bindUI() {
   let st;
-  $('#search').oninput = e => {
+  const searchInput = $('#search');
+  const searchClear = $('#searchClear');
+  searchInput.oninput = e => {
+    updateSearchClear();
     clearTimeout(st);
     st = setTimeout(() => {
       state.query = e.target.value;
       if (state.query.trim()) {
         document.querySelectorAll('.tree-row.active').forEach(r => r.classList.remove('active'));
+      } else {
+        renderTree();
       }
       applyFilter({ resetScroll: true });
+      syncUrlState();
     }, 180);
   };
+  if (searchClear) {
+    searchClear.onclick = () => {
+      if (!searchInput.value) return;
+      clearTimeout(st);
+      searchInput.value = '';
+      state.query = '';
+      updateSearchClear();
+      renderTree();
+      applyFilter({ resetScroll: true });
+      syncUrlState();
+      searchInput.focus();
+    };
+  }
 
   $('#onlyImaged').onchange = e => { state.onlyImaged = e.target.checked; applyFilter({ resetScroll: true }); };
   $('#onlyFav').onchange = e => { state.onlyFav = e.target.checked; applyFilter({ resetScroll: true }); };
@@ -1595,29 +1787,106 @@ function bindUI() {
     localStorage.setItem('fadian-sidebar', sidebar.classList.contains('closed') ? 'closed' : 'open');
   };
 
+  const moreBtn = $('#moreBtn');
+  const moreMenu = $('#moreMenu');
+  const moreItems = () => [...moreMenu.querySelectorAll('.more-item')];
+  const closeMore = ({ focusButton = false } = {}) => {
+    if (!moreMenu || moreMenu.hidden) return;
+    moreMenu.hidden = true;
+    moreBtn.classList.remove('open');
+    moreBtn.setAttribute('aria-expanded', 'false');
+    if (focusButton) moreBtn.focus();
+  };
+  const openMore = ({ focus = false } = {}) => {
+    closeBannerAbout();
+    moreMenu.hidden = false;
+    moreBtn.classList.add('open');
+    moreBtn.setAttribute('aria-expanded', 'true');
+    if (focus) requestAnimationFrame(() => moreItems()[0]?.focus());
+  };
+  if (moreBtn && moreMenu) {
+    moreBtn.onclick = ev => {
+      ev.stopPropagation();
+      if (moreMenu.hidden) openMore({ focus: true });
+      else closeMore({ focusButton: true });
+    };
+    moreBtn.onkeydown = ev => {
+      if (ev.key !== 'ArrowDown' && ev.key !== 'Enter' && ev.key !== ' ') return;
+      ev.preventDefault();
+      openMore({ focus: true });
+    };
+    moreMenu.onkeydown = ev => {
+      const list = moreItems();
+      const i = list.indexOf(document.activeElement);
+      if (ev.key === 'Escape') { ev.preventDefault(); closeMore({ focusButton: true }); }
+      else if (ev.key === 'Tab') closeMore();
+      else if (ev.key === 'ArrowDown') { ev.preventDefault(); list[(i + 1 + list.length) % list.length]?.focus(); }
+      else if (ev.key === 'ArrowUp') { ev.preventDefault(); list[(i - 1 + list.length) % list.length]?.focus(); }
+      else if (ev.key === 'Home') { ev.preventDefault(); list[0]?.focus(); }
+      else if (ev.key === 'End') { ev.preventDefault(); list[list.length - 1]?.focus(); }
+    };
+    document.addEventListener('click', ev => {
+      if (!moreMenu.hidden && !moreMenu.contains(ev.target) && !moreBtn.contains(ev.target)) closeMore();
+    });
+  }
+
   /* 设置 / 关于 悬浮框：开关三件套（按钮/遮罩/Esc），带淡入淡出 */
   const settingsMask = $('#settings');
   const aboutMask = $('#about');
+  const archiveMask = $('#codexArchive');
   const maskTimers = new WeakMap();
-  const openMask = mask => {
+  const maskOpeners = new WeakMap();
+  const focusableIn = root => [...root.querySelectorAll('button:not([disabled]),a[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')]
+    .filter(el => el.offsetParent !== null || el === document.activeElement);
+  const focusFirstIn = root => requestAnimationFrame(() => focusableIn(root)[0]?.focus());
+  const trapFocus = (ev, root) => {
+    if (ev.key !== 'Tab') return;
+    const list = focusableIn(root);
+    if (!list.length) return;
+    const first = list[0];
+    const last = list[list.length - 1];
+    if (ev.shiftKey && document.activeElement === first) { ev.preventDefault(); last.focus(); }
+    else if (!ev.shiftKey && document.activeElement === last) { ev.preventDefault(); first.focus(); }
+  };
+  const openMask = (mask, trigger = document.activeElement) => {
     clearTimeout(maskTimers.get(mask));
+    if (trigger instanceof HTMLElement) maskOpeners.set(mask, trigger);
     mask.hidden = false;
     void mask.offsetWidth;            // 强制回流，让淡入过渡生效
     mask.classList.add('show');
+    focusFirstIn(mask);
   };
   const closeMask = mask => {
     mask.classList.remove('show');
-    if (prefersReducedMotion()) { mask.hidden = true; return; }
+    const restoreFocus = () => {
+      const opener = maskOpeners.get(mask);
+      if (opener?.isConnected) opener.focus();
+    };
+    if (prefersReducedMotion()) { mask.hidden = true; restoreFocus(); return; }
     maskTimers.set(mask, setTimeout(() => {
-      if (!mask.classList.contains('show')) mask.hidden = true;   // 期间未被重新打开才真正收起
+      if (!mask.classList.contains('show')) {
+        mask.hidden = true;   // 期间未被重新打开才真正收起
+        restoreFocus();
+      }
     }, 240));
   };
-  $('#settingsBtn').onclick = () => openMask(settingsMask);
+  $('#settingsBtn').onclick = () => { closeMore(); openMask(settingsMask, moreBtn); };
   $('#settingsClose').onclick = () => closeMask(settingsMask);
   settingsMask.onclick = ev => { if (ev.target === settingsMask) closeMask(settingsMask); };
-  $('#aboutBtn').onclick = () => openMask(aboutMask);
+  settingsMask.onkeydown = ev => trapFocus(ev, settingsMask);
+  $('#aboutBtn').onclick = () => { closeMore(); openMask(aboutMask, moreBtn); };
   $('#aboutClose').onclick = () => closeMask(aboutMask);
   aboutMask.onclick = ev => { if (ev.target === aboutMask) closeMask(aboutMask); };
+  aboutMask.onkeydown = ev => trapFocus(ev, aboutMask);
+  $('#archiveClose').onclick = () => closeMask(archiveMask);
+  archiveMask.onclick = ev => { if (ev.target === archiveMask) closeMask(archiveMask); };
+  archiveMask.onkeydown = ev => trapFocus(ev, archiveMask);
+  document.addEventListener('openCodexArchive', ev => {
+    renderCodexArchive();
+    const opener = document.querySelector('.banner-about-btn') || ev.detail?.trigger || document.activeElement;
+    closeBannerAbout();
+    openMask(archiveMask, opener);
+  });
   document.addEventListener('click', ev => {
     const openBtn = document.querySelector('.banner-about-btn.open');
     const openPop = document.querySelector('.banner-pop:not([hidden])');
@@ -1627,8 +1896,10 @@ function bindUI() {
   });
   window.addEventListener('keydown', ev => {
     if (ev.key !== 'Escape') return;
+    closeMore({ focusButton: !moreMenu.hidden });
     if (!settingsMask.hidden) closeMask(settingsMask);
     if (!aboutMask.hidden) closeMask(aboutMask);
+    if (!archiveMask.hidden) closeMask(archiveMask);
     closeBannerAbout();
   });
   $('#lightbox').onclick = ev => {
@@ -1653,7 +1924,6 @@ function bindUI() {
   window.addEventListener('scroll', scheduleVirtualUpdate, { passive: true });
 
   /* 智能顶栏：下滑隐藏、上滑立现；搜索聚焦/移动端目录打开时锁定不收 */
-  const searchInput = $('#search');
   const backTopBtn = $('#backTop');
   const mobileQuery = window.matchMedia('(max-width:600px)');
   const setTopbarHidden = hide => document.body.classList.toggle('tb-hidden', hide);
@@ -1669,6 +1939,13 @@ function bindUI() {
     setTopbarHidden(dy > 0 && y > 120);
   }, { passive: true });
   searchInput.addEventListener('focus', () => setTopbarHidden(false));
+  window.addEventListener('keydown', ev => {
+    if (ev.key !== '/' || ev.ctrlKey || ev.metaKey || ev.altKey) return;
+    const tag = document.activeElement && document.activeElement.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || !$('#lightbox').hidden || !$('#settings').hidden || !$('#about').hidden) return;
+    ev.preventDefault();
+    searchInput.focus();
+  });
 
   /* 分类轨道：纵向滚轮转横向滚动 */
   const rail = $('#chipRail');
@@ -1698,6 +1975,12 @@ function bindUI() {
     });
     ro.observe($('#main'));
   }
+}
+
+function updateSearchClear() {
+  const btn = $('#searchClear');
+  const input = $('#search');
+  if (btn && input) btn.hidden = !input.value;
 }
 
 function clamp(v, min, max) {
