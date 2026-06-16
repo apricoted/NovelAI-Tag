@@ -67,8 +67,7 @@ async function init() {
 
   } catch (e) {
     console.error(e);
-    const empty = $('#empty');
-    if (empty) { empty.hidden = false; const sp = empty.querySelector('span'); if (sp) sp.textContent = '数据加载失败，请检查配置'; }
+    renderEmptyState('数据加载失败', '请检查画风串配置，或稍后刷新重试。');
   }
 }
 
@@ -99,6 +98,14 @@ async function loadCollection(col) {
     applyFilter({ scrollUp: true });
   } catch (e) {
     console.error('Failed to load collection', col, e);
+    state.data = { categories: [] };
+    state.entries = [];
+    state.filtered = [];
+    state.activePath = null;
+    buildTree();
+    clearMasonry();
+    $('#resultInfo').innerHTML = '<b>0</b> 条画师串';
+    renderEmptyState('数据加载失败', '当前画风串合集无法加载，请稍后再试。');
   }
 }
 
@@ -248,7 +255,84 @@ function updateResultBar(n) {
   }
   parts.push(`<b>${n}</b> 条画师串`);
   $('#resultInfo').innerHTML = parts.join(' · ');
-  $('#empty').hidden = n > 0;
+  updateEmptyState(n);
+}
+
+function updateEmptyState(n) {
+  const empty = $('#empty');
+  if (!empty) return;
+  empty.hidden = n > 0;
+  if (n > 0) return;
+
+  const hasEntries = state.entries.length > 0;
+  let title = '没有匹配的画师串';
+  let desc = '换个关键词或分类再试试。';
+  const actions = [];
+
+  if (!hasEntries) {
+    title = '画风串投稿入口试运行中';
+    desc = '当前合集还没有公开条目，可以先提交你的画风串，或回到法典图鉴继续浏览。';
+    actions.push({ label: '投稿', action: 'submit' });
+    actions.push({ label: '回到法典', action: 'home' });
+  } else if (state.query) {
+    title = '没有找到匹配画风串';
+    desc = '试试换个关键词，或清空搜索回到当前合集。';
+    actions.push({ label: '清空搜索', action: 'clear-search' });
+  } else if (state.viewMode === 'nsfw' && !state.showNSFW) {
+    title = 'NSFW 内容当前已隐藏';
+    desc = '开启 NSFW 后，才能查看对应视图里的画风串。';
+    actions.push({ label: '开启 NSFW', action: 'show-nsfw' });
+  } else if (state.viewMode !== 'all' || state.activePath) {
+    title = '这个范围暂时没有画风串';
+    desc = '可以回到全部视图，或者换个分类看看。';
+    actions.push({ label: '查看全部', action: 'show-all' });
+  }
+
+  renderEmptyState(title, desc, actions);
+}
+
+function renderEmptyState(title, desc, actions = []) {
+  const empty = $('#empty');
+  if (!empty) return;
+  empty.hidden = false;
+  empty.innerHTML =
+    `<div class="empty-mark" aria-hidden="true">—</div>` +
+    `<h2>${escHtml(title)}</h2>` +
+    `<p>${escHtml(desc)}</p>` +
+    (actions.length ? `<div class="empty-actions">${actions.map(a => `<button type="button" data-empty-action="${escAttr(a.action)}">${escHtml(a.label)}</button>`).join('')}</div>` : '');
+
+  empty.querySelectorAll('[data-empty-action]').forEach(btn => {
+    btn.onclick = () => handleEmptyAction(btn.dataset.emptyAction);
+  });
+}
+
+function handleEmptyAction(action) {
+  if (action === 'submit') {
+    $('#submitOpenBtn')?.click();
+    return;
+  }
+  if (action === 'home') {
+    location.href = '/index.html';
+    return;
+  }
+  if (action === 'clear-search') {
+    state.query = '';
+    const search = $('#search');
+    if (search) search.value = '';
+  } else if (action === 'show-nsfw') {
+    state.showNSFW = true;
+    localStorage.setItem('strings-nsfw', 'true');
+    updateNSFWBtn();
+  } else if (action === 'show-all') {
+    state.query = '';
+    state.activePath = null;
+    state.viewMode = 'all';
+    const search = $('#search');
+    if (search) search.value = '';
+    $$('.view-tab').forEach(b => b.classList.toggle('on', b.dataset.view === 'all'));
+    renderTree();
+  }
+  applyFilter({ scrollUp: true });
 }
 
 function vidx(entry) {
