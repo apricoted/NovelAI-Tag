@@ -49,6 +49,12 @@ button{font-family:inherit;cursor:pointer}
 .brand{font-size:17px;font-weight:800;letter-spacing:.5px;white-space:nowrap;flex:none;font-family:var(--font-serif)}
 .brand span{color:var(--accent)}
 .strings-pick select{border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:10px;padding:7px 12px;font-size:13px;max-width:220px}
+.home-link{
+  text-decoration:none;font-size:12px;color:var(--muted);padding:6px 12px;
+  border:1px solid var(--line);border-radius:8px;transition:all .15s;
+  cursor:pointer;white-space:nowrap
+}
+.home-link:hover{background:var(--tagbg);color:var(--text)}
 
 .icon-btn{
   border:none;background:transparent;color:var(--text);font-size:18px;
@@ -79,13 +85,18 @@ body.dark .theme-btn .moon{display:block}
 }
 .tree{font-size:13px}
 .tree-item{user-select:none}
-.tree-row{display:flex;align-items:center;gap:4px;padding:6px 8px;border-radius:8px;cursor:pointer;color:var(--text)}
+.tree-row{position:relative;display:flex;align-items:center;gap:4px;padding:6px 8px 6px 11px;border-radius:8px;cursor:pointer;color:var(--text)}
 .tree-row:hover{background:var(--tagbg)}
-.tree-row.active{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.tree-row.active{background:var(--accent-soft);color:var(--accent);font-weight:700}
+.tree-row.active::before{
+  content:"";position:absolute;left:4px;top:7px;bottom:7px;width:3px;
+  border-radius:999px;background:var(--accent)
+}
 .tw-arrow{width:14px;text-align:center;color:var(--muted);font-size:10px;transition:transform .15s;flex:none}
 .tree-item.collapsed>.tree-row .tw-arrow{transform:rotate(-90deg)}
 .tw-name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tw-count{color:var(--muted);font-size:11px;flex:none}
+.tree-row.active .tw-count{color:inherit}
 .tree-children{margin-left:14px;border-left:1px solid var(--line);padding-left:6px}
 .tree-item.collapsed>.tree-children{display:none}
 .main{flex:1;min-width:0;padding:18px 22px 80px}
@@ -257,8 +268,19 @@ body.dark .prompt-box{background:#0b0f17;color:#c4c9d4;border-color:rgba(255,255
 }
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
-.empty{color:var(--muted);text-align:center;padding:100px 0}
-.empty div{font-size:2.5rem;margin-bottom:10px;opacity:.4}
+.empty{
+  color:var(--muted);text-align:center;padding:72px 18px;margin:8px auto 0;
+  max-width:520px;
+}
+.empty-mark{font-size:42px;line-height:1;margin-bottom:10px;opacity:.34}
+.empty h2{margin:0;color:var(--text);font-size:18px;line-height:1.35}
+.empty p{margin:8px auto 0;max-width:420px;font-size:13px;line-height:1.7}
+.empty-actions{display:flex;justify-content:center;flex-wrap:wrap;gap:8px;margin-top:16px}
+.empty-actions button{
+  border:1px solid var(--line);background:var(--panel);color:var(--text);
+  border-radius:999px;padding:7px 14px;font-size:12px;font-weight:800;
+}
+.empty-actions button:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
 
 .submit-btn{
   display:inline-flex;align-items:center;gap:5px;border:none;cursor:pointer;
@@ -271,9 +293,18 @@ body.dark .prompt-box{background:#0b0f17;color:#c4c9d4;border-color:rgba(255,255
 
 .menu-btn{display:none}
 @media(max-width:720px){
+  .topbar{gap:8px;padding:0 8px}
   .menu-btn{display:grid}
+  .brand{font-size:15px}
   .strings-pick{display:none}
-  .search-wrap{max-width:200px}
+  .search-wrap{flex:1 1 60px;min-width:60px;max-width:none}
+  .search-wrap input{font-size:13px}
+  .topbar-right{gap:6px;margin-left:0;flex:none}
+  .submit-btn{width:32px;height:32px;padding:0;justify-content:center;border-radius:9px}
+  .submit-label{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+  .home-link{padding:6px 8px;font-size:11px}
+  .home-full{display:none}
+  .icon-btn,.nsfw-btn{width:32px;height:32px;border-radius:9px}
   .sidebar{position:fixed;z-index:25;top:56px;left:0;display:none;box-shadow:var(--shadow-hover)}
   .sidebar.open{display:block}
   .main{padding:14px 12px 80px}
@@ -299,9 +330,9 @@ body.dark .prompt-box{background:#0b0f17;color:#c4c9d4;border-color:rgba(255,255
     <div class="topbar-right">
       <button class="submit-btn" id="submitOpenBtn" title="分享你的画风串">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-        投稿
+        <span class="submit-label">投稿</span>
       </button>
-      <a href="/index.html" style="text-decoration:none;font-size:12px;color:var(--muted);padding:6px 12px;border:1px solid var(--line);border-radius:8px;transition:all .15s;cursor:pointer" onmouseenter="this.style.background='var(--tagbg)';this.style.color='var(--text)'" onmouseleave="this.style.background='transparent';this.style.color='var(--muted)'">切换到法典</a>
+      <a href="/index.html" class="home-link"><span class="home-full">切换到</span>法典</a>
       <button class="nsfw-btn" id="nsfwBtn" title="NSFW 内容开关">
         <svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
       </button>
@@ -327,10 +358,7 @@ body.dark .prompt-box{background:#0b0f17;color:#c4c9d4;border-color:rgba(255,255
       </div>
       <div class="result-bar"><span id="resultInfo"></span></div>
       <div class="masonry" id="masonry"></div>
-      <div class="empty" id="empty" hidden>
-        <div>—</div>
-        <span>没有匹配的画师串</span>
-      </div>
+      <div class="empty" id="empty" hidden></div>
     </main>
   </div>
 </div>

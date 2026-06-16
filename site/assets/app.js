@@ -733,8 +733,82 @@ function updateResultBar() {
   count.innerHTML = t;
   box.appendChild(count);
 
-  $('#empty').hidden = n > 0;
+  updateEmptyState(n);
   updateRailActive();
+}
+
+function updateEmptyState(n) {
+  const empty = $('#empty');
+  if (!empty) return;
+  empty.hidden = n > 0;
+  if (n > 0) return;
+
+  const q = state.query.trim();
+  const hasFilter = state.onlyImaged || state.onlyFav || state.activePath.length || q;
+  let title = '这里还没有词条';
+  let desc = '换个分类或稍后再来看看。';
+  const actions = [];
+
+  if (q) {
+    title = state.searchPlan?.isSyntax ? '没有符合条件的筛选结果' : '没有找到匹配词条';
+    desc = state.searchPlan?.isSyntax
+      ? '删掉一两个筛选条件，或加一个普通关键词继续缩小范围。'
+      : '试试换个关键词，或清空搜索回到当前法典。';
+    actions.push({ label: '清空搜索', action: 'clear-search' });
+  } else if (state.onlyFav) {
+    title = '收藏夹还是空的';
+    desc = '先在卡片右上角点星标收藏，之后就能在这里集中查看。';
+    actions.push({ label: '查看全部词条', action: 'show-all' });
+  } else if (state.onlyImaged) {
+    title = '这个范围里暂时没有配图';
+    desc = '关闭“只看有图”后，可以查看待配图词条。';
+    actions.push({ label: '关闭只看有图', action: 'show-unimaged' });
+  } else if (state.activePath.length) {
+    title = '这个分类还没有词条';
+    desc = '可以返回全部，或从上方横向分类继续逛。';
+    actions.push({ label: '返回全部', action: 'show-all' });
+  } else if (!hasFilter) {
+    desc = '当前法典暂未提供可显示的词条数据。';
+  }
+
+  empty.innerHTML =
+    `<div class="empty-mark" aria-hidden="true">—</div>` +
+    `<h2>${esc(title)}</h2>` +
+    `<p>${esc(desc)}</p>` +
+    (actions.length ? `<div class="empty-actions">${actions.map(a => `<button type="button" data-empty-action="${esc(a.action)}">${esc(a.label)}</button>`).join('')}</div>` : '');
+
+  empty.querySelectorAll('[data-empty-action]').forEach(btn => {
+    btn.onclick = () => handleEmptyAction(btn.dataset.emptyAction);
+  });
+}
+
+function handleEmptyAction(action) {
+  if (action === 'clear-search') {
+    state.query = '';
+    const search = $('#search');
+    if (search) search.value = '';
+    updateSearchClear();
+    renderTree();
+  } else if (action === 'show-unimaged') {
+    state.onlyImaged = false;
+    const onlyImaged = $('#onlyImaged');
+    if (onlyImaged) onlyImaged.checked = false;
+  } else if (action === 'show-all') {
+    state.query = '';
+    state.activePath = [];
+    state.onlyFav = false;
+    state.onlyImaged = false;
+    const search = $('#search');
+    if (search) search.value = '';
+    const onlyFav = $('#onlyFav');
+    if (onlyFav) onlyFav.checked = false;
+    const onlyImaged = $('#onlyImaged');
+    if (onlyImaged) onlyImaged.checked = false;
+    updateSearchClear();
+    renderTree();
+  }
+  applyFilter({ resetScroll: true });
+  syncUrlState();
 }
 
 function readUrlState() {
