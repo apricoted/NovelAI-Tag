@@ -22,6 +22,12 @@ body{
   font-size:14px;line-height:1.5;
 }
 button{font-family:inherit;cursor:pointer}
+.scroll-progress{
+  position:fixed;left:0;right:0;top:0;z-index:60;height:2px;
+  background:linear-gradient(90deg,var(--accent),#a48cff);
+  transform:scaleX(0);transform-origin:left center;
+  transition:transform .12s linear;
+}
 
 /* ---------- 顶栏 ---------- */
 .topbar{
@@ -496,7 +502,7 @@ body.dark .card-tags mark,body.dark .lightbox-section pre mark{background:rgba(2
   .masonry.is-relayouting .card-tags,
   .topbar,.sidebar,
   .lightbox,.lightbox-stage,.lightbox-info,.lb-fold,.lb-circle,.lb-fly,#lightboxImg,.lightbox-thumbs,
-  .settings-mask,.settings-panel,.sd-badge,.card,.card-img,.toast{
+  .settings-mask,.settings-panel,.sd-badge,.card,.card-img,.toast,.scroll-progress{
     transition:none;
   }
   .more-menu,.codex-menu,.banner-pop,.card-img-wrap.is-loading::before,.card.copied::after{animation:none}
@@ -620,6 +626,20 @@ body.dark .nsfw-note{color:#ffb4ab;background:rgba(217,45,32,.18)}
   box-shadow:0 8px 22px rgba(217,45,32,.24);
 }
 .nsfw-primary:hover{transform:translateY(-1px);box-shadow:0 10px 26px rgba(217,45,32,.32)}
+.shortcut-panel{max-width:460px}
+.shortcut-list{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.shortcut-list div{
+  display:flex;align-items:center;gap:8px;
+  background:var(--tagbg);border:1px solid var(--line);border-radius:12px;
+  padding:10px 12px;color:var(--text);
+}
+.shortcut-list span{margin-left:auto;color:var(--muted);font-size:12px}
+.shortcut-list kbd{
+  min-width:30px;height:28px;display:inline-grid;place-items:center;
+  padding:0 8px;border-radius:8px;border:1px solid var(--line);
+  background:var(--card);box-shadow:inset 0 -1px 0 rgba(0,0,0,.08);
+  color:var(--text);font:800 12px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
 /* SD 模式顶栏常驻角标 */
 .sd-badge{
   flex:none;font-size:11px;font-weight:800;letter-spacing:.5px;color:#fff;cursor:pointer;

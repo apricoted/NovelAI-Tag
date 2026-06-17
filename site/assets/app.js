@@ -479,6 +479,15 @@ function setLoading(text) {
   $('#main')?.classList.toggle('is-loading', Boolean(text));
 }
 
+function updateScrollProgress() {
+  const bar = $('#scrollProgress');
+  if (!bar) return;
+  const root = document.documentElement;
+  const max = Math.max(0, root.scrollHeight - window.innerHeight);
+  const progress = max ? clamp(window.scrollY / max, 0, 1) : 0;
+  bar.style.transform = `scaleX(${progress})`;
+}
+
 /* ---------------- 目录树 ---------------- */
 function renderTree() {
   const nav = $('#tree');
@@ -1218,6 +1227,7 @@ function renderList({ resetScroll = false } = {}) {
   if (resetScroll) window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   computeLayout();
   updateVirtualCards(true);
+  updateScrollProgress();
 }
 
 function computeLayout() {
@@ -1785,6 +1795,7 @@ let lbSeq = 0;
 let lbCloseTimer = 0;
 let lbSourceImg = null;
 let lbFocusReturn = null;
+const lbPreloadCache = new Set();
 
 function prefersReducedMotion() {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1949,6 +1960,29 @@ function stepLightbox(delta) {
   renderLightbox();
 }
 
+function preloadImage(url) {
+  if (!url || lbPreloadCache.has(url)) return;
+  lbPreloadCache.add(url);
+  const img = new Image();
+  img.decoding = 'async';
+  img.src = url;
+}
+
+function preloadLightboxNeighbors() {
+  const lb = state.lightbox;
+  const e = lb.entry;
+  if (!e || lb.images.length < 2) return;
+  const indexes = [
+    (lb.index - 1 + lb.images.length) % lb.images.length,
+    (lb.index + 1) % lb.images.length,
+  ];
+  for (const i of [...new Set(indexes)]) {
+    const item = lb.images[i];
+    preloadImage(imageItemUrl('image', e, item));
+    preloadImage(imageItemUrl('original', e, item));
+  }
+}
+
 function renderLightbox() {
   const lb = state.lightbox;
   const e = lb.entry;
@@ -2044,6 +2078,7 @@ function renderLightbox() {
     const act = thumbs.querySelector('.lightbox-thumb.active');
     if (act) act.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }
+  preloadLightboxNeighbors();
 }
 
 function isLocalOrigin() {
@@ -2281,6 +2316,7 @@ function bindUI() {
   /* 设置 / 关于 悬浮框：开关三件套（按钮/遮罩/Esc），带淡入淡出 */
   const settingsMask = $('#settings');
   const nsfwMask = $('#nsfwConfirm');
+  const shortcutMask = $('#shortcutHelp');
   const aboutMask = $('#about');
   const archiveMask = $('#codexArchive');
   const maskTimers = new WeakMap();
@@ -2355,6 +2391,10 @@ function bindUI() {
   $('#nsfwCancelX').onclick = cancelNsfwConfirm;
   nsfwMask.onclick = ev => { if (ev.target === nsfwMask) cancelNsfwConfirm(); };
   nsfwMask.onkeydown = ev => trapFocus(ev, nsfwMask);
+  $('#shortcutBtn').onclick = () => { closeMore(); openMask(shortcutMask, moreBtn); };
+  $('#shortcutClose').onclick = () => closeMask(shortcutMask);
+  shortcutMask.onclick = ev => { if (ev.target === shortcutMask) closeMask(shortcutMask); };
+  shortcutMask.onkeydown = ev => trapFocus(ev, shortcutMask);
   $('#settingsBtn').onclick = () => { closeMore(); openMask(settingsMask, moreBtn); };
   $('#settingsClose').onclick = () => closeMask(settingsMask);
   settingsMask.onclick = ev => { if (ev.target === settingsMask) closeMask(settingsMask); };
@@ -2393,6 +2433,7 @@ function bindUI() {
     }
     closeMore({ focusButton: !moreMenu.hidden });
     if (!settingsMask.hidden) closeMask(settingsMask);
+    if (!shortcutMask.hidden) closeMask(shortcutMask);
     if (!aboutMask.hidden) closeMask(aboutMask);
     if (!archiveMask.hidden) closeMask(archiveMask);
     closeBannerAbout();
@@ -2489,6 +2530,13 @@ function bindUI() {
   const backTopBtn = $('#backTop');
   const floatActions = $('.float-actions');
   const setTopbarHidden = hide => document.body.classList.toggle('tb-hidden', hide);
+  const scrollToTop = () => {
+    setTopbarHidden(false);
+    backTopBtn.classList.remove('show');
+    floatActions?.classList.remove('has-backtop');
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    updateScrollProgress();
+  };
   let lastScrollY = Math.max(0, window.scrollY);
   window.addEventListener('scroll', () => {
     const y = Math.max(0, window.scrollY);
@@ -2497,6 +2545,7 @@ function bindUI() {
     const showBackTop = y > 800;
     backTopBtn.classList.toggle('show', showBackTop);
     floatActions?.classList.toggle('has-backtop', showBackTop);
+    updateScrollProgress();
     if (Math.abs(dy) < 4) return;
     if (document.activeElement === searchInput) { setTopbarHidden(false); return; }
     if (mobileQuery.matches && !sidebar.classList.contains('closed')) { setTopbarHidden(false); return; }
@@ -2506,13 +2555,35 @@ function bindUI() {
     setTopbarHidden(false);
     if (mobileQuery.matches) document.body.classList.add('search-mode');
   });
+  const typingTarget = () => {
+    const el = document.activeElement;
+    const tag = el && el.tagName;
+    return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el?.isContentEditable;
+  };
+  const overlayOpen = () =>
+    !$('#lightbox').hidden ||
+    !settingsMask.hidden ||
+    !nsfwMask.hidden ||
+    !shortcutMask.hidden ||
+    !aboutMask.hidden ||
+    !archiveMask.hidden;
   window.addEventListener('keydown', ev => {
-    if (ev.key !== '/' || ev.ctrlKey || ev.metaKey || ev.altKey) return;
-    const tag = document.activeElement && document.activeElement.tagName;
-    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || !$('#lightbox').hidden || !$('#settings').hidden || !$('#about').hidden) return;
-    ev.preventDefault();
-    if (mobileQuery.matches) setSearchMode(true);
-    searchInput.focus();
+    if (ev.ctrlKey || ev.metaKey || ev.altKey || typingTarget()) return;
+    if (ev.key === '?' && !overlayOpen()) {
+      ev.preventDefault();
+      openMask(shortcutMask);
+      return;
+    }
+    if (ev.key.toLowerCase() === 'g' && !overlayOpen()) {
+      ev.preventDefault();
+      scrollToTop();
+      return;
+    }
+    if (ev.key === '/' && !overlayOpen()) {
+      ev.preventDefault();
+      if (mobileQuery.matches) setSearchMode(true);
+      searchInput.focus();
+    }
   });
 
   /* 分类轨道：纵向滚轮转横向滚动 */
@@ -2524,10 +2595,7 @@ function bindUI() {
   }, { passive: false });
 
   backTopBtn.onclick = () => {
-    setTopbarHidden(false);
-    backTopBtn.classList.remove('show');
-    floatActions?.classList.remove('has-backtop');
-    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    scrollToTop();
   };
   if (randomBtn) {
     randomBtn.onclick = () => {
@@ -2538,6 +2606,7 @@ function bindUI() {
 
   window.addEventListener('resize', () => {
     scheduleRelayout(true);
+    updateScrollProgress();
   }, { passive: true });
 
   if ('ResizeObserver' in window) {

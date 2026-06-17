@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="assets/styles.css">
 </head>
 <body>
+<div id="scrollProgress" class="scroll-progress" aria-hidden="true"></div>
 <header class="topbar">
   <button id="menuBtn" class="icon-btn" title="目录">☰</button>
   <div class="brand">法典<span>图鉴</span></div>
@@ -74,6 +75,10 @@
         <button id="settingsBtn" class="more-item" type="button" role="menuitem">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           <span><b>设置</b><small>复制模式与偏好</small></span>
+        </button>
+        <button id="shortcutBtn" class="more-item" type="button" role="menuitem">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 9h.01M11 9h.01M15 9h.01M18 13h.01M6 13h8M8 17h8"/></svg>
+          <span><b>快捷键</b><small>查看当前可用操作</small></span>
         </button>
         <button id="aboutBtn" class="more-item" type="button" role="menuitem">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11.5v5"/><path d="M12 8h.01"/></svg>
@@ -191,6 +196,20 @@
     <div class="nsfw-actions">
       <button id="nsfwCancel" class="nsfw-secondary" type="button">取消</button>
       <button id="nsfwAccept" class="nsfw-primary" type="button">我已成年并同意开启</button>
+    </div>
+  </div>
+</div>
+
+<div id="shortcutHelp" class="settings-mask" hidden>
+  <div class="settings-panel shortcut-panel" role="dialog" aria-modal="true" aria-label="快捷键">
+    <button id="shortcutClose" class="settings-close" type="button" aria-label="关闭">×</button>
+    <h2 class="settings-title">快捷键</h2>
+    <div class="shortcut-list">
+      <div><kbd>/</kbd><span>聚焦搜索</span></div>
+      <div><kbd>?</kbd><span>打开快捷键</span></div>
+      <div><kbd>G</kbd><span>回到顶部</span></div>
+      <div><kbd>Esc</kbd><span>关闭弹窗 / 灯箱</span></div>
+      <div><kbd>←</kbd><kbd>→</kbd><span>灯箱切图</span></div>
     </div>
   </div>
 </div>
