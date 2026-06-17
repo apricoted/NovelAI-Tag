@@ -11,6 +11,9 @@ const DEFAULT_IMAGE_RATIO = 1.18;
 const RANDOM_RECENT_LIMIT = 20;
 const DENSITY_STORAGE_KEY = 'fadian-density';
 const DEFAULT_DENSITY = 'standard';
+const RECENT_STORAGE_KEY = 'fadian-recent';
+const LAST_BROWSE_STORAGE_KEY = 'fadian-last-browse';
+const RECENT_ENTRY_LIMIT = 18;
 const DENSITY_PRESETS = {
   comfort: {
     label: '舒适',
@@ -98,6 +101,8 @@ const state = {
   loadedImages: new Set(),
   seenAnimated: new Set(),
   recentRandomIds: [],
+  recentEntries: [],
+  lastBrowse: null,
   sourceNoticesShown: new Set(),
   pendingUrlState: null,
   suppressUrlSync: false,
@@ -123,7 +128,10 @@ const THEME_ICONS = {
 async function init() {
   try {
     setLoading('正在加载法典索引…');
-    state.favs = new Set(JSON.parse(localStorage.getItem('fadian-favs') || '[]'));
+    const savedFavs = safeJsonParse(localStorage.getItem('fadian-favs'), []);
+    state.favs = new Set(Array.isArray(savedFavs) ? savedFavs : []);
+    state.recentEntries = normalizeRecentEntries(safeJsonParse(localStorage.getItem(RECENT_STORAGE_KEY), []));
+    state.lastBrowse = normalizeLastBrowse(safeJsonParse(localStorage.getItem(LAST_BROWSE_STORAGE_KEY), null));
     state.allowNsfw = localStorage.getItem(NSFW_STORAGE_KEY) === '1';
     document.body.classList.toggle('nsfw-unlocked', state.allowNsfw);
     applyDensity(localStorage.getItem(DENSITY_STORAGE_KEY), { render: false });
@@ -318,6 +326,46 @@ async function loadAbout() {
     if (res.ok) return res.json();
   } catch {}
   return { links: [], tips: [], credits: [] };
+}
+
+function safeJsonParse(raw, fallback) {
+  try {
+    if (!raw) return fallback;
+    return JSON.parse(raw);
+  } catch {
+    return fallback;
+  }
+}
+
+function normalizeRecentEntries(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter(item => item && item.codexId && item.entryId && item.title)
+    .map(item => ({
+      codexId: String(item.codexId),
+      codexTitle: String(item.codexTitle || item.codexId),
+      entryId: String(item.entryId),
+      title: String(item.title),
+      path: Array.isArray(item.path) ? item.path.map(String) : [],
+      thumb: String(item.thumb || ''),
+      at: Number(item.at) || Date.now(),
+    }))
+    .slice(0, RECENT_ENTRY_LIMIT);
+}
+
+function normalizeLastBrowse(value) {
+  if (!value || typeof value !== 'object' || !value.codexId) return null;
+  return {
+    codexId: String(value.codexId),
+    codexTitle: String(value.codexTitle || value.codexId),
+    path: Array.isArray(value.path) ? value.path.map(String) : [],
+    q: String(value.q || ''),
+    onlyImaged: Boolean(value.onlyImaged),
+    onlyFav: Boolean(value.onlyFav),
+    entryId: String(value.entryId || ''),
+    scrollY: Math.max(0, Number(value.scrollY) || 0),
+    at: Number(value.at) || Date.now(),
+  };
 }
 
 let codexLoadSeq = 0;
@@ -1021,6 +1069,7 @@ function syncUrlState({ replace = true, entry } = {}) {
   else if (state.activePath.length) params.set('path', state.activePath.join('/'));
   const entryId = entry === undefined ? (state.lightbox.entry?.id || '') : entry;
   if (entryId) params.set('entry', entryId);
+  scheduleBrowseStateSave(entryId);
   const next = `${location.pathname}?${params.toString()}`;
   if (next === location.pathname + location.search && !location.hash) return;
   history[replace ? 'replaceState' : 'pushState'](null, '', next);
@@ -1545,6 +1594,8 @@ function makeCard(placement) {
   const faved = state.favs.has(favKey(e));
   fav.textContent = faved ? '★' : '☆';
   fav.classList.toggle('on', faved);
+  fav.title = faved ? '取消收藏' : '收藏';
+  fav.setAttribute('aria-label', faved ? '取消收藏' : '收藏');
   fav.onclick = ev => { ev.stopPropagation(); toggleFav(e, fav); };
 
   if (hasImage) {
@@ -1774,6 +1825,8 @@ function relayoutVisible({ animate = false } = {}) {
 
 /* ---------------- 复制 ---------------- */
 async function copyEntry(e, node) {
+  recordRecentEntry(e);
+  saveBrowseStateNow();
   return copyText(e.tags, `已复制：${e.title}`, node);
 }
 
@@ -1903,6 +1956,209 @@ function toast(msg, icon = '✓') {
   toastTimer = setTimeout(() => t.classList.remove('show'), 1600);
 }
 
+/* ---------------- 浏览记录 ---------------- */
+function saveRecentEntries() {
+  localStorage.setItem(RECENT_STORAGE_KEY, JSON.stringify(state.recentEntries));
+}
+
+function recordRecentEntry(e) {
+  if (!state.codex || !e) return;
+  const key = `${state.codex.id}:${e.id}`;
+  const item = {
+    codexId: state.codex.id,
+    codexTitle: state.codex.title,
+    entryId: e.id,
+    title: e.title,
+    path: e.path || [],
+    thumb: hasEntryImage(e) ? thumbUrl(e) : '',
+    at: Date.now(),
+  };
+  state.recentEntries = [
+    item,
+    ...state.recentEntries.filter(old => `${old.codexId}:${old.entryId}` !== key),
+  ].slice(0, RECENT_ENTRY_LIMIT);
+  saveRecentEntries();
+}
+
+let browseSaveTimer = 0;
+function currentBrowseSnapshot(entryId = state.lightbox.entry?.id || '') {
+  if (!state.codex) return null;
+  return {
+    codexId: state.codex.id,
+    codexTitle: state.codex.title,
+    path: state.activePath || [],
+    q: state.query.trim(),
+    onlyImaged: Boolean(state.onlyImaged),
+    onlyFav: Boolean(state.onlyFav),
+    entryId,
+    scrollY: Math.max(0, Math.round(window.scrollY || 0)),
+    at: Date.now(),
+  };
+}
+
+function saveBrowseStateNow(entryId) {
+  const snapshot = currentBrowseSnapshot(entryId);
+  if (!snapshot) return;
+  state.lastBrowse = snapshot;
+  localStorage.setItem(LAST_BROWSE_STORAGE_KEY, JSON.stringify(snapshot));
+}
+
+function scheduleBrowseStateSave(entryId) {
+  clearTimeout(browseSaveTimer);
+  browseSaveTimer = window.setTimeout(() => saveBrowseStateNow(entryId), 180);
+}
+
+function browseDesc(snapshot) {
+  if (!snapshot) return '暂无可恢复的位置';
+  if (snapshot.q) return `${snapshot.codexTitle} · 搜索 “${snapshot.q}”`;
+  if (snapshot.path?.length) return `${snapshot.codexTitle} · ${snapshot.path.join(' › ')}`;
+  return `${snapshot.codexTitle} · ${formatRecentTime(snapshot.at)}`;
+}
+
+function formatRecentTime(ts) {
+  const diff = Math.max(0, Date.now() - Number(ts || 0));
+  const minute = 60 * 1000;
+  const hour = 60 * minute;
+  const day = 24 * hour;
+  if (diff < minute) return '刚刚';
+  if (diff < hour) return `${Math.floor(diff / minute)} 分钟前`;
+  if (diff < day) return `${Math.floor(diff / hour)} 小时前`;
+  if (diff < 7 * day) return `${Math.floor(diff / day)} 天前`;
+  return new Date(Number(ts)).toLocaleDateString('zh-CN');
+}
+
+function renderHistoryPanel() {
+  const resume = $('#resumeBrowse');
+  const resumeDesc = $('#resumeDesc');
+  if (resumeDesc) resumeDesc.textContent = browseDesc(state.lastBrowse);
+  if (resume) resume.disabled = !state.lastBrowse;
+  const clearBtn = $('#clearRecent');
+  if (clearBtn) clearBtn.disabled = state.recentEntries.length === 0;
+
+  const list = $('#recentList');
+  if (!list) return;
+  list.innerHTML = '';
+  if (!state.recentEntries.length) {
+    const empty = document.createElement('div');
+    empty.className = 'recent-empty';
+    empty.textContent = '最近还没有打开过词条。点卡片放大图或复制词条后，这里会自动记录。';
+    list.appendChild(empty);
+    return;
+  }
+  for (const item of state.recentEntries) {
+    const btn = document.createElement('button');
+    btn.className = 'recent-item';
+    btn.type = 'button';
+    btn.dataset.codex = item.codexId;
+    btn.dataset.entry = item.entryId;
+
+    if (item.thumb) {
+      const img = document.createElement('img');
+      img.className = 'recent-thumb';
+      img.src = item.thumb;
+      img.alt = '';
+      btn.appendChild(img);
+    } else {
+      const mark = document.createElement('span');
+      mark.className = 'recent-thumb no-img';
+      mark.textContent = '☆';
+      btn.appendChild(mark);
+    }
+
+    const main = document.createElement('span');
+    main.className = 'recent-main';
+    const title = document.createElement('span');
+    title.className = 'recent-title';
+    title.textContent = item.title;
+    const meta = document.createElement('span');
+    meta.className = 'recent-meta';
+    meta.textContent = `${item.codexTitle}${item.path?.length ? ' · ' + item.path.join(' › ') : ''}`;
+    main.append(title, meta);
+    btn.appendChild(main);
+
+    const time = document.createElement('span');
+    time.className = 'recent-time';
+    time.textContent = formatRecentTime(item.at);
+    btn.appendChild(time);
+    btn.onclick = () => document.dispatchEvent(new CustomEvent('openRecentEntry', { detail: item }));
+    list.appendChild(btn);
+  }
+}
+
+function applyBrowseControls(snapshot) {
+  state.onlyImaged = Boolean(snapshot.onlyImaged);
+  state.onlyFav = Boolean(snapshot.onlyFav);
+  const onlyImaged = $('#onlyImaged');
+  const onlyFav = $('#onlyFav');
+  if (onlyImaged) onlyImaged.checked = state.onlyImaged;
+  if (onlyFav) onlyFav.checked = state.onlyFav;
+}
+
+function applyBrowseState(snapshot) {
+  state.activePath = snapshot.path || [];
+  state.query = snapshot.q || '';
+  const search = $('#search');
+  if (search) search.value = state.query;
+  updateSearchClear();
+  renderTree();
+  applyFilter({ resetScroll: true });
+  syncUrlState({ replace: true, entry: snapshot.entryId || '' });
+}
+
+async function resumeLastBrowse() {
+  const snapshot = state.lastBrowse;
+  if (!snapshot) return;
+  const meta = state.codexes.find(c => c.id === snapshot.codexId);
+  if (meta && isCodexLocked(meta)) {
+    showNsfwLockedHint();
+    return;
+  }
+  applyBrowseControls(snapshot);
+  if (!state.codex || state.codex.id !== snapshot.codexId) {
+    await loadCodex(snapshot.codexId, {
+      urlState: { codex: snapshot.codexId, path: snapshot.path || [], q: snapshot.q || '', entry: snapshot.entryId || '' },
+      replaceUrl: true,
+    });
+  } else {
+    applyBrowseState(snapshot);
+    if (snapshot.entryId) window.setTimeout(() => openEntryDeepLink(snapshot.entryId), 120);
+  }
+  if (!snapshot.entryId) {
+    window.setTimeout(() => {
+      window.scrollTo({ top: snapshot.scrollY || 0, left: 0, behavior: 'auto' });
+      updateVirtualCards(true);
+      updateScrollProgress();
+    }, 120);
+  }
+  toast('已恢复上次浏览位置');
+}
+
+async function openRecentEntry(item) {
+  if (!item?.codexId || !item.entryId) return;
+  const meta = state.codexes.find(c => c.id === item.codexId);
+  if (meta && isCodexLocked(meta)) {
+    showNsfwLockedHint();
+    return;
+  }
+  const urlState = { codex: item.codexId, path: item.path || [], q: '', entry: item.entryId };
+  if (!state.codex || state.codex.id !== item.codexId) {
+    state.onlyFav = false;
+    state.onlyImaged = false;
+    applyBrowseControls({ onlyFav: false, onlyImaged: false });
+    await loadCodex(item.codexId, { urlState, replaceUrl: true });
+  } else {
+    state.query = '';
+    state.activePath = item.path || [];
+    const search = $('#search');
+    if (search) search.value = '';
+    updateSearchClear();
+    renderTree();
+    applyFilter({ resetScroll: true });
+    syncUrlState({ replace: true, entry: item.entryId });
+    window.setTimeout(() => openEntryDeepLink(item.entryId), 120);
+  }
+}
+
 /* ---------------- 收藏 ---------------- */
 function favKey(e) { return state.codex.id + ':' + e.id; }
 function toggleFav(e, btn) {
@@ -1910,8 +2166,14 @@ function toggleFav(e, btn) {
   if (state.favs.has(k)) state.favs.delete(k); else state.favs.add(k);
   localStorage.setItem('fadian-favs', JSON.stringify([...state.favs]));
   const on = state.favs.has(k);
-  if (btn) { btn.textContent = on ? '★' : '☆'; btn.classList.toggle('on', on); }
+  if (btn) {
+    btn.textContent = on ? '★' : '☆';
+    btn.classList.toggle('on', on);
+    btn.title = on ? '取消收藏' : '收藏';
+    btn.setAttribute('aria-label', on ? '取消收藏' : '收藏');
+  }
   if (state.onlyFav) applyFilter({ resetScroll: true });
+  toast(on ? `已收藏：${e.title}` : `已取消收藏：${e.title}`);
 }
 
 /* ---------------- 灯箱（沉浸浮影 + 原位展开） ---------------- */
@@ -2006,6 +2268,7 @@ function flyIn(sourceEl) {
 function openLightbox(entry, index = 0, sourceEl = null) {
   const images = entryImages(entry);
   if (!images.length) return;
+  recordRecentEntry(entry);
   state.lightbox = {
     entry,
     images,
@@ -2446,6 +2709,7 @@ function bindUI() {
   const settingsMask = $('#settings');
   const nsfwMask = $('#nsfwConfirm');
   const shortcutMask = $('#shortcutHelp');
+  const historyMask = $('#historyPanel');
   const aboutMask = $('#about');
   const archiveMask = $('#codexArchive');
   const maskTimers = new WeakMap();
@@ -2524,6 +2788,23 @@ function bindUI() {
   $('#shortcutClose').onclick = () => closeMask(shortcutMask);
   shortcutMask.onclick = ev => { if (ev.target === shortcutMask) closeMask(shortcutMask); };
   shortcutMask.onkeydown = ev => trapFocus(ev, shortcutMask);
+  $('#historyBtn').onclick = () => { closeMore(); renderHistoryPanel(); openMask(historyMask, moreBtn); };
+  $('#historyClose').onclick = () => closeMask(historyMask);
+  historyMask.onclick = ev => { if (ev.target === historyMask) closeMask(historyMask); };
+  historyMask.onkeydown = ev => trapFocus(ev, historyMask);
+  $('#resumeBrowse').onclick = async () => {
+    closeMask(historyMask);
+    await resumeLastBrowse();
+  };
+  $('#clearRecent').onclick = () => {
+    state.recentEntries = [];
+    saveRecentEntries();
+    renderHistoryPanel();
+  };
+  document.addEventListener('openRecentEntry', async ev => {
+    closeMask(historyMask);
+    await openRecentEntry(ev.detail);
+  });
   $('#settingsBtn').onclick = () => { closeMore(); openMask(settingsMask, moreBtn); };
   $('#settingsClose').onclick = () => closeMask(settingsMask);
   settingsMask.onclick = ev => { if (ev.target === settingsMask) closeMask(settingsMask); };
@@ -2563,6 +2844,7 @@ function bindUI() {
     closeMore({ focusButton: !moreMenu.hidden });
     if (!settingsMask.hidden) closeMask(settingsMask);
     if (!shortcutMask.hidden) closeMask(shortcutMask);
+    if (!historyMask.hidden) closeMask(historyMask);
     if (!aboutMask.hidden) closeMask(aboutMask);
     if (!archiveMask.hidden) closeMask(archiveMask);
     closeBannerAbout();
@@ -2675,6 +2957,7 @@ function bindUI() {
     backTopBtn.classList.toggle('show', showBackTop);
     floatActions?.classList.toggle('has-backtop', showBackTop);
     updateScrollProgress();
+    scheduleBrowseStateSave();
     if (Math.abs(dy) < 4) return;
     if (document.activeElement === searchInput) { setTopbarHidden(false); return; }
     if (mobileQuery.matches && !sidebar.classList.contains('closed')) { setTopbarHidden(false); return; }
@@ -2694,6 +2977,7 @@ function bindUI() {
     !settingsMask.hidden ||
     !nsfwMask.hidden ||
     !shortcutMask.hidden ||
+    !historyMask.hidden ||
     !aboutMask.hidden ||
     !archiveMask.hidden;
   window.addEventListener('keydown', ev => {

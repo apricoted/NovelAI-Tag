@@ -80,6 +80,10 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 9h.01M11 9h.01M15 9h.01M18 13h.01M6 13h8M8 17h8"/></svg>
           <span><b>快捷键</b><small>查看当前可用操作</small></span>
         </button>
+        <button id="historyBtn" class="more-item" type="button" role="menuitem">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 7v5l3 2"/></svg>
+          <span><b>浏览与收藏</b><small>继续上次浏览</small></span>
+        </button>
         <button id="aboutBtn" class="more-item" type="button" role="menuitem">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11.5v5"/><path d="M12 8h.01"/></svg>
           <span><b>关于本站</b><small>友链、技巧和鸣谢</small></span>
@@ -214,6 +218,26 @@
       <div><kbd>Esc</kbd><span>关闭弹窗 / 灯箱</span></div>
       <div><kbd>←</kbd><kbd>→</kbd><span>灯箱切图</span></div>
     </div>
+  </div>
+</div>
+
+<div id="historyPanel" class="settings-mask" hidden>
+  <div class="settings-panel history-panel" role="dialog" aria-modal="true" aria-label="浏览与收藏">
+    <button id="historyClose" class="settings-close" type="button" aria-label="关闭">×</button>
+    <h2 class="settings-title">浏览与收藏</h2>
+    <p class="settings-note">浏览记录和收藏只保存在当前浏览器。</p>
+    <div class="history-resume">
+      <div>
+        <b>继续上次浏览</b>
+        <small id="resumeDesc">暂无可恢复的位置</small>
+      </div>
+      <button id="resumeBrowse" type="button">继续</button>
+    </div>
+    <div class="history-head">
+      <span>最近浏览</span>
+      <button id="clearRecent" type="button">清空</button>
+    </div>
+    <div id="recentList" class="recent-list"></div>
   </div>
 </div>
 
