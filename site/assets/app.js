@@ -2029,6 +2029,27 @@ function bindUI() {
   let st;
   const searchInput = $('#search');
   const searchClear = $('#searchClear');
+  const searchExit = $('#searchExit');
+  const mobileSearchBtn = $('#mobileSearchBtn');
+  const mobileQuery = window.matchMedia('(max-width:600px)');
+  const setSearchMode = (on, { focus = false, restoreButton = false } = {}) => {
+    const shouldOpen = on && mobileQuery.matches;
+    document.body.classList.toggle('search-mode', shouldOpen);
+    if (shouldOpen) {
+      setTopbarHidden(false);
+      if (focus) requestAnimationFrame(() => searchInput.focus());
+    } else {
+      searchInput.blur();
+      if (restoreButton) mobileSearchBtn?.focus();
+    }
+  };
+  mobileSearchBtn?.addEventListener('click', () => setSearchMode(true, { focus: true }));
+  searchExit?.addEventListener('click', () => setSearchMode(false, { restoreButton: true }));
+  if (mobileQuery.addEventListener) {
+    mobileQuery.addEventListener('change', ev => {
+      if (!ev.matches) setSearchMode(false);
+    });
+  }
   searchInput.oninput = e => {
     updateSearchClear();
     clearTimeout(st);
@@ -2219,13 +2240,23 @@ function bindUI() {
   });
   window.addEventListener('keydown', ev => {
     if (ev.key !== 'Escape') return;
+    if (document.body.classList.contains('search-mode')) {
+      ev.preventDefault();
+      setSearchMode(false, { restoreButton: true });
+      return;
+    }
     closeMore({ focusButton: !moreMenu.hidden });
     if (!settingsMask.hidden) closeMask(settingsMask);
     if (!aboutMask.hidden) closeMask(aboutMask);
     if (!archiveMask.hidden) closeMask(archiveMask);
     closeBannerAbout();
   });
+  let suppressLightboxClick = false;
   $('#lightbox').onclick = ev => {
+    if (suppressLightboxClick) {
+      suppressLightboxClick = false;
+      return;
+    }
     if (ev.target.id === 'lightbox' || ev.target.id === 'lightboxStage') closeLightbox();
   };
   $('#lightboxFold').onclick = ev => {
@@ -2237,6 +2268,67 @@ function bindUI() {
   $('#lightboxClose').onclick = closeLightbox;
   $('#lightboxPrev').onclick = ev => { ev.stopPropagation(); stepLightbox(-1); };
   $('#lightboxNext').onclick = ev => { ev.stopPropagation(); stepLightbox(1); };
+  let lightboxTouch = null;
+  let lightboxPointer = null;
+  let lastLightboxSwipeAt = 0;
+  const canStartLightboxSwipe = target =>
+    !target.closest('.lightbox-info,.lightbox-thumbs,.lb-circle,.lb-fold');
+  const commitLightboxSwipe = (dx, dy, elapsed) => {
+    if (state.lightbox.images.length < 2) return false;
+    if (elapsed > 800 || Math.abs(dx) < 54 || Math.abs(dx) < Math.abs(dy) * 1.2) return false;
+    stepLightbox(dx < 0 ? 1 : -1);
+    lastLightboxSwipeAt = Date.now();
+    suppressLightboxClick = true;
+    window.setTimeout(() => { suppressLightboxClick = false; }, 80);
+    return true;
+  };
+  $('#lightbox').addEventListener('touchstart', ev => {
+    if ($('#lightbox').hidden || ev.touches.length !== 1) return;
+    if (!canStartLightboxSwipe(ev.target)) return;
+    const t = ev.touches[0];
+    lightboxTouch = { x: t.clientX, y: t.clientY, at: Date.now() };
+  }, { passive: true });
+  $('#lightbox').addEventListener('touchmove', ev => {
+    if (!lightboxTouch || ev.touches.length !== 1) return;
+    const t = ev.touches[0];
+    const dx = t.clientX - lightboxTouch.x;
+    const dy = t.clientY - lightboxTouch.y;
+    if (Math.abs(dx) > 18 && Math.abs(dx) > Math.abs(dy) * 1.15) ev.preventDefault();
+  }, { passive: false });
+  $('#lightbox').addEventListener('touchend', ev => {
+    if (!lightboxTouch) return;
+    const t = ev.changedTouches[0];
+    const dx = t.clientX - lightboxTouch.x;
+    const dy = t.clientY - lightboxTouch.y;
+    const elapsed = Date.now() - lightboxTouch.at;
+    lightboxTouch = null;
+    commitLightboxSwipe(dx, dy, elapsed);
+  }, { passive: true });
+  $('#lightbox').addEventListener('touchcancel', () => { lightboxTouch = null; }, { passive: true });
+  $('#lightbox').addEventListener('pointerdown', ev => {
+    if ($('#lightbox').hidden || ev.button !== 0) return;
+    if (!mobileQuery.matches && ev.pointerType !== 'touch') return;
+    if (!canStartLightboxSwipe(ev.target)) return;
+    lightboxPointer = { id: ev.pointerId, x: ev.clientX, y: ev.clientY, at: Date.now() };
+  });
+  $('#lightbox').addEventListener('pointermove', ev => {
+    if (!lightboxPointer || ev.pointerId !== lightboxPointer.id) return;
+    const dx = ev.clientX - lightboxPointer.x;
+    const dy = ev.clientY - lightboxPointer.y;
+    if (Math.abs(dx) > 18 && Math.abs(dx) > Math.abs(dy) * 1.15) ev.preventDefault();
+  }, { passive: false });
+  $('#lightbox').addEventListener('pointerup', ev => {
+    if (!lightboxPointer || ev.pointerId !== lightboxPointer.id) return;
+    const dx = ev.clientX - lightboxPointer.x;
+    const dy = ev.clientY - lightboxPointer.y;
+    const elapsed = Date.now() - lightboxPointer.at;
+    lightboxPointer = null;
+    if (Date.now() - lastLightboxSwipeAt < 220) return;
+    commitLightboxSwipe(dx, dy, elapsed);
+  });
+  $('#lightbox').addEventListener('pointercancel', ev => {
+    if (lightboxPointer?.id === ev.pointerId) lightboxPointer = null;
+  });
   window.addEventListener('keydown', ev => {
     if ($('#lightbox').hidden) return;
     if (ev.key === 'Escape') closeLightbox();
@@ -2248,7 +2340,6 @@ function bindUI() {
 
   /* 智能顶栏：下滑隐藏、上滑立现；搜索聚焦/移动端目录打开时锁定不收 */
   const backTopBtn = $('#backTop');
-  const mobileQuery = window.matchMedia('(max-width:600px)');
   const setTopbarHidden = hide => document.body.classList.toggle('tb-hidden', hide);
   let lastScrollY = Math.max(0, window.scrollY);
   window.addEventListener('scroll', () => {
@@ -2261,12 +2352,16 @@ function bindUI() {
     if (mobileQuery.matches && !sidebar.classList.contains('closed')) { setTopbarHidden(false); return; }
     setTopbarHidden(dy > 0 && y > 120);
   }, { passive: true });
-  searchInput.addEventListener('focus', () => setTopbarHidden(false));
+  searchInput.addEventListener('focus', () => {
+    setTopbarHidden(false);
+    if (mobileQuery.matches) document.body.classList.add('search-mode');
+  });
   window.addEventListener('keydown', ev => {
     if (ev.key !== '/' || ev.ctrlKey || ev.metaKey || ev.altKey) return;
     const tag = document.activeElement && document.activeElement.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || !$('#lightbox').hidden || !$('#settings').hidden || !$('#about').hidden) return;
     ev.preventDefault();
+    if (mobileQuery.matches) setSearchMode(true);
     searchInput.focus();
   });
 

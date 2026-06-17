@@ -27,7 +27,14 @@
     <button id="searchClear" class="search-clear" type="button" aria-label="清空搜索" title="清空搜索" hidden>
       <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 4.5 11.5 11.5M11.5 4.5 4.5 11.5"/></svg>
     </button>
+    <button id="searchExit" class="search-exit" type="button" aria-label="退出搜索" title="退出搜索">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
+    </button>
   </div>
+
+  <button id="mobileSearchBtn" class="icon-btn mobile-search-btn" type="button" title="搜索" aria-label="搜索">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.8-3.8"/></svg>
+  </button>
 
   <label class="filter-btn" title="只看有图" aria-label="只看有图">
     <input type="checkbox" id="onlyImaged">
@@ -186,7 +193,9 @@
 <div id="toast" class="toast"></div>
 
 <div id="lightbox" class="lightbox" hidden>
-  <button id="lightboxClose" class="lb-circle lightbox-close" type="button" aria-label="关闭">×</button>
+  <button id="lightboxClose" class="lb-circle lightbox-close" type="button" aria-label="关闭">
+    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 4.5 11.5 11.5M11.5 4.5 4.5 11.5"/></svg>
+  </button>
   <button id="lightboxPrev" class="lb-circle lightbox-nav lightbox-prev" type="button" aria-label="上一张">‹</button>
   <button id="lightboxNext" class="lb-circle lightbox-nav lightbox-next" type="button" aria-label="下一张">›</button>
   <div class="lightbox-stage" id="lightboxStage">
