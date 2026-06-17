@@ -1,0 +1,183 @@
+import { state } from './state.js';
+import { stripTrailingSlash } from './utils.js';
+import { hasEntryImage } from './media.js';
+import { toast } from './feedback.js';
+
+export async function loadMedia() {
+  try {
+    const res = await fetch('data/media.json', { cache: 'no-store' });
+    if (res.ok) return res.json();
+  } catch {}
+  return {};
+}
+
+export async function loadAbout() {
+  try {
+    const res = await fetch('data/about.json', { cache: 'no-store' });
+    if (res.ok) return res.json();
+  } catch {}
+  return { links: [], tips: [], credits: [] };
+}
+
+
+export async function fetchCodex(meta) {
+  const key = meta.id || meta.dataUrl;
+  if (state.codexCache.has(key)) return state.codexCache.get(key);
+  const url = meta.dataUrl || `data/${meta.id}.json`;
+  let data;
+  let sourceMeta = meta;
+  let shouldCache = true;
+  try {
+    data = await fetchJson(url, meta.dataUrl ? 'no-store' : 'default');
+  } catch (ex) {
+    if (!meta.fallbackDataUrl) throw ex;
+    console.warn(ex);
+    shouldCache = false;
+    data = await fetchJson(meta.fallbackDataUrl, 'default');
+    sourceMeta = {
+      ...meta,
+      sourceDataUrl: meta.dataUrl,
+      dataUrl: '',
+      assetBaseUrl: '',
+      assetPathMode: 'codex',
+      dataStatus: '本地快照',
+      dataNotice: '外部数据源加载失败，已使用本地快照',
+      dataError: ex.message || String(ex),
+      version: meta.fallbackVersion || meta.version || data.version,
+    };
+  }
+  const codex = normalizeCodex(data, sourceMeta);
+  if (shouldCache) state.codexCache.set(key, codex);
+  return codex;
+}
+
+export async function fetchJson(url, cache = 'default') {
+  return fetch(url, { cache }).then(r => {
+    if (!r.ok) throw new Error(`Failed to load codex: ${url}`);
+    return r.json();
+  });
+}
+
+export function normalizeCodex(data, meta = {}) {
+  const codex = {
+    ...data,
+    id: meta.id || data.id,
+    title: meta.title || data.title || data.id || meta.id,
+    version: meta.version || data.version || '',
+    author: meta.author || data.author || '',
+    nsfw: Boolean(meta.nsfw || data.nsfw),
+    assetBaseUrl: stripTrailingSlash(meta.assetBaseUrl || meta.baseUrl || data.assetBaseUrl || ''),
+    assetPathMode: meta.assetPathMode || data.assetPathMode || (meta.dataUrl ? 'relative' : 'codex'),
+    dataUrl: meta.dataUrl || data.dataUrl || '',
+    sourceDataUrl: meta.sourceDataUrl || data.sourceDataUrl || meta.dataUrl || data.dataUrl || '',
+    fallbackDataUrl: meta.fallbackDataUrl || data.fallbackDataUrl || '',
+    dataStatus: meta.dataStatus || data.dataStatus || (meta.dataUrl ? '外部源' : '本地数据'),
+    dataNotice: meta.dataNotice || data.dataNotice || '',
+    dataError: meta.dataError || data.dataError || '',
+    source: meta.source || data.source || '',
+    contributors: meta.contributors || data.contributors || [],
+    links: meta.links || data.links || [],
+  };
+  codex.entries = (data.entries || []).map((entry, i) => normalizeEntry(entry, codex, i));
+  codex.entryCount = Number(codex.entryCount || codex.entries.length);
+  codex.imagedCount = Number(codex.imagedCount || codex.entries.filter(hasEntryImage).length);
+  codex.tree = data.tree || buildTreeFromEntries(codex.entries);
+  return codex;
+}
+
+export function normalizeEntry(entry, codex, index) {
+  const images = normalizeImageList(entry);
+  const primary = images[0];
+  return {
+    ...entry,
+    id: String(entry.id || `${codex.id}-${index + 1}`),
+    title: String(entry.title || ''),
+    path: Array.isArray(entry.path) ? entry.path : [],
+    tags: String(entry.tags || entry.rawTags || ''),
+    negative: String(entry.negative || ''),
+    note: String(entry.note || ''),
+    image: entry.image || primary?.path || '',
+    original: entry.original || primary?.original || primary?.path || '',
+    images,
+  };
+}
+
+export function normalizeImageList(entry) {
+  const out = [];
+  const seen = new Set();
+  const add = (image, toFront = false) => {
+    if (!image) return;
+    const item = typeof image === 'string' ? { path: image } : { ...image };
+    const path = item.path || item.image || item.url || item.src;
+    if (!path || seen.has(path)) return;
+    seen.add(path);
+    const normalized = {
+      ...item,
+      path,
+      original: item.original || path,
+      rawTag: item.rawTag || item.rawTags || '',
+    };
+    if (toFront) out.unshift(normalized);
+    else out.push(normalized);
+  };
+  for (const image of entry.images || []) add(image);
+  if (entry.image && !seen.has(entry.image)) {
+    add({ path: entry.image, original: entry.original || entry.image }, true);
+  }
+  if (entry.image && out.length) {
+    const primaryIndex = out.findIndex(image => image.path === entry.image);
+    if (primaryIndex > 0) out.unshift(out.splice(primaryIndex, 1)[0]);
+    if (entry.original && out[0]?.path === entry.image) out[0].original = entry.original;
+  }
+  if (!out.length && entry.original) add({ path: entry.original, original: entry.original });
+  return out;
+}
+
+export function buildTreeFromEntries(entries) {
+  const root = new Map();
+  for (const entry of entries) {
+    let node = root;
+    for (const name of entry.path || []) {
+      if (!node.has(name)) node.set(name, { name, count: 0, children: new Map() });
+      const cur = node.get(name);
+      cur.count++;
+      node = cur.children;
+    }
+  }
+  const toList = map => [...map.values()].map(n => ({
+    name: n.name,
+    count: n.count,
+    children: toList(n.children),
+  }));
+  return toList(root);
+}
+
+export function codexStatusLabel(c) {
+  if (c?.dataStatus) return c.dataStatus;
+  if (c?.dataUrl) return '外部源';
+  if (c?.fallbackDataUrl) return '本地快照';
+  return '本地数据';
+}
+
+export function codexStatusClass(c) {
+  const label = codexStatusLabel(c);
+  if (label.includes('快照') || label.includes('失败')) return 'warn';
+  if (label.includes('外部')) return 'remote';
+  return 'local';
+}
+
+export function codexStatusTitle(c) {
+  if (c?.dataNotice) return c.dataNotice;
+  if (c?.dataUrl) return `当前读取外部源：${c.dataUrl}`;
+  if (c?.sourceDataUrl && c?.fallbackDataUrl) return `外部源：${c.sourceDataUrl}\n回退快照：${c.fallbackDataUrl}`;
+  if (c?.fallbackDataUrl) return `本地快照：${c.fallbackDataUrl}`;
+  return '当前读取本地数据';
+}
+
+export function notifyCodexDataStatus(c) {
+  if (!c?.dataNotice) return;
+  const key = `data:${c.id}:${c.dataStatus}:${c.dataError || c.dataNotice}`;
+  if (state.sourceNoticesShown.has(key)) return;
+  state.sourceNoticesShown.add(key);
+  toast(c.dataNotice);
+}
