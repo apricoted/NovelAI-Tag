@@ -13,6 +13,7 @@ const DEFAULT_IMAGE_RATIO = 1.18;
 const MAX_TAG_LINES = 6;
 const MIN_TAG_HEIGHT = 34;
 const MAX_TAG_HEIGHT = 114;
+const RANDOM_RECENT_LIMIT = 20;
 const NSFW_STORAGE_KEY = 'fadian-nsfw-ok';
 const NSFW_LOCKED_MESSAGE = '请先在设置里开启「允许 NSFW 法典展示」，并确认成人内容提示。';
 
@@ -36,6 +37,7 @@ const state = {
   favs: new Set(),    // 收藏集合，键为 codexId:entryId
   loadedImages: new Set(),
   seenAnimated: new Set(),
+  recentRandomIds: [],
   sourceNoticesShown: new Set(),
   pendingUrlState: null,
   suppressUrlSync: false,
@@ -289,6 +291,7 @@ async function loadCodex(id, options = {}) {
   state.activePath = urlState?.path?.length ? urlState.path : [];
   state.query = urlState?.q || '';
   state.seenAnimated.clear();
+  state.recentRandomIds = [];
   $('#search').value = state.query;
   updateSearchClear();
   renderTree();
@@ -918,6 +921,53 @@ function openEntryDeepLink(entryId) {
     toast('这个词条还没有例图');
     syncUrlState({ entry: '' });
   }
+}
+
+function randomExplore() {
+  if (!state.codex) return;
+  if (!state.list.length) {
+    toast('当前结果为空，换个筛选再试试', '!');
+    return;
+  }
+  const candidates = state.list.filter(hasEntryImage);
+  if (!candidates.length) {
+    toast('当前筛选下没有可随机探索的配图词条', '!');
+    return;
+  }
+  const recent = new Set(state.recentRandomIds);
+  let pool = candidates.filter(e => !recent.has(randomKey(e)));
+  if (!pool.length) {
+    pool = candidates;
+    state.recentRandomIds = [];
+  }
+  const entry = pool[Math.floor(Math.random() * pool.length)];
+  rememberRandomEntry(entry);
+  openRandomEntry(entry);
+}
+
+function randomKey(entry) {
+  return `${state.codex?.id || ''}:${entry.id}`;
+}
+
+function rememberRandomEntry(entry) {
+  const key = randomKey(entry);
+  state.recentRandomIds = [key, ...state.recentRandomIds.filter(id => id !== key)].slice(0, RANDOM_RECENT_LIMIT);
+}
+
+function openRandomEntry(entry) {
+  const index = state.list.findIndex(e => e.id === entry.id);
+  const placement = index >= 0 ? state.placements[index] : null;
+  if (placement) {
+    const top = Math.max(0, placement.top + $('#masonry').getBoundingClientRect().top + window.scrollY - 120);
+    window.scrollTo({ top, left: 0, behavior: 'auto' });
+    updateVirtualCards(true);
+  }
+  requestAnimationFrame(() => {
+    const node = index >= 0 ? state.nodes.get(index) : null;
+    const img = node?.querySelector('.card-img');
+    openLightbox(entry, 0, img || null);
+    toast(`随机到了：${entry.title}`, '');
+  });
 }
 
 /* ---------------- 法典横幅 / 分类轨道 ---------------- */
@@ -2435,14 +2485,18 @@ function bindUI() {
   window.addEventListener('scroll', scheduleVirtualUpdate, { passive: true });
 
   /* 智能顶栏：下滑隐藏、上滑立现；搜索聚焦/移动端目录打开时锁定不收 */
+  const randomBtn = $('#randomBtn');
   const backTopBtn = $('#backTop');
+  const floatActions = $('.float-actions');
   const setTopbarHidden = hide => document.body.classList.toggle('tb-hidden', hide);
   let lastScrollY = Math.max(0, window.scrollY);
   window.addEventListener('scroll', () => {
     const y = Math.max(0, window.scrollY);
     const dy = y - lastScrollY;
     lastScrollY = y;
-    backTopBtn.classList.toggle('show', y > 800);
+    const showBackTop = y > 800;
+    backTopBtn.classList.toggle('show', showBackTop);
+    floatActions?.classList.toggle('has-backtop', showBackTop);
     if (Math.abs(dy) < 4) return;
     if (document.activeElement === searchInput) { setTopbarHidden(false); return; }
     if (mobileQuery.matches && !sidebar.classList.contains('closed')) { setTopbarHidden(false); return; }
@@ -2472,8 +2526,15 @@ function bindUI() {
   backTopBtn.onclick = () => {
     setTopbarHidden(false);
     backTopBtn.classList.remove('show');
+    floatActions?.classList.remove('has-backtop');
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   };
+  if (randomBtn) {
+    randomBtn.onclick = () => {
+      setTopbarHidden(false);
+      randomExplore();
+    };
+  }
 
   window.addEventListener('resize', () => {
     scheduleRelayout(true);

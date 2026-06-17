@@ -110,9 +110,19 @@
   </main>
 </div>
 
-<button id="backTop" class="back-top" type="button" title="回到顶部" aria-label="回到顶部">
-  <svg viewBox="0 0 24 24"><path d="m5 14 7-7 7 7"/></svg>
-</button>
+<div class="float-actions" aria-label="快捷操作">
+  <button id="randomBtn" class="float-btn random-btn" type="button" title="随机探索当前结果" aria-label="随机探索当前结果">
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="4" y="4" width="16" height="16" rx="4"/>
+      <circle cx="8.5" cy="8.5" r="1"/>
+      <circle cx="12" cy="12" r="1"/>
+      <circle cx="15.5" cy="15.5" r="1"/>
+    </svg>
+  </button>
+  <button id="backTop" class="float-btn back-top" type="button" title="回到顶部" aria-label="回到顶部">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 14 7-7 7 7"/></svg>
+  </button>
+</div>
 
 <div id="settings" class="settings-mask" hidden>
   <div class="settings-panel" role="dialog" aria-modal="true" aria-label="设置">
