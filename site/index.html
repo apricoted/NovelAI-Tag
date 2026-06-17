@@ -118,7 +118,7 @@
   <div class="settings-panel" role="dialog" aria-modal="true" aria-label="设置">
     <button id="settingsClose" class="settings-close" type="button" aria-label="关闭">×</button>
     <h2 class="settings-title">设置</h2>
-    <p class="settings-note">下方带「<b>即将推出</b>」标记的为占位预览、暂未生效。</p>
+    <p class="settings-note">设置仅保存在当前浏览器。带「<b>即将推出</b>」标记的项目仍是占位预览。</p>
     <div class="set-row">
       <div class="set-info">
         <div class="set-name">自动转化为 SD 权重格式</div>
@@ -158,13 +158,29 @@
       <span class="soon">即将推出</span>
       <select disabled><option>逗号分隔</option></select>
     </div>
-    <div class="set-row">
+    <div class="set-row nsfw-set-row">
       <div class="set-info">
-        <div class="set-name">敏感图模糊</div>
-        <div class="set-desc">列表缩略图先模糊，点击后再查看</div>
+        <div class="set-name">允许 NSFW 法典展示 <span class="set-live">需确认</span></div>
+        <div class="set-desc">默认关闭。开启后解锁成人向法典；首次开启前需要阅读并确认成人内容免责声明。</div>
       </div>
-      <span class="soon">即将推出</span>
-      <label class="switch"><input type="checkbox" disabled><i></i></label>
+      <label class="switch live"><input type="checkbox" id="nsfwToggle"><i></i></label>
+    </div>
+  </div>
+</div>
+
+<div id="nsfwConfirm" class="settings-mask" hidden>
+  <div class="settings-panel nsfw-panel" role="dialog" aria-modal="true" aria-labelledby="nsfwConfirmTitle">
+    <button id="nsfwCancelX" class="settings-close" type="button" aria-label="关闭">×</button>
+    <div class="nsfw-icon" aria-hidden="true">18+</div>
+    <h2 id="nsfwConfirmTitle" class="settings-title">成人内容提示</h2>
+    <p class="settings-note nsfw-note">开启后，站点会展示包含成人向、裸露、性暗示或露骨性行为提示词与例图的法典内容。</p>
+    <div class="nsfw-body">
+      <p>请确认你所在地区允许访问此类内容，并且你已年满 18 周岁或达到当地法定成年年龄。</p>
+      <p>开启后产生的浏览、复制和使用行为由用户自行负责；请确保后续使用符合当地法律法规、平台规则和公共场合使用规范。</p>
+    </div>
+    <div class="nsfw-actions">
+      <button id="nsfwCancel" class="nsfw-secondary" type="button">取消</button>
+      <button id="nsfwAccept" class="nsfw-primary" type="button">我已成年并同意开启</button>
     </div>
   </div>
 </div>

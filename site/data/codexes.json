@@ -13,12 +13,25 @@
     ]
   },
   {
+    "id": "codex_70c0e66f",
+    "title": "叫我千藤就好了の衣柜",
+    "version": "2026.3.1",
+    "author": "叫我千藤就好了",
+    "entryCount": 125,
+    "imagedCount": 124,
+    "source": "千藤 · 叫我千藤就好了の衣柜",
+    "contributors": [
+      { "name": "叫我千藤就好了", "role": "法典原作者" }
+    ]
+  },
+  {
     "id": "suozhang_r18",
     "title": "所长色色NovalAI个人法典（合并版）",
     "version": "2026.5.20",
     "author": "戒红所",
     "entryCount": 9868,
     "imagedCount": 9178,
+    "nsfw": true,
     "source": "戒红所 · 所长色色法典（上 + 下 合并）",
     "contributors": [
       { "name": "戒红所", "role": "法典原作者" },
@@ -32,6 +45,7 @@
     "author": "梦神",
     "entryCount": 351,
     "imagedCount": 351,
+    "nsfw": true,
     "dataUrl": "https://prompt-vault-gallery.pages.dev/data/prompt-vault.json",
     "fallbackDataUrl": "data/codex_3f60585d.json",
     "fallbackVersion": "本地快照",
@@ -44,18 +58,6 @@
     ],
     "links": [
       { "label": "数据来源 · prompt-vault-gallery", "url": "https://prompt-vault-gallery.pages.dev" }
-    ]
-  },
-  {
-    "id": "codex_70c0e66f",
-    "title": "叫我千藤就好了の衣柜",
-    "version": "2026.3.1",
-    "author": "叫我千藤就好了",
-    "entryCount": 125,
-    "imagedCount": 124,
-    "source": "千藤 · 叫我千藤就好了の衣柜",
-    "contributors": [
-      { "name": "叫我千藤就好了", "role": "法典原作者" }
     ]
   }
 ]

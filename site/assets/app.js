@@ -13,6 +13,8 @@ const DEFAULT_IMAGE_RATIO = 1.18;
 const MAX_TAG_LINES = 6;
 const MIN_TAG_HEIGHT = 34;
 const MAX_TAG_HEIGHT = 114;
+const NSFW_STORAGE_KEY = 'fadian-nsfw-ok';
+const NSFW_LOCKED_MESSAGE = '请先在设置里开启「允许 NSFW 法典展示」，并确认成人内容提示。';
 
 const state = {
   codex: null,        // 当前法典数据
@@ -29,6 +31,7 @@ const state = {
   searchPlan: null,
   onlyImaged: false,
   onlyFav: false,
+  allowNsfw: false,
   sdMode: false,      // 复制时把 NAI 权重转成 Stable Diffusion 格式
   favs: new Set(),    // 收藏集合，键为 codexId:entryId
   loadedImages: new Set(),
@@ -59,8 +62,10 @@ async function init() {
   try {
     setLoading('正在加载法典索引…');
     state.favs = new Set(JSON.parse(localStorage.getItem('fadian-favs') || '[]'));
+    state.allowNsfw = localStorage.getItem(NSFW_STORAGE_KEY) === '1';
+    document.body.classList.toggle('nsfw-unlocked', state.allowNsfw);
     const [codexes, media, about] = await Promise.all([
-      fetch('data/codexes.json').then(r => r.json()),
+      fetch('data/codexes.json', { cache: 'no-store' }).then(r => r.json()),
       loadMedia(),
       loadAbout(),
     ]);
@@ -74,15 +79,33 @@ async function init() {
     setupAbout();
     bindUI();
     state.pendingUrlState = readUrlState();
-    const initialId = state.codexes.some(c => c.id === state.pendingUrlState.codex)
+    const initialMeta = state.codexes.find(c => c.id === state.pendingUrlState.codex);
+    const initialId = initialMeta && !isCodexLocked(initialMeta)
       ? state.pendingUrlState.codex
-      : codexes[0]?.id;
+      : firstUnlockedCodex()?.id || codexes[0]?.id;
+    if (initialMeta && isCodexLocked(initialMeta)) showNsfwLockedHint();
     if (codexes.length) await loadCodex(initialId, { urlState: state.pendingUrlState, replaceUrl: true });
     else setLoading('还没有可显示的法典数据');
   } catch (ex) {
     console.error(ex);
     setLoading('加载失败，请刷新页面重试');
   }
+}
+
+function isNsfwCodex(c) {
+  return Boolean(c?.nsfw);
+}
+
+function isCodexLocked(c) {
+  return isNsfwCodex(c) && !state.allowNsfw;
+}
+
+function firstUnlockedCodex() {
+  return state.codexes.find(c => !isCodexLocked(c));
+}
+
+function showNsfwLockedHint() {
+  toast(NSFW_LOCKED_MESSAGE, '!');
 }
 
 /* 自绘法典下拉菜单（原生 select 隐藏，仅作值同步） */
@@ -112,6 +135,10 @@ function setupCodexPicker() {
   };
   const choose = item => {
     if (!item) return;
+    if (item.getAttribute('aria-disabled') === 'true') {
+      showNsfwLockedHint();
+      return;
+    }
     close({ focusButton: true });
     if (sel.value !== item.dataset.id) {
       sel.value = item.dataset.id;
@@ -121,13 +148,16 @@ function setupCodexPicker() {
   menu.innerHTML = '';
   state.codexes.forEach((c, i) => {
     const pct = c.entryCount ? Math.round((Number(c.imagedCount || 0) / Number(c.entryCount || 1)) * 100) : 0;
+    const locked = isCodexLocked(c);
     const item = document.createElement('button');
     item.type = 'button';
-    item.className = 'codex-item';
+    item.className = `codex-item${locked ? ' locked' : ''}`;
     item.dataset.id = c.id;
     item.id = `codexOption-${i}`;
     item.setAttribute('role', 'option');
     item.setAttribute('aria-selected', 'false');
+    item.setAttribute('aria-disabled', locked ? 'true' : 'false');
+    if (locked) item.title = NSFW_LOCKED_MESSAGE;
     item.tabIndex = -1;
     item.innerHTML =
       `<span class="ci-mark">${String(i + 1).padStart(2, '0')}</span>` +
@@ -135,6 +165,7 @@ function setupCodexPicker() {
       `<span class="ci-name">${esc(c.title)}</span>` +
       `<span class="ci-meta">${esc(c.author || '未知作者')} · ${Number(c.entryCount || 0)} 条 · ${pct}% 配图 · ${esc(codexStatusLabel(c))}</span>` +
       `<span class="ci-bar"><i style="width:${pct}%"></i></span>` +
+      `<span class="ci-lock"${locked ? '' : ' hidden'}>需设置解锁</span>` +
       `</span>` +
       '<svg class="ck" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 13 4 4L19 7"/></svg>';
     item.onclick = () => choose(item);
@@ -191,6 +222,23 @@ function setupCodexPicker() {
   window.addEventListener('keydown', ev => {
     if (ev.key === 'Escape' && !menu.hidden) close({ focusButton: true });
   });
+  updateCodexPickerState();
+}
+
+function updateCodexPickerState() {
+  document.querySelectorAll('#codexMenu .codex-item').forEach(it => {
+    const c = state.codexes.find(item => item.id === it.dataset.id);
+    const locked = isCodexLocked(c);
+    const active = state.codex?.id === c?.id;
+    it.classList.toggle('locked', locked);
+    it.classList.toggle('active', active);
+    it.setAttribute('aria-disabled', locked ? 'true' : 'false');
+    it.setAttribute('aria-selected', active ? 'true' : 'false');
+    if (locked) it.title = NSFW_LOCKED_MESSAGE;
+    else it.removeAttribute('title');
+    const lock = it.querySelector('.ci-lock');
+    if (lock) lock.hidden = !locked;
+  });
 }
 
 async function loadMedia() {
@@ -211,10 +259,19 @@ async function loadAbout() {
 
 let codexLoadSeq = 0;
 async function loadCodex(id, options = {}) {
+  const meta = state.codexes.find(c => c.id === id) || { id };
+  if (isCodexLocked(meta)) {
+    showNsfwLockedHint();
+    const fallback = firstUnlockedCodex();
+    if (fallback && fallback.id !== id) {
+      return loadCodex(fallback.id, { ...options, urlState: null, replaceUrl: true });
+    }
+    setLoading('需要在设置中开启 NSFW 法典展示后才能查看');
+    return;
+  }
   const seq = ++codexLoadSeq;
   setLoading('正在加载词条数据…');
   clearMasonry();
-  const meta = state.codexes.find(c => c.id === id) || { id };
   const codex = await fetchCodex(meta);
   if (seq !== codexLoadSeq) return;
   state.codex = codex;
@@ -225,11 +282,7 @@ async function loadCodex(id, options = {}) {
   $('#codexMeta').textContent = `${c.author ? c.author + ' · ' : ''}${c.version} · ${c.entryCount} 条`;
   const codexBtnText = $('#codexBtnText');
   if (codexBtnText) codexBtnText.textContent = c.title;
-  document.querySelectorAll('#codexMenu .codex-item').forEach(it => {
-    const active = it.dataset.id === c.id;
-    it.classList.toggle('active', active);
-    it.setAttribute('aria-selected', active ? 'true' : 'false');
-  });
+  updateCodexPickerState();
   const urlState = options.urlState && (!options.urlState.codex || options.urlState.codex === c.id)
     ? options.urlState
     : null;
@@ -294,6 +347,7 @@ function normalizeCodex(data, meta = {}) {
     title: meta.title || data.title || data.id || meta.id,
     version: meta.version || data.version || '',
     author: meta.author || data.author || '',
+    nsfw: Boolean(meta.nsfw || data.nsfw),
     assetBaseUrl: stripTrailingSlash(meta.assetBaseUrl || meta.baseUrl || data.assetBaseUrl || ''),
     assetPathMode: meta.assetPathMode || data.assetPathMode || (meta.dataUrl ? 'relative' : 'codex'),
     dataUrl: meta.dataUrl || data.dataUrl || '',
@@ -1655,9 +1709,9 @@ function combinedPrompt(e) {
 }
 
 let toastTimer;
-function toast(msg) {
+function toast(msg, icon = '✓') {
   const t = $('#toast');
-  t.textContent = '✓ ' + msg;
+  t.textContent = icon ? `${icon} ${msg}` : msg;
   t.classList.remove('show');
   void t.offsetWidth;
   t.classList.add('show');
@@ -2176,6 +2230,7 @@ function bindUI() {
 
   /* 设置 / 关于 悬浮框：开关三件套（按钮/遮罩/Esc），带淡入淡出 */
   const settingsMask = $('#settings');
+  const nsfwMask = $('#nsfwConfirm');
   const aboutMask = $('#about');
   const archiveMask = $('#codexArchive');
   const maskTimers = new WeakMap();
@@ -2214,6 +2269,42 @@ function bindUI() {
       }
     }, 240));
   };
+  const nsfwToggle = $('#nsfwToggle');
+  const setNsfwAccess = (on, { announce = false } = {}) => {
+    state.allowNsfw = Boolean(on);
+    document.body.classList.toggle('nsfw-unlocked', state.allowNsfw);
+    localStorage.setItem(NSFW_STORAGE_KEY, state.allowNsfw ? '1' : '0');
+    if (nsfwToggle) nsfwToggle.checked = state.allowNsfw;
+    updateCodexPickerState();
+    if (!state.allowNsfw && isNsfwCodex(state.codex)) {
+      const fallback = firstUnlockedCodex();
+      if (fallback) loadCodex(fallback.id, { replaceUrl: true });
+    }
+    if (announce) toast(state.allowNsfw ? 'NSFW 法典已解锁' : 'NSFW 法典已锁定');
+  };
+  const cancelNsfwConfirm = () => {
+    if (nsfwToggle) nsfwToggle.checked = false;
+    closeMask(nsfwMask);
+  };
+  if (nsfwToggle) {
+    nsfwToggle.checked = state.allowNsfw;
+    nsfwToggle.onchange = e => {
+      if (e.target.checked) {
+        e.target.checked = false;
+        openMask(nsfwMask, nsfwToggle);
+      } else {
+        setNsfwAccess(false, { announce: true });
+      }
+    };
+  }
+  $('#nsfwAccept').onclick = () => {
+    setNsfwAccess(true, { announce: true });
+    closeMask(nsfwMask);
+  };
+  $('#nsfwCancel').onclick = cancelNsfwConfirm;
+  $('#nsfwCancelX').onclick = cancelNsfwConfirm;
+  nsfwMask.onclick = ev => { if (ev.target === nsfwMask) cancelNsfwConfirm(); };
+  nsfwMask.onkeydown = ev => trapFocus(ev, nsfwMask);
   $('#settingsBtn').onclick = () => { closeMore(); openMask(settingsMask, moreBtn); };
   $('#settingsClose').onclick = () => closeMask(settingsMask);
   settingsMask.onclick = ev => { if (ev.target === settingsMask) closeMask(settingsMask); };
@@ -2243,6 +2334,11 @@ function bindUI() {
     if (document.body.classList.contains('search-mode')) {
       ev.preventDefault();
       setSearchMode(false, { restoreButton: true });
+      return;
+    }
+    if (!nsfwMask.hidden) {
+      ev.preventDefault();
+      cancelNsfwConfirm();
       return;
     }
     closeMore({ focusButton: !moreMenu.hidden });
