@@ -46,7 +46,7 @@ export async function init() {
       ? state.pendingUrlState.codex
       : firstUnlockedCodex()?.id || codexes[0]?.id;
     if (initialMeta && isCodexLocked(initialMeta)) showNsfwLockedHint();
-    if (codexes.length) await loadCodex(initialId, { urlState: state.pendingUrlState, replaceUrl: true });
+    if (codexes.length) await loadCodex(initialId, { urlState: state.pendingUrlState, replaceUrl: true, saveBrowse: false });
     else setLoading('还没有可显示的法典数据');
   } catch (ex) {
     console.error(ex);
@@ -91,7 +91,7 @@ export async function loadCodex(id, options = {}) {
   renderTree();
   renderCodexHeader();
   applyFilter({ resetScroll: true });
-  syncUrlState({ replace: options.replaceUrl !== false, entry: urlState?.entry || '' });
+  syncUrlState({ replace: options.replaceUrl !== false, entry: urlState?.entry || '', saveBrowse: options.saveBrowse !== false });
   if (urlState?.entry) {
     window.setTimeout(() => openEntryDeepLink(urlState.entry), 180);
   }

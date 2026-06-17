@@ -194,7 +194,7 @@ export function applyBrowseState(snapshot) {
   updateSearchClear();
   historyActions.renderTree();
   historyActions.applyFilter({ resetScroll: true });
-  syncUrlState({ replace: true, entry: snapshot.entryId || '' });
+  syncUrlState({ replace: true, entry: snapshot.entryId || '', saveBrowse: false });
 }
 
 export async function resumeLastBrowse() {
@@ -210,6 +210,7 @@ export async function resumeLastBrowse() {
     await historyActions.loadCodex(snapshot.codexId, {
       urlState: { codex: snapshot.codexId, path: snapshot.path || [], q: snapshot.q || '', entry: snapshot.entryId || '' },
       replaceUrl: true,
+      saveBrowse: false,
     });
   } else {
     applyBrowseState(snapshot);

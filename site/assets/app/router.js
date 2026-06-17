@@ -30,7 +30,7 @@ export function readUrlState() {
   };
 }
 
-export function syncUrlState({ replace = true, entry } = {}) {
+export function syncUrlState({ replace = true, entry, saveBrowse = true } = {}) {
   if (state.suppressUrlSync || !state.codex) return;
   const params = new URLSearchParams();
   params.set('codex', state.codex.id);
@@ -39,10 +39,10 @@ export function syncUrlState({ replace = true, entry } = {}) {
   else if (state.activePath.length) params.set('path', state.activePath.join('/'));
   const entryId = entry === undefined ? (state.lightbox.entry?.id || '') : entry;
   if (entryId) params.set('entry', entryId);
-  routerActions.onUrlSync(entryId);
   const next = `${location.pathname}?${params.toString()}`;
   if (next === location.pathname + location.search && !location.hash) return;
   history[replace ? 'replaceState' : 'pushState'](null, '', next);
+  if (saveBrowse) routerActions.onUrlSync(entryId);
 }
 
 export function openEntryDeepLink(entryId) {
