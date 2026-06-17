@@ -149,13 +149,16 @@
       <span class="soon">即将推出</span>
       <select disabled><option>默认 · 紫调</option></select>
     </div>
-    <div class="set-row">
+    <div class="set-row density-row">
       <div class="set-info">
         <div class="set-name">卡片密度</div>
-        <div class="set-desc">调整瀑布流列宽与间距</div>
+        <div class="set-desc">调整瀑布流列宽、间距与摘要长度</div>
       </div>
-      <span class="soon">即将推出</span>
-      <input type="range" disabled>
+      <div id="densityControl" class="density-control" role="group" aria-label="卡片密度">
+        <button class="density-option" type="button" data-density="comfort" aria-pressed="false">舒适</button>
+        <button class="density-option" type="button" data-density="standard" aria-pressed="true">标准</button>
+        <button class="density-option" type="button" data-density="compact" aria-pressed="false">紧凑</button>
+      </div>
     </div>
     <div class="set-row">
       <div class="set-info">

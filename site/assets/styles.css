@@ -493,6 +493,25 @@ body.dark .card-tags mark,body.dark .lightbox-section pre mark{background:rgba(2
 .copy-hint{color:var(--accent);font-size:11px;font-weight:600;opacity:0;transition:opacity .12s;white-space:nowrap}
 .card:hover .copy-hint{opacity:1}
 
+body.density-comfort .card-body{padding:13px 14px 12px}
+body.density-comfort .card-title-row{margin-bottom:9px}
+body.density-comfort .card-title{font-size:15.5px;line-height:1.35}
+body.density-comfort .card-tags{
+  font-size:13px;line-height:1.54;padding:10px 11px;border-radius:11px;
+}
+body.density-comfort .card-foot{margin-top:10px}
+body.density-compact .card-body{padding:10px 11px 10px}
+body.density-compact .card-title-row{gap:7px;margin-bottom:7px}
+body.density-compact .card-title{font-size:14px;line-height:1.35}
+body.density-compact .card.no-img .card-title{font-size:13.8px}
+body.density-compact .card-tags{
+  font-size:12px;line-height:1.45;padding:8px 9px;border-radius:9px;
+}
+body.density-compact .card-foot{margin-top:7px;min-height:20px}
+body.density-compact .card-path{font-size:10.5px}
+body.density-compact .card-actions{gap:4px}
+body.density-compact .mini-copy{padding:2px 6px;font-size:10.5px}
+
 /* ---------- 待配图小卡 ---------- */
 .card.no-img .card-img-wrap{display:none}
 
@@ -575,6 +594,22 @@ body.dark .settings-panel{border-color:rgba(255,255,255,.12)}
   border-radius:999px;padding:6px 10px;font-size:12px;
 }
 .set-row input[type="range"]{padding:0;height:22px;border:none;background:transparent;accent-color:var(--accent)}
+.density-control{
+  flex:none;display:grid;grid-template-columns:repeat(3,1fr);gap:3px;
+  min-width:184px;padding:3px;border:1px solid var(--line);
+  border-radius:999px;background:var(--tagbg);
+}
+.density-option{
+  border:none;border-radius:999px;background:transparent;color:var(--muted);
+  padding:6px 10px;font-size:12px;font-weight:800;line-height:1.2;
+  transition:background .12s,color .12s,box-shadow .12s;
+}
+.density-option:hover{color:var(--text);background:var(--card)}
+.density-option.active{
+  color:#fff;background:linear-gradient(135deg,var(--accent),#8d7cf5);
+  box-shadow:0 4px 12px rgba(111,92,242,.22);
+}
+.density-option:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .switch{position:relative;flex:none;width:40px;height:22px;opacity:.55;cursor:not-allowed}
 .switch input{position:absolute;inset:0;margin:0;opacity:0;cursor:not-allowed}
 .switch i{
@@ -918,6 +953,8 @@ body.dark .lb-circle{border-color:rgba(255,255,255,.14)}
   }
   .rail-chip{padding:7px 12px;font-size:12px}
   .settings-panel{padding:18px 16px 10px;border-radius:18px}
+  .density-row{align-items:stretch;flex-direction:column}
+  .density-control{width:100%;min-width:0}
   .archive-hero{flex-direction:column}
   .archive-pct{width:100%;text-align:left}
   .archive-grid{grid-template-columns:1fr}

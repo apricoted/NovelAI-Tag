@@ -2,18 +2,77 @@
 
 const $ = (s, r = document) => r.querySelector(s);
 
-const CARD_MIN_WIDTH = 290;
-const GAP = 16;
 const VIRTUAL_BUFFER_UP = 0.8;
 const VIRTUAL_BUFFER_DOWN = 1.4;
 const IMAGE_LOAD_DELAY = 90;
 const RELAYOUT_INTERVAL = 150;
 const RELAYOUT_ANIM_MS = 320;
 const DEFAULT_IMAGE_RATIO = 1.18;
-const MAX_TAG_LINES = 6;
-const MIN_TAG_HEIGHT = 34;
-const MAX_TAG_HEIGHT = 114;
 const RANDOM_RECENT_LIMIT = 20;
+const DENSITY_STORAGE_KEY = 'fadian-density';
+const DEFAULT_DENSITY = 'standard';
+const DENSITY_PRESETS = {
+  comfort: {
+    label: '舒适',
+    minWidth: 340,
+    gap: 18,
+    bodyPadX: 14,
+    bodyPadTop: 13,
+    bodyPadBottom: 12,
+    titleCharWidth: 14,
+    titleLineHeight: 21,
+    titleGap: 9,
+    tagCharWidth: 7.2,
+    tagLineHeight: 20,
+    tagPaddingY: 20,
+    minTagHeight: 40,
+    maxTagHeight: 136,
+    maxTagLines: 7,
+    footGap: 10,
+    footHeight: 18,
+    footHeightNegative: 21,
+  },
+  standard: {
+    label: '标准',
+    minWidth: 290,
+    gap: 16,
+    bodyPadX: 13,
+    bodyPadTop: 12,
+    bodyPadBottom: 11,
+    titleCharWidth: 14,
+    titleLineHeight: 20,
+    titleGap: 8,
+    tagCharWidth: 7,
+    tagLineHeight: 19,
+    tagPaddingY: 18,
+    minTagHeight: 34,
+    maxTagHeight: 114,
+    maxTagLines: 6,
+    footGap: 9,
+    footHeight: 18,
+    footHeightNegative: 21,
+  },
+  compact: {
+    label: '紧凑',
+    minWidth: 236,
+    gap: 12,
+    bodyPadX: 11,
+    bodyPadTop: 10,
+    bodyPadBottom: 10,
+    titleCharWidth: 13.5,
+    titleLineHeight: 19,
+    titleGap: 7,
+    tagCharWidth: 6.8,
+    tagLineHeight: 17.5,
+    tagPaddingY: 16,
+    minTagHeight: 30,
+    maxTagHeight: 86,
+    maxTagLines: 4,
+    footGap: 7,
+    footHeight: 17,
+    footHeightNegative: 20,
+  },
+};
 const NSFW_STORAGE_KEY = 'fadian-nsfw-ok';
 const NSFW_LOCKED_MESSAGE = '请先在设置里开启「允许 NSFW 法典展示」，并确认成人内容提示。';
 
@@ -34,6 +93,7 @@ const state = {
   onlyFav: false,
   allowNsfw: false,
   sdMode: false,      // 复制时把 NAI 权重转成 Stable Diffusion 格式
+  density: DEFAULT_DENSITY,
   favs: new Set(),    // 收藏集合，键为 codexId:entryId
   loadedImages: new Set(),
   seenAnimated: new Set(),
@@ -66,6 +126,7 @@ async function init() {
     state.favs = new Set(JSON.parse(localStorage.getItem('fadian-favs') || '[]'));
     state.allowNsfw = localStorage.getItem(NSFW_STORAGE_KEY) === '1';
     document.body.classList.toggle('nsfw-unlocked', state.allowNsfw);
+    applyDensity(localStorage.getItem(DENSITY_STORAGE_KEY), { render: false });
     const [codexes, media, about] = await Promise.all([
       fetch('data/codexes.json', { cache: 'no-store' }).then(r => r.json()),
       loadMedia(),
@@ -486,6 +547,65 @@ function updateScrollProgress() {
   const max = Math.max(0, root.scrollHeight - window.innerHeight);
   const progress = max ? clamp(window.scrollY / max, 0, 1) : 0;
   bar.style.transform = `scaleX(${progress})`;
+}
+
+function normalizeDensity(value) {
+  return DENSITY_PRESETS[value] ? value : DEFAULT_DENSITY;
+}
+
+function densityConfig() {
+  return DENSITY_PRESETS[state.density] || DENSITY_PRESETS[DEFAULT_DENSITY];
+}
+
+function captureMasonryAnchor() {
+  const m = $('#masonry');
+  if (!m || !state.placements.length) return null;
+  const mTop = m.getBoundingClientRect().top + window.scrollY;
+  const viewportOffset = Math.min(window.innerHeight * 0.32, 240);
+  const anchorY = Math.max(0, window.scrollY + viewportOffset - mTop);
+  const placement = state.placements.find(p => p.top + p.height >= anchorY) || state.placements[0];
+  if (!placement) return null;
+  return {
+    entryId: placement.entry.id,
+    offset: clamp(anchorY - placement.top, 0, Math.max(0, placement.height - 1)),
+    viewportOffset,
+  };
+}
+
+function restoreMasonryAnchor(anchor) {
+  if (!anchor) return;
+  const m = $('#masonry');
+  const placement = state.placements.find(p => p.entry.id === anchor.entryId);
+  if (!m || !placement) return;
+  const mTop = m.getBoundingClientRect().top + window.scrollY;
+  const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+  const nextTop = mTop + placement.top + Math.min(anchor.offset, Math.max(0, placement.height - 1)) - anchor.viewportOffset;
+  window.scrollTo({ top: clamp(nextTop, 0, maxScroll), left: 0, behavior: 'auto' });
+}
+
+function updateDensityControls() {
+  for (const btn of document.querySelectorAll('[data-density]')) {
+    const active = btn.dataset.density === state.density;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+  }
+}
+
+function applyDensity(value, { render = true, announce = false } = {}) {
+  const next = normalizeDensity(value);
+  const changed = state.density !== next;
+  const anchor = changed && render ? captureMasonryAnchor() : null;
+  state.density = next;
+  document.body.classList.remove(...Object.keys(DENSITY_PRESETS).map(k => `density-${k}`));
+  document.body.classList.add(`density-${next}`);
+  localStorage.setItem(DENSITY_STORAGE_KEY, next);
+  updateDensityControls();
+  if (!changed || !render || !state.codex) return;
+  relayoutVisible({ animate: true });
+  restoreMasonryAnchor(anchor);
+  updateVirtualCards(true);
+  updateScrollProgress();
+  if (announce) toast(`卡片密度：${densityConfig().label}`);
 }
 
 /* ---------------- 目录树 ---------------- */
@@ -1204,7 +1324,8 @@ function setupAbout() {
 /* ---------------- 虚拟瀑布流 ---------------- */
 function colCount() {
   const w = $('#masonry').clientWidth || $('#main').clientWidth;
-  return Math.max(1, Math.floor((w + GAP) / (CARD_MIN_WIDTH + GAP)));
+  const cfg = densityConfig();
+  return Math.max(1, Math.floor((w + cfg.gap) / (cfg.minWidth + cfg.gap)));
 }
 
 function clearMasonry() {
@@ -1233,8 +1354,9 @@ function renderList({ resetScroll = false } = {}) {
 function computeLayout() {
   const m = $('#masonry');
   const width = Math.max(1, m.clientWidth || $('#main').clientWidth || 1);
+  const cfg = densityConfig();
   const n = colCount();
-  const itemWidth = Math.max(180, Math.floor((width - GAP * (n - 1)) / n));
+  const itemWidth = Math.max(180, Math.floor((width - cfg.gap * (n - 1)) / n));
   const colHeights = Array.from({ length: n }, () => 0);
   const placements = [];
 
@@ -1244,7 +1366,7 @@ function computeLayout() {
     const imageHeight = estimateImageHeight(entry, itemWidth);
     const body = estimateBodyMetrics(entry, itemWidth);
     const height = Math.ceil(imageHeight + body.height);
-    const left = col * (itemWidth + GAP);
+    const left = col * (itemWidth + cfg.gap);
     const top = colHeights[col];
 
     placements.push({
@@ -1258,13 +1380,13 @@ function computeLayout() {
       imageHeight,
       tagsHeight: body.tagsHeight,
     });
-    colHeights[col] += height + GAP;
+    colHeights[col] += height + cfg.gap;
   }
 
   state.placements = placements;
   state.colN = n;
   state.itemWidth = itemWidth;
-  const totalHeight = placements.length ? Math.max(...colHeights) - GAP : 0;
+  const totalHeight = placements.length ? Math.max(...colHeights) - cfg.gap : 0;
   m.style.height = `${Math.max(0, Math.ceil(totalHeight))}px`;
 }
 
@@ -1285,24 +1407,25 @@ function estimateImageHeight(e, width) {
 }
 
 function estimateBodyMetrics(e, width) {
-  const contentWidth = Math.max(120, width - 26);
-  const titleLines = clamp(Math.ceil(textUnits(e.title) / Math.max(8, Math.floor(contentWidth / 14))), 1, 2);
-  const tagLines = estimateTagLines(e.tags, contentWidth);
-  const titleHeight = titleLines * 20;
-  const tagsHeight = clamp(tagLines * 19 + 18, MIN_TAG_HEIGHT, MAX_TAG_HEIGHT);
-  const footHeight = e.negative ? 21 : 18;
+  const cfg = densityConfig();
+  const contentWidth = Math.max(120, width - cfg.bodyPadX * 2);
+  const titleLines = clamp(Math.ceil(textUnits(e.title) / Math.max(8, Math.floor(contentWidth / cfg.titleCharWidth))), 1, 2);
+  const tagLines = estimateTagLines(e.tags, contentWidth, cfg);
+  const titleHeight = titleLines * cfg.titleLineHeight;
+  const tagsHeight = clamp(tagLines * cfg.tagLineHeight + cfg.tagPaddingY, cfg.minTagHeight, cfg.maxTagHeight);
+  const footHeight = e.negative ? cfg.footHeightNegative : cfg.footHeight;
   return {
-    height: Math.ceil(12 + titleHeight + 8 + tagsHeight + 9 + footHeight + 11),
+    height: Math.ceil(cfg.bodyPadTop + titleHeight + cfg.titleGap + tagsHeight + cfg.footGap + footHeight + cfg.bodyPadBottom),
     tagsHeight,
   };
 }
 
-function estimateTagLines(text, width) {
-  const perLine = Math.max(18, Math.floor(width / 7));
+function estimateTagLines(text, width, cfg = densityConfig()) {
+  const perLine = Math.max(18, Math.floor(width / cfg.tagCharWidth));
   const lines = String(text || '').split(/\n+/).reduce((sum, line) => {
     return sum + Math.max(1, Math.ceil(textUnits(line) / perLine));
   }, 0);
-  return clamp(lines, 1, MAX_TAG_LINES);
+  return clamp(lines, 1, cfg.maxTagLines);
 }
 
 function textUnits(text) {
@@ -1480,9 +1603,10 @@ function maybeAnimateCardEntry(node, placement) {
 function calibrateCardHeight(node, placement) {
   const tags = node.querySelector('.card-tags');
   if (tags) {
+    const cfg = densityConfig();
     tags.style.height = 'auto';
     const naturalTagsHeight = Math.ceil(tags.scrollHeight);
-    const tagsHeight = clamp(naturalTagsHeight, MIN_TAG_HEIGHT, MAX_TAG_HEIGHT);
+    const tagsHeight = clamp(naturalTagsHeight, cfg.minTagHeight, cfg.maxTagHeight);
     tags.style.height = `${tagsHeight}px`;
     tags.classList.toggle('is-clipped', naturalTagsHeight > tagsHeight + 1);
     placement.tagsHeight = tagsHeight;
@@ -2259,6 +2383,11 @@ function bindUI() {
   if (sdToggle) sdToggle.onchange = e => applySdMode(e.target.checked);
   if (sdBadge) sdBadge.onclick = () => applySdMode(false);
   applySdMode(localStorage.getItem('fadian-sdmode') === '1', false);  // 初始化不做动画
+
+  for (const btn of document.querySelectorAll('[data-density]')) {
+    btn.onclick = () => applyDensity(btn.dataset.density, { render: true, announce: true });
+  }
+  updateDensityControls();
 
   const sidebar = $('#sidebar');
   const savedSidebar = localStorage.getItem('fadian-sidebar');
