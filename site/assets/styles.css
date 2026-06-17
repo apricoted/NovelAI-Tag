@@ -5,12 +5,18 @@
   --new:#ef4d7e; --shadow:0 1px 3px rgba(28,32,58,.08),0 6px 18px rgba(28,32,58,.05);
   --shadow-hover:0 4px 12px rgba(28,32,58,.12),0 14px 34px rgba(28,32,58,.10);
   --glass:rgba(255,255,255,.74);
+  --popover-glass:rgba(255,255,255,.93);
+  --popover-line:rgba(226,229,240,.92);
+  --popover-shadow:0 18px 48px rgba(28,32,58,.16),0 4px 14px rgba(28,32,58,.08);
 }
 body.dark{
   --bg:#0b0d13; --panel:#12141d; --card:#161a26; --text:#e8eaf3; --muted:#8a91a6;
   --line:#242a3a; --accent:#8b7cf8; --accent-soft:#262050; --tagbg:#1b202e; --tagbg-hover:#222840;
   --new:#f25c8a; --shadow:0 1px 3px rgba(0,0,0,.45); --shadow-hover:0 14px 40px rgba(0,0,0,.55);
   --glass:rgba(18,21,30,.68);
+  --popover-glass:rgba(18,21,30,.94);
+  --popover-line:rgba(255,255,255,.14);
+  --popover-shadow:0 20px 54px rgba(0,0,0,.56),0 5px 18px rgba(0,0,0,.34);
 }
 *{box-sizing:border-box}
 html,body{margin:0}
@@ -58,8 +64,9 @@ body.tb-hidden .topbar{transform:translateY(-150%)}
 .more-btn.open{background:var(--accent-soft);color:var(--accent)}
 .more-menu{
   position:absolute;right:0;top:calc(100% + 8px);z-index:45;width:240px;
-  background:var(--glass);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
-  border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow-hover);
+  background:var(--popover-glass);
+  backdrop-filter:blur(18px) saturate(1.12);-webkit-backdrop-filter:blur(18px) saturate(1.12);
+  border:1px solid var(--popover-line);border-radius:16px;box-shadow:var(--popover-shadow);
   padding:7px;animation:settingsIn .16s ease;
 }
 body.dark .more-menu{border-color:rgba(255,255,255,.12)}
@@ -93,8 +100,9 @@ body.dark .codex-btn{background:rgba(255,255,255,.06);border-color:transparent}
 body.dark .codex-btn:hover,body.dark .codex-btn.open{border-color:var(--accent)}
 .codex-menu{
   position:absolute;left:0;top:calc(100% + 8px);z-index:40;width:min(620px,calc(100vw - 28px));max-width:620px;
-  background:var(--glass);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
-  border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow-hover);
+  background:var(--popover-glass);
+  backdrop-filter:blur(18px) saturate(1.12);-webkit-backdrop-filter:blur(18px) saturate(1.12);
+  border:1px solid var(--popover-line);border-radius:14px;box-shadow:var(--popover-shadow);
   padding:9px;animation:settingsIn .16s ease;
   display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;
 }
