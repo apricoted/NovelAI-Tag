@@ -2149,6 +2149,9 @@ async function openRecentEntry(item) {
   } else {
     state.query = '';
     state.activePath = item.path || [];
+    state.onlyFav = false;
+    state.onlyImaged = false;
+    applyBrowseControls({ onlyFav: false, onlyImaged: false });
     const search = $('#search');
     if (search) search.value = '';
     updateSearchClear();

@@ -718,8 +718,8 @@ body.dark .nsfw-note{color:#ffb4ab;background:rgba(217,45,32,.18)}
 }
 .recent-thumb.no-img{display:grid;place-items:center;color:var(--muted);font-size:18px}
 .recent-main{min-width:0;flex:1}
-.recent-title{font-size:13px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.recent-meta{margin-top:3px;color:var(--muted);font-size:11px;line-height:1.45;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.recent-title{display:block;font-size:13px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.recent-meta{display:block;margin-top:3px;color:var(--muted);font-size:11px;line-height:1.45;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .recent-time{flex:none;color:var(--muted);font-size:11px;white-space:nowrap}
 .recent-empty{
   color:var(--muted);background:var(--tagbg);border:1px dashed var(--line);
