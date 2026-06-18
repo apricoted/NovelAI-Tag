@@ -73,6 +73,7 @@ export function recordRecentEntry(e) {
 }
 
 let browseSaveTimer = 0;
+let browseSaveSuppressedUntil = 0;
 export function currentBrowseSnapshot(entryId = state.lightbox.entry?.id || '') {
   if (!state.codex) return null;
   return {
@@ -88,6 +89,11 @@ export function currentBrowseSnapshot(entryId = state.lightbox.entry?.id || '') 
   };
 }
 
+export function suppressBrowseStateSave(ms = 450) {
+  browseSaveSuppressedUntil = Math.max(browseSaveSuppressedUntil, Date.now() + ms);
+  clearTimeout(browseSaveTimer);
+}
+
 export function saveBrowseStateNow(entryId) {
   const snapshot = currentBrowseSnapshot(entryId);
   if (!snapshot) return;
@@ -96,6 +102,7 @@ export function saveBrowseStateNow(entryId) {
 }
 
 export function scheduleBrowseStateSave(entryId) {
+  if (Date.now() < browseSaveSuppressedUntil) return;
   clearTimeout(browseSaveTimer);
   browseSaveTimer = window.setTimeout(() => saveBrowseStateNow(entryId), 180);
 }
@@ -193,8 +200,22 @@ export function applyBrowseState(snapshot) {
   if (search) search.value = state.query;
   updateSearchClear();
   historyActions.renderTree();
+  suppressBrowseStateSave();
   historyActions.applyFilter({ resetScroll: true });
   syncUrlState({ replace: true, entry: snapshot.entryId || '', saveBrowse: false });
+}
+
+function restoreBrowseScroll(top) {
+  const target = Math.max(0, Number(top) || 0);
+  let attempts = 0;
+  const run = () => {
+    window.scrollTo({ top: target, left: 0, behavior: 'auto' });
+    historyActions.updateVirtualCards(true);
+    updateScrollProgress();
+    attempts += 1;
+    if (attempts < 6) window.setTimeout(run, attempts < 2 ? 140 : 220);
+  };
+  window.setTimeout(run, 160);
 }
 
 export async function resumeLastBrowse() {
@@ -217,11 +238,7 @@ export async function resumeLastBrowse() {
     if (snapshot.entryId) window.setTimeout(() => historyActions.openEntryDeepLink(snapshot.entryId), 120);
   }
   if (!snapshot.entryId) {
-    window.setTimeout(() => {
-      window.scrollTo({ top: snapshot.scrollY || 0, left: 0, behavior: 'auto' });
-      historyActions.updateVirtualCards(true);
-      updateScrollProgress();
-    }, 120);
+    restoreBrowseScroll(snapshot.scrollY);
   }
   toast('已恢复上次浏览位置');
 }

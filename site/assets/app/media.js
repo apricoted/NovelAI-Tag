@@ -13,6 +13,86 @@ export function isLocalOrigin() {
   return ['localhost', '127.0.0.1', '::1'].includes(location.hostname) || location.protocol === 'file:';
 }
 
+export function originFromUrl(value) {
+  try {
+    const url = new URL(String(value || ''));
+    if (url.protocol === 'http:' || url.protocol === 'https:') return url.origin;
+  } catch {}
+  return '';
+}
+
+function isLoopbackHost(hostname) {
+  return ['localhost', '127.0.0.1', '::1'].includes(hostname);
+}
+
+function shouldSkipHintOrigin(origin) {
+  if (!origin || origin === location.origin) return true;
+  try {
+    return isLoopbackHost(new URL(origin).hostname);
+  } catch {
+    return true;
+  }
+}
+
+function scanResourceHints() {
+  const preconnect = new Set();
+  const dns = new Set();
+  document.querySelectorAll('link[rel="preconnect"]').forEach(link => {
+    const origin = originFromUrl(link.href);
+    if (!origin) return;
+    const mode = link.hasAttribute('crossorigin') ? 'cors' : 'plain';
+    preconnect.add(`${origin}|${mode}`);
+  });
+  document.querySelectorAll('link[rel="dns-prefetch"]').forEach(link => {
+    const origin = originFromUrl(link.href);
+    if (origin) dns.add(origin);
+  });
+  return { preconnect, dns };
+}
+
+function appendHint(rel, origin, { cors = false } = {}) {
+  const link = document.createElement('link');
+  link.rel = rel;
+  link.href = origin;
+  if (cors) link.setAttribute('crossorigin', '');
+  document.head.appendChild(link);
+}
+
+function ensureDnsPrefetch(origin, hints) {
+  if (hints.dns.has(origin)) return;
+  appendHint('dns-prefetch', origin);
+  hints.dns.add(origin);
+}
+
+function ensurePreconnect(origin, mode, hints) {
+  const key = `${origin}|${mode}`;
+  if (hints.preconnect.has(key)) return;
+  appendHint('preconnect', origin, { cors: mode === 'cors' });
+  hints.preconnect.add(key);
+}
+
+export function primeResourceHints({ media = state.media, codexes = state.codexes } = {}) {
+  const hints = scanResourceHints();
+  const addImageOrigin = url => {
+    const origin = originFromUrl(url);
+    if (shouldSkipHintOrigin(origin)) return;
+    ensureDnsPrefetch(origin, hints);
+    ensurePreconnect(origin, 'plain', hints);
+  };
+  const addDataOrigin = url => {
+    const origin = originFromUrl(url);
+    if (shouldSkipHintOrigin(origin)) return;
+    ensureDnsPrefetch(origin, hints);
+    ensurePreconnect(origin, 'cors', hints);
+  };
+
+  addImageOrigin(media?.baseUrl);
+  for (const codex of codexes || []) {
+    addImageOrigin(codex?.assetBaseUrl);
+    addDataOrigin(codex?.dataUrl);
+  }
+}
+
 export function mediaPath(kind, e) {
   const file = kind === 'original' ? e.original : e.image;
   if (!file) return '';

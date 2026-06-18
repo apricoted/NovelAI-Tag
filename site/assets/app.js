@@ -1,24 +1,26 @@
 import { state, RECENT_STORAGE_KEY, LAST_BROWSE_STORAGE_KEY, NSFW_STORAGE_KEY, DENSITY_STORAGE_KEY } from './app/state.js';
 import { $, esc, safeJsonParse, updateSearchClear } from './app/utils.js';
-import { setLoading } from './app/feedback.js';
+import { setLoading, showSkeleton, hideSkeleton } from './app/feedback.js';
 import { isCodexLocked, firstUnlockedCodex, showNsfwLockedHint } from './app/access.js';
 import { loadMedia, loadAbout, fetchCodex, notifyCodexDataStatus } from './app/data.js';
 import { parseSearchQuery, matchSearchPlan } from './app/search.js';
-import { hasEntryImage } from './app/media.js';
+import { hasEntryImage, primeResourceHints } from './app/media.js';
 import { favKey, setFavoritesActions, toggleFav } from './app/favorites.js';
 import { renderList, clearMasonry, updateVirtualCards, setMasonryActions } from './app/masonry.js';
 import { openLightbox } from './app/lightbox.js';
 import { copyEntry } from './app/copy.js';
 import { readUrlState, syncUrlState, openEntryDeepLink, setRouterActions } from './app/router.js';
 import { setupCodexPicker, setupAbout, updateCodexPickerState, renderTree, renderCodexHeader, updateRailActive, updateResultBar, updateEmptyState, setCodexUiActions } from './app/codex-ui.js';
-import { normalizeRecentEntries, normalizeLastBrowse, scheduleBrowseStateSave, setHistoryActions } from './app/history.js';
+import { normalizeRecentEntries, normalizeLastBrowse, scheduleBrowseStateSave, suppressBrowseStateSave, setHistoryActions } from './app/history.js';
 import { bindUI, applyDensity, setUiActions } from './app/ui.js';
 
 let codexLoadSeq = 0;
 
 export async function init() {
+  const initSkeletonToken = 'init';
   try {
-    setLoading('正在加载法典索引…');
+    showSkeleton(initSkeletonToken, { delay: 0 });
+    setLoading('');
     const savedFavs = safeJsonParse(localStorage.getItem('fadian-favs'), []);
     state.favs = new Set(Array.isArray(savedFavs) ? savedFavs : []);
     state.recentEntries = normalizeRecentEntries(safeJsonParse(localStorage.getItem(RECENT_STORAGE_KEY), []));
@@ -34,6 +36,7 @@ export async function init() {
     state.codexes = codexes;
     state.media = { ...state.media, ...media };
     state.about = about;
+    primeResourceHints({ media: state.media, codexes: state.codexes });
     const sel = $('#codexSelect');
     sel.innerHTML = codexes.map(c => `<option value="${c.id}">${esc(c.title)}</option>`).join('');
     sel.onchange = () => loadCodex(sel.value);
@@ -46,10 +49,16 @@ export async function init() {
       ? state.pendingUrlState.codex
       : firstUnlockedCodex()?.id || codexes[0]?.id;
     if (initialMeta && isCodexLocked(initialMeta)) showNsfwLockedHint();
-    if (codexes.length) await loadCodex(initialId, { urlState: state.pendingUrlState, replaceUrl: true, saveBrowse: false });
-    else setLoading('还没有可显示的法典数据');
+    if (codexes.length) {
+      hideSkeleton(initSkeletonToken);
+      await loadCodex(initialId, { urlState: state.pendingUrlState, replaceUrl: true, saveBrowse: false });
+    } else {
+      hideSkeleton(initSkeletonToken);
+      setLoading('还没有可显示的法典数据');
+    }
   } catch (ex) {
     console.error(ex);
+    hideSkeleton(initSkeletonToken);
     setLoading('加载失败，请刷新页面重试');
   }
 }
@@ -66,37 +75,49 @@ export async function loadCodex(id, options = {}) {
     return;
   }
   const seq = ++codexLoadSeq;
-  setLoading('正在加载词条数据…');
-  clearMasonry();
-  const codex = await fetchCodex(meta);
-  if (seq !== codexLoadSeq) return;
-  state.codex = codex;
-  const c = state.codex;
-  const codexSelect = $('#codexSelect');
-  if (codexSelect) codexSelect.value = c.id;
-  $('#codexTitle').textContent = c.title;
-  $('#codexMeta').textContent = `${c.author ? c.author + ' · ' : ''}${c.version} · ${c.entryCount} 条`;
-  const codexBtnText = $('#codexBtnText');
-  if (codexBtnText) codexBtnText.textContent = c.title;
-  updateCodexPickerState();
-  const urlState = options.urlState && (!options.urlState.codex || options.urlState.codex === c.id)
-    ? options.urlState
-    : null;
-  state.activePath = urlState?.path?.length ? urlState.path : [];
-  state.query = urlState?.q || '';
-  state.seenAnimated.clear();
-  state.recentRandomIds = [];
-  $('#search').value = state.query;
-  updateSearchClear();
-  renderTree();
-  renderCodexHeader();
-  applyFilter({ resetScroll: true });
-  syncUrlState({ replace: options.replaceUrl !== false, entry: urlState?.entry || '', saveBrowse: options.saveBrowse !== false });
-  if (urlState?.entry) {
-    window.setTimeout(() => openEntryDeepLink(urlState.entry), 180);
-  }
+  showSkeleton(seq);
   setLoading('');
-  notifyCodexDataStatus(c);
+  clearMasonry();
+  try {
+    const codex = await fetchCodex(meta);
+    if (seq !== codexLoadSeq) return;
+    primeResourceHints({ codexes: [codex] });
+    state.codex = codex;
+    const c = state.codex;
+    const codexSelect = $('#codexSelect');
+    if (codexSelect) codexSelect.value = c.id;
+    $('#codexTitle').textContent = c.title;
+    $('#codexMeta').textContent = `${c.author ? c.author + ' · ' : ''}${c.version} · ${c.entryCount} 条`;
+    const codexBtnText = $('#codexBtnText');
+    if (codexBtnText) codexBtnText.textContent = c.title;
+    updateCodexPickerState();
+    const urlState = options.urlState && (!options.urlState.codex || options.urlState.codex === c.id)
+      ? options.urlState
+      : null;
+    state.activePath = urlState?.path?.length ? urlState.path : [];
+    state.query = urlState?.q || '';
+    state.seenAnimated.clear();
+    state.recentRandomIds = [];
+    $('#search').value = state.query;
+    updateSearchClear();
+    renderTree();
+    renderCodexHeader();
+    if (options.saveBrowse === false) suppressBrowseStateSave(2000);
+    applyFilter({ resetScroll: true });
+    syncUrlState({ replace: options.replaceUrl !== false, entry: urlState?.entry || '', saveBrowse: options.saveBrowse !== false });
+    if (urlState?.entry) {
+      window.setTimeout(() => openEntryDeepLink(urlState.entry), 180);
+    }
+    setLoading('');
+    notifyCodexDataStatus(c);
+  } catch (ex) {
+    if (seq === codexLoadSeq) {
+      console.error(ex);
+      setLoading('加载失败，请刷新页面重试');
+    }
+  } finally {
+    hideSkeleton(seq);
+  }
 }
 
 export function applyFilter(options = {}) {

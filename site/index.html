@@ -5,7 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>法典图鉴 · NovelAI 提示词</title>
 <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
-<link rel="stylesheet" href="assets/styles.css?v=20260617-popover">
+<!-- Static cold-start hints; keep this origin in sync with data/media.json baseUrl. -->
+<link rel="preconnect" href="https://assets.quicktagcloud.com">
+<link rel="dns-prefetch" href="https://assets.quicktagcloud.com">
+<link rel="stylesheet" href="assets/styles.css?v=20260618-skeleton">
 <link rel="modulepreload" href="assets/app/state.js">
 <link rel="modulepreload" href="assets/app/utils.js">
 <link rel="modulepreload" href="assets/app/feedback.js">
@@ -127,7 +130,19 @@
     <div id="codexBanner" class="codex-banner"></div>
     <div id="chipRail" class="chip-rail"></div>
     <div class="result-bar"><span id="resultInfo"></span></div>
-    <div id="loading" class="loading">正在加载词条数据…</div>
+    <div id="loading" class="loading" hidden></div>
+    <div id="skeletonGrid" class="skeleton-grid" aria-hidden="true" hidden>
+      <div class="skeleton-card"><i class="skeleton-thumb"></i><i class="skeleton-line title"></i><i class="skeleton-line"></i><i class="skeleton-line short"></i></div>
+      <div class="skeleton-card"><i class="skeleton-thumb"></i><i class="skeleton-line title"></i><i class="skeleton-line"></i><i class="skeleton-line short"></i></div>
+      <div class="skeleton-card"><i class="skeleton-thumb"></i><i class="skeleton-line title"></i><i class="skeleton-line"></i><i class="skeleton-line short"></i></div>
+      <div class="skeleton-card"><i class="skeleton-thumb"></i><i class="skeleton-line title"></i><i class="skeleton-line"></i><i class="skeleton-line short"></i></div>
+      <div class="skeleton-card"><i class="skeleton-thumb"></i><i class="skeleton-line title"></i><i class="skeleton-line"></i><i class="skeleton-line short"></i></div>
+      <div class="skeleton-card"><i class="skeleton-thumb"></i><i class="skeleton-line title"></i><i class="skeleton-line"></i><i class="skeleton-line short"></i></div>
+      <div class="skeleton-card"><i class="skeleton-thumb"></i><i class="skeleton-line title"></i><i class="skeleton-line"></i><i class="skeleton-line short"></i></div>
+      <div class="skeleton-card"><i class="skeleton-thumb"></i><i class="skeleton-line title"></i><i class="skeleton-line"></i><i class="skeleton-line short"></i></div>
+      <div class="skeleton-card"><i class="skeleton-thumb"></i><i class="skeleton-line title"></i><i class="skeleton-line"></i><i class="skeleton-line short"></i></div>
+      <div class="skeleton-card"><i class="skeleton-thumb"></i><i class="skeleton-line title"></i><i class="skeleton-line"></i><i class="skeleton-line short"></i></div>
+    </div>
     <div id="masonry" class="masonry"></div>
     <div id="sentinel" class="sentinel"></div>
     <div id="empty" class="empty" hidden></div>
@@ -355,6 +370,6 @@
   </article>
 </template>
 
-<script type="module" src="assets/app.js"></script>
+<script type="module" src="assets/app.js?v=20260618-skeleton-loading"></script>
 </body>
 </html>
