@@ -6,6 +6,7 @@ import { currentHighlightTerms, renderHighlightedText } from './search.js';
 import { hasEntryImage, entryImages, thumbUrl, localAssetUrl, cacheBustUrl } from './media.js';
 import { copyText, combinedPrompt } from './copy.js';
 import { isFav } from './favorites.js';
+import { needsR18gReveal, revealR18gEntry } from './access.js';
 import { updateResultBar, updateEmptyState } from './codex-ui.js';
 
 const masonryActions = {
@@ -278,9 +279,27 @@ export function makeCard(placement) {
     node.classList.add('no-img');
   }
 
+  applyR18gCensor(node, e, hasImage);
+
   node.onclick = () => masonryActions.copyEntry(e, node);
   maybeAnimateCardEntry(node, placement);
   return node;
+}
+
+/* R18G 词条即便开启也要厚码遮挡，点击遮罩才揭示（本次浏览记忆，避免来回滚动重复点） */
+function applyR18gCensor(node, e, hasImage) {
+  const veil = node.querySelector('.r18g-veil');
+  const censored = hasImage && needsR18gReveal(e);
+  node.classList.toggle('r18g-censored', censored);
+  if (!veil) return;
+  veil.hidden = !censored;
+  if (!censored) return;
+  veil.onclick = ev => {
+    ev.stopPropagation();
+    revealR18gEntry(e);
+    node.classList.remove('r18g-censored');
+    veil.hidden = true;
+  };
 }
 
 export function updateCardPosition(node, placement) {

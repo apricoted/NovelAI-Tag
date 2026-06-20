@@ -1,9 +1,9 @@
-import { state, DENSITY_PRESETS, DENSITY_STORAGE_KEY, NSFW_STORAGE_KEY } from './state.js';
+import { state, DENSITY_PRESETS, DENSITY_STORAGE_KEY, NSFW_STORAGE_KEY, R18G_STORAGE_KEY } from './state.js';
 import { normalizeDensity, densityConfig } from './state.js';
 import { $, updateSearchClear, updateScrollProgress, prefersReducedMotion } from './utils.js';
 import { toast } from './feedback.js';
-import { firstUnlockedCodex, isNsfwCodex } from './access.js';
-import { closeBannerAbout, renderCodexArchive, renderTree, randomExplore, updateCodexPickerState } from './codex-ui.js';
+import { firstUnlockedCodex, isNsfwCodex, isR18gName } from './access.js';
+import { closeBannerAbout, renderCodexArchive, renderTree, renderCodexHeader, randomExplore, updateCodexPickerState } from './codex-ui.js';
 import { syncUrlState } from './router.js';
 import { renderHistoryPanel, resumeLastBrowse, openRecentEntry, saveRecentEntries, scheduleBrowseStateSave } from './history.js';
 import { captureMasonryAnchor, restoreMasonryAnchor, relayoutVisible, updateVirtualCards, scheduleVirtualUpdate, scheduleRelayout } from './masonry.js';
@@ -251,6 +251,8 @@ export function bindUI() {
     document.body.classList.toggle('nsfw-unlocked', state.allowNsfw);
     localStorage.setItem(NSFW_STORAGE_KEY, state.allowNsfw ? '1' : '0');
     if (nsfwToggle) nsfwToggle.checked = state.allowNsfw;
+    if (!state.allowNsfw) setR18gAccess(false);  // R18G 依赖 NSFW，关掉 NSFW 一并强制关闭 R18G
+    updateR18gToggleState();
     updateCodexPickerState();
     if (!state.allowNsfw && isNsfwCodex(state.codex)) {
       const fallback = firstUnlockedCodex();
@@ -281,6 +283,88 @@ export function bindUI() {
   $('#nsfwCancelX').onclick = cancelNsfwConfirm;
   nsfwMask.onclick = ev => { if (ev.target === nsfwMask) cancelNsfwConfirm(); };
   nsfwMask.onkeydown = ev => trapFocus(ev, nsfwMask);
+
+  /* R18G / 重口：默认完全隐藏；需先开 NSFW，再走多重恐吓式确认才能开启；开启后仍厚码点击揭示 */
+  const r18gToggle = $('#r18gToggle');
+  const r18gMask = $('#r18gConfirm');
+  const R18G_STEPS = [
+    {
+      title: '⚠ 重口 / R18G 内容警告',
+      text: '你正要解锁「R18G / 重口」内容。这类内容与普通 R18 完全不是一个级别——它包含血腥、暴力、猎奇等极端画面，绝大多数人看了会强烈不适。确定要继续吗？',
+      next: '我已年满 18 岁，继续',
+    },
+    {
+      title: '⚠⚠ 最后机会：强烈生理与心理不适',
+      text: '再次严重警告：内含杀害、肢解、人棍、刑罚、内脏、排泄物等极端猎奇画面，可能引起恶心、呕吐、心理阴影，且一旦看到便无法消除。能接受 R18 不代表能接受这些。你真的要看？',
+      next: '我自愿承担后果，继续',
+    },
+    {
+      title: '⚠⚠⚠ 终极确认',
+      text: '这些内容非娱乐向。点击开启即代表你完全自愿、并自行承担观看后果，与本站及法典作者无关。确认开启？',
+      next: '我清楚后果，确认开启',
+    },
+  ];
+  let r18gStep = 0;
+  const renderR18gStep = () => {
+    const s = R18G_STEPS[r18gStep];
+    const titleEl = $('#r18gConfirmTitle');
+    const textEl = $('#r18gWarnText');
+    const nextBtn = $('#r18gNext');
+    const backBtn = $('#r18gBack');
+    if (titleEl) titleEl.textContent = s.title;
+    if (textEl) textEl.textContent = s.text;
+    if (nextBtn) nextBtn.textContent = s.next;
+    if (backBtn) backBtn.textContent = r18gStep === 0 ? '我点错了，退出' : '上一步';
+  };
+  const openR18gConfirm = () => { r18gStep = 0; renderR18gStep(); openMask(r18gMask, r18gToggle); };
+  const cancelR18gConfirm = () => { if (r18gToggle) r18gToggle.checked = false; closeMask(r18gMask); };
+  const setR18gAccess = (on, { announce = false } = {}) => {
+    state.allowR18g = Boolean(on) && state.allowNsfw;
+    state.r18gRevealed.clear();  // 每次切换都重新厚码，开启后仍需逐张点击揭示
+    document.body.classList.toggle('r18g-unlocked', state.allowR18g);
+    localStorage.setItem(R18G_STORAGE_KEY, state.allowR18g ? '1' : '0');
+    if (r18gToggle) r18gToggle.checked = state.allowR18g;
+    if (!state.allowR18g && isR18gName(state.activePath[0] || '')) state.activePath = [];  // 关闭时若停在 r18g 分类则退回全部
+    if (state.codex) {
+      renderTree();
+      renderCodexHeader();
+      uiActions.applyFilter({ resetScroll: true });
+    }
+    if (announce) toast(state.allowR18g ? '已开启 R18G / 重口（仍打码，需逐张点击揭示）' : 'R18G / 重口内容已隐藏');
+  };
+  const updateR18gToggleState = () => {
+    if (!r18gToggle) return;
+    const row = r18gToggle.closest('.set-row');
+    r18gToggle.disabled = !state.allowNsfw;
+    if (row) row.classList.toggle('disabled', !state.allowNsfw);
+    r18gToggle.checked = state.allowR18g;
+  };
+  if (r18gToggle) {
+    r18gToggle.checked = state.allowR18g;
+    r18gToggle.onchange = e => {
+      if (!state.allowNsfw) { e.target.checked = false; toast('请先开启「允许 NSFW 法典展示」', '!'); return; }
+      if (e.target.checked) {
+        e.target.checked = false;
+        openR18gConfirm();
+      } else {
+        setR18gAccess(false, { announce: true });
+      }
+    };
+  }
+  if (r18gMask) {
+    $('#r18gNext').onclick = () => {
+      if (r18gStep < R18G_STEPS.length - 1) { r18gStep++; renderR18gStep(); }
+      else { setR18gAccess(true, { announce: true }); closeMask(r18gMask); }
+    };
+    $('#r18gBack').onclick = () => {
+      if (r18gStep > 0) { r18gStep--; renderR18gStep(); }
+      else cancelR18gConfirm();
+    };
+    $('#r18gCancelX').onclick = cancelR18gConfirm;
+    r18gMask.onclick = ev => { if (ev.target === r18gMask) cancelR18gConfirm(); };
+    r18gMask.onkeydown = ev => trapFocus(ev, r18gMask);
+  }
+  updateR18gToggleState();
   $('#shortcutBtn').onclick = () => { closeMore(); openMask(shortcutMask, moreBtn); };
   $('#shortcutClose').onclick = () => closeMask(shortcutMask);
   shortcutMask.onclick = ev => { if (ev.target === shortcutMask) closeMask(shortcutMask); };
@@ -338,6 +422,11 @@ export function bindUI() {
       cancelNsfwConfirm();
       return;
     }
+    if (r18gMask && !r18gMask.hidden) {
+      ev.preventDefault();
+      cancelR18gConfirm();
+      return;
+    }
     closeMore({ focusButton: !moreMenu.hidden });
     if (!settingsMask.hidden) closeMask(settingsMask);
     if (!shortcutMask.hidden) closeMask(shortcutMask);
@@ -390,6 +479,7 @@ export function bindUI() {
     !$('#lightbox').hidden ||
     !settingsMask.hidden ||
     !nsfwMask.hidden ||
+    (r18gMask && !r18gMask.hidden) ||
     !shortcutMask.hidden ||
     !historyMask.hidden ||
     !aboutMask.hidden ||

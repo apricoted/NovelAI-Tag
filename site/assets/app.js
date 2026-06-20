@@ -1,7 +1,7 @@
-import { state, RECENT_STORAGE_KEY, LAST_BROWSE_STORAGE_KEY, NSFW_STORAGE_KEY, DENSITY_STORAGE_KEY } from './app/state.js';
+import { state, RECENT_STORAGE_KEY, LAST_BROWSE_STORAGE_KEY, NSFW_STORAGE_KEY, R18G_STORAGE_KEY, DENSITY_STORAGE_KEY } from './app/state.js';
 import { $, esc, safeJsonParse, updateSearchClear } from './app/utils.js';
 import { setLoading, showSkeleton, hideSkeleton } from './app/feedback.js';
-import { isCodexLocked, firstUnlockedCodex, showNsfwLockedHint } from './app/access.js';
+import { isCodexLocked, firstUnlockedCodex, showNsfwLockedHint, isR18gEntry, isR18gPath } from './app/access.js';
 import { loadMedia, loadAbout, fetchCodex, findCodexMeta, notifyCodexDataStatus } from './app/data.js';
 import { parseSearchQuery, matchSearchPlan } from './app/search.js';
 import { hasEntryImage, primeResourceHints } from './app/media.js';
@@ -27,6 +27,8 @@ export async function init() {
     state.lastBrowse = normalizeLastBrowse(safeJsonParse(localStorage.getItem(LAST_BROWSE_STORAGE_KEY), null));
     state.allowNsfw = localStorage.getItem(NSFW_STORAGE_KEY) === '1';
     document.body.classList.toggle('nsfw-unlocked', state.allowNsfw);
+    state.allowR18g = state.allowNsfw && localStorage.getItem(R18G_STORAGE_KEY) === '1';
+    document.body.classList.toggle('r18g-unlocked', state.allowR18g);
     applyDensity(localStorage.getItem(DENSITY_STORAGE_KEY), { render: false });
     const [codexes, media, about] = await Promise.all([
       fetch('data/codexes.json', { cache: 'no-store' }).then(r => r.json()),
@@ -94,7 +96,8 @@ export async function loadCodex(id, options = {}) {
     const urlState = options.urlState && (!options.urlState.codex || options.urlState.codex === c.id || (c.aliases || []).includes(options.urlState.codex))
       ? options.urlState
       : null;
-    state.activePath = urlState?.path?.length ? urlState.path : [];
+    const nextPath = urlState?.path?.length ? urlState.path : [];
+    state.activePath = !state.allowR18g && isR18gPath(nextPath) ? [] : nextPath;
     state.query = urlState?.q || '';
     state.seenAnimated.clear();
     state.recentRandomIds = [];
@@ -132,6 +135,7 @@ export function applyFilter(options = {}) {
   }
   if (state.onlyImaged) list = list.filter(hasEntryImage);
   if (state.onlyFav) list = list.filter(isFav);
+  if (!state.allowR18g) list = list.filter(e => !isR18gEntry(e));  // R18G 默认完全隐藏
   state.list = list;
   updateResultBar();
   renderList(options);

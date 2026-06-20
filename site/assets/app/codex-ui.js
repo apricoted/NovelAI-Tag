@@ -1,6 +1,6 @@
 import { state, RANDOM_RECENT_LIMIT, NSFW_LOCKED_MESSAGE } from './state.js';
 import { $, esc, samePath, pathStartsWith, updateSearchClear } from './utils.js';
-import { isCodexLocked, showNsfwLockedHint } from './access.js';
+import { isCodexLocked, showNsfwLockedHint, isR18gName } from './access.js';
 import { codexStatusLabel, codexStatusClass, codexStatusTitle } from './data.js';
 import { hasEntryImage, thumbUrl } from './media.js';
 import { toast } from './feedback.js';
@@ -150,6 +150,16 @@ export function updateCodexPickerState() {
   });
 }
 
+/* R18G 默认完全隐藏：算出被隐藏的词条数，让「全部」计数与实际可见数一致 */
+export function r18gHiddenCount() {
+  if (state.allowR18g || !state.codex) return 0;
+  return (state.codex.tree || []).reduce((sum, nd) => sum + (isR18gName(nd.name) ? Number(nd.count || 0) : 0), 0);
+}
+
+export function visibleEntryCount() {
+  return Math.max(0, Number(state.codex?.entryCount || 0) - r18gHiddenCount());
+}
+
 /* ---------------- ??? ---------------- */
 export function renderTree() {
   const nav = $('#tree');
@@ -158,7 +168,7 @@ export function renderTree() {
   const all = document.createElement('div');
   all.className = 'tree-row' + (!searching && !state.activePath.length ? ' active' : '');
   all.dataset.path = '';
-  all.innerHTML = `<span class="tw-arrow"></span><span class="tw-name">全部</span><span class="tw-count">${state.codex.entryCount}</span>`;
+  all.innerHTML = `<span class="tw-arrow"></span><span class="tw-name">全部</span><span class="tw-count">${visibleEntryCount()}</span>`;
   all.onclick = () => selectPath([], all);
   nav.appendChild(all);
   buildNodes(state.codex.tree, nav, [], 0);
@@ -166,6 +176,7 @@ export function renderTree() {
 
 export function buildNodes(nodes, parent, prefix, depth) {
   for (const nd of nodes) {
+    if (!state.allowR18g && isR18gName(nd.name)) continue;  // 隐藏 R18G/重口 分类
     const path = prefix.concat(nd.name);
     const item = document.createElement('div');
     const active = !state.query.trim() && samePath(path, state.activePath);
@@ -419,8 +430,9 @@ export function renderCodexHeader() {
     chip.onclick = () => selectPathByPath(path);
     rail.appendChild(chip);
   };
-  mkChip('全部', [], c.entryCount, 'var(--accent)');
+  mkChip('全部', [], visibleEntryCount(), 'var(--accent)');
   for (const nd of c.tree) {
+    if (!state.allowR18g && isR18gName(nd.name)) continue;  // 隐藏 R18G/重口 胶囊
     let h = 0;
     for (const ch of nd.name) h = (h * 31 + ch.codePointAt(0)) % 360;
     mkChip(nd.name, [nd.name], nd.count, `hsl(${h},58%,52%)`);

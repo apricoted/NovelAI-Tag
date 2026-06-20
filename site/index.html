@@ -213,9 +213,16 @@
     <div class="set-row nsfw-set-row">
       <div class="set-info">
         <div class="set-name">允许 NSFW 法典展示 <span class="set-live">需确认</span></div>
-        <div class="set-desc">默认关闭。开启后解锁成人向法典；首次开启前需要阅读并确认成人内容免责声明。</div>
+        <div class="set-desc">开启后解锁成人向法典</div>
       </div>
       <label class="switch live"><input type="checkbox" id="nsfwToggle"><i></i></label>
+    </div>
+    <div class="set-row r18g-set-row">
+      <div class="set-info">
+        <div class="set-name">显示 R18G / 重口内容</div>
+        <div class="set-desc">包含猎奇极端内容</div>
+      </div>
+      <label class="switch live"><input type="checkbox" id="r18gToggle"><i></i></label>
     </div>
   </div>
 </div>
@@ -233,6 +240,19 @@
     <div class="nsfw-actions">
       <button id="nsfwCancel" class="nsfw-secondary" type="button">取消</button>
       <button id="nsfwAccept" class="nsfw-primary" type="button">我已成年并同意开启</button>
+    </div>
+  </div>
+</div>
+
+<div id="r18gConfirm" class="settings-mask" hidden>
+  <div class="settings-panel r18g-panel" role="dialog" aria-modal="true" aria-labelledby="r18gConfirmTitle">
+    <button id="r18gCancelX" class="settings-close" type="button" aria-label="关闭">×</button>
+    <div class="r18g-icon" aria-hidden="true">⚠</div>
+    <h2 id="r18gConfirmTitle" class="settings-title">⚠ 重口 / R18G 内容警告</h2>
+    <p class="settings-note r18g-note" id="r18gWarnText"></p>
+    <div class="nsfw-actions">
+      <button id="r18gBack" class="nsfw-secondary" type="button">我点错了，退出</button>
+      <button id="r18gNext" class="nsfw-primary danger" type="button">继续</button>
     </div>
   </div>
 </div>
@@ -349,6 +369,7 @@
       </div>
       <button class="zoom-btn" title="放大查看">🔍</button>
       <button class="img-retry" type="button" hidden>重试</button>
+      <button class="r18g-veil" type="button" hidden><span class="rv-mark">🔞</span><span class="rv-label">R18G · 重口</span><span class="rv-hint">点击查看</span></button>
     </div>
     <div class="card-body">
       <div class="card-title-row">

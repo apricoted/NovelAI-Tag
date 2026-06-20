@@ -74,6 +74,8 @@ export const DENSITY_PRESETS = {
 };
 export const NSFW_STORAGE_KEY = 'fadian-nsfw-ok';
 export const NSFW_LOCKED_MESSAGE = '请先在设置里开启「允许 NSFW 法典展示」，并确认成人内容提示。';
+export const R18G_STORAGE_KEY = 'fadian-r18g-ok';
+export const R18G_LOCKED_MESSAGE = 'R18G / 重口内容默认完全隐藏，需在设置中完成多重确认后才会显示。';
 
 export const state = {
   codex: null,        // 当前法典数据
@@ -91,11 +93,13 @@ export const state = {
   onlyImaged: false,
   onlyFav: false,
   allowNsfw: false,
+  allowR18g: false,  // R18G/重口内容默认完全隐藏，需多重确认开启
   sdMode: false,      // 复制时把 NAI 权重转成 Stable Diffusion 格式
   density: DEFAULT_DENSITY,
   favs: new Set(),    // 收藏集合，键为 codexId:entryId
   loadedImages: new Set(),
   seenAnimated: new Set(),
+  r18gRevealed: new Set(),  // 本次浏览已手动揭示的 R18G 词条（键 codexId:entryId）
   recentRandomIds: [],
   recentEntries: [],
   lastBrowse: null,

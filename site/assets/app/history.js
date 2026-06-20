@@ -2,7 +2,7 @@ import { state, RECENT_ENTRY_LIMIT, RECENT_STORAGE_KEY, LAST_BROWSE_STORAGE_KEY 
 import { $, esc, updateSearchClear, updateScrollProgress } from './utils.js';
 import { hasEntryImage, thumbUrl } from './media.js';
 import { syncUrlState } from './router.js';
-import { isCodexLocked, showNsfwLockedHint } from './access.js';
+import { isCodexLocked, isR18gPath, showNsfwLockedHint, showR18gLockedHint } from './access.js';
 import { toast } from './feedback.js';
 import { findCodexMeta } from './data.js';
 
@@ -73,6 +73,10 @@ export function recordRecentEntry(e) {
   saveRecentEntries();
 }
 
+function isHiddenR18gHistoryItem(item) {
+  return !state.allowR18g && isR18gPath(item?.path || []);
+}
+
 let browseSaveTimer = 0;
 let browseSaveSuppressedUntil = 0;
 export function currentBrowseSnapshot(entryId = state.lightbox.entry?.id || '') {
@@ -110,6 +114,7 @@ export function scheduleBrowseStateSave(entryId) {
 
 export function browseDesc(snapshot) {
   if (!snapshot) return '暂无可恢复的位置';
+  if (isHiddenR18gHistoryItem(snapshot)) return '上次位置包含 R18G / 重口内容，已隐藏';
   if (snapshot.q) return `${snapshot.codexTitle} · 搜索 “${snapshot.q}”`;
   if (snapshot.path?.length) return `${snapshot.codexTitle} · ${snapshot.path.join(' › ')}`;
   return `${snapshot.codexTitle} · ${formatRecentTime(snapshot.at)}`;
@@ -130,22 +135,26 @@ export function formatRecentTime(ts) {
 export function renderHistoryPanel() {
   const resume = $('#resumeBrowse');
   const resumeDesc = $('#resumeDesc');
+  const resumeHidden = isHiddenR18gHistoryItem(state.lastBrowse);
   if (resumeDesc) resumeDesc.textContent = browseDesc(state.lastBrowse);
-  if (resume) resume.disabled = !state.lastBrowse;
+  if (resume) resume.disabled = !state.lastBrowse || resumeHidden;
   const clearBtn = $('#clearRecent');
-  if (clearBtn) clearBtn.disabled = state.recentEntries.length === 0;
+  const recentEntries = state.recentEntries.filter(item => !isHiddenR18gHistoryItem(item));
+  if (clearBtn) clearBtn.disabled = recentEntries.length === 0;
 
   const list = $('#recentList');
   if (!list) return;
   list.innerHTML = '';
-  if (!state.recentEntries.length) {
+  if (!recentEntries.length) {
     const empty = document.createElement('div');
     empty.className = 'recent-empty';
-    empty.textContent = '最近还没有打开过词条。点卡片放大图或复制词条后，这里会自动记录。';
+    empty.textContent = state.recentEntries.length
+      ? '最近记录中只有已隐藏的 R18G / 重口内容。开启 R18G 后可查看。'
+      : '最近还没有打开过词条。点卡片放大图或复制词条后，这里会自动记录。';
     list.appendChild(empty);
     return;
   }
-  for (const item of state.recentEntries) {
+  for (const item of recentEntries) {
     const btn = document.createElement('button');
     btn.className = 'recent-item';
     btn.type = 'button';
@@ -222,6 +231,10 @@ function restoreBrowseScroll(top) {
 export async function resumeLastBrowse() {
   const snapshot = state.lastBrowse;
   if (!snapshot) return;
+  if (isHiddenR18gHistoryItem(snapshot)) {
+    showR18gLockedHint();
+    return;
+  }
   const meta = findCodexMeta(snapshot.codexId);
   const targetId = meta?.id || snapshot.codexId;
   if (meta && isCodexLocked(meta)) {
@@ -247,6 +260,10 @@ export async function resumeLastBrowse() {
 
 export async function openRecentEntry(item) {
   if (!item?.codexId || !item.entryId) return;
+  if (isHiddenR18gHistoryItem(item)) {
+    showR18gLockedHint();
+    return;
+  }
   const meta = findCodexMeta(item.codexId);
   const targetId = meta?.id || item.codexId;
   if (meta && isCodexLocked(meta)) {

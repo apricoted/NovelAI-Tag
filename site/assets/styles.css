@@ -733,6 +733,38 @@ body.dark .nsfw-note{color:#ffb4ab;background:rgba(217,45,32,.18)}
   box-shadow:0 8px 22px rgba(217,45,32,.24);
 }
 .nsfw-primary:hover{transform:translateY(-1px);box-shadow:0 10px 26px rgba(217,45,32,.32)}
+
+/* ---------- R18G / 重口分级 ---------- */
+.set-live.danger{background:linear-gradient(135deg,#dc2626,#7f1d1d)}
+.set-row.disabled{opacity:.42}
+.set-row.disabled .switch{pointer-events:none;filter:grayscale(1)}
+.r18g-panel{max-width:520px}
+.r18g-icon{
+  width:46px;height:46px;border-radius:14px;display:grid;place-items:center;margin-bottom:12px;
+  color:#fff;font-size:26px;font-weight:900;line-height:1;
+  background:linear-gradient(135deg,#dc2626,#7f1d1d);box-shadow:0 8px 24px rgba(127,29,29,.42);
+}
+.r18g-note{color:#b42318;background:rgba(217,45,32,.12);line-height:1.85}
+body.dark .r18g-note{color:#ffb4ab;background:rgba(217,45,32,.2)}
+.nsfw-primary.danger{background:linear-gradient(135deg,#dc2626,#7f1d1d)}
+
+/* 卡片厚码 + 点击揭示遮罩 */
+.card.r18g-censored .card-img{filter:blur(30px) brightness(.55) saturate(.7);transform:scale(1.16)}
+.card.r18g-censored .zoom-btn,
+.card.r18g-censored .card-badges{display:none!important}
+.r18g-veil{
+  position:absolute;inset:0;z-index:7;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:3px;cursor:pointer;border:0;
+  color:#fff;text-align:center;
+  background:rgba(18,5,7,.5);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  transition:background .15s ease;
+}
+.r18g-veil:hover{background:rgba(38,9,11,.4)}
+.r18g-veil .rv-mark{font-size:30px;line-height:1}
+.r18g-veil .rv-label{font-size:13px;font-weight:900;letter-spacing:1px}
+.r18g-veil .rv-hint{font-size:11px;opacity:.9;border:1px solid rgba(255,255,255,.55);border-radius:999px;padding:2px 10px;margin-top:4px}
+.r18g-veil[hidden]{display:none!important}
+
 .shortcut-panel{max-width:460px}
 .shortcut-list{display:flex;flex-direction:column;gap:8px;margin-top:12px}
 .shortcut-list div{

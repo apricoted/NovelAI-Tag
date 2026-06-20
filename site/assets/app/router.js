@@ -2,6 +2,7 @@ import { state } from './state.js';
 import { $ } from './utils.js';
 import { hasEntryImage } from './media.js';
 import { toast } from './feedback.js';
+import { isR18gBlocked, showR18gLockedHint } from './access.js';
 
 const routerActions = {
   onUrlSync: () => {},
@@ -55,6 +56,11 @@ export function openEntryDeepLink(entryId) {
   }
   const entry = state.codex.entries.find(e => candidates.includes(e.id));
   if (!entry) return;
+  if (isR18gBlocked(entry)) {
+    showR18gLockedHint();
+    syncUrlState({ entry: '' });
+    return;
+  }
   if (!state.query && !state.activePath.length && entry.path?.length) {
     state.activePath = entry.path;
     routerActions.renderTree();
