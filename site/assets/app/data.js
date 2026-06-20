@@ -58,6 +58,15 @@ export async function fetchJson(url, cache = 'default') {
   });
 }
 
+export function codexMatches(codex, id) {
+  if (!codex || !id) return false;
+  return codex.id === id || (codex.aliases || []).includes(id);
+}
+
+export function findCodexMeta(id) {
+  return state.codexes.find(c => codexMatches(c, id));
+}
+
 export function normalizeCodex(data, meta = {}) {
   const codex = {
     ...data,
@@ -77,6 +86,7 @@ export function normalizeCodex(data, meta = {}) {
     source: meta.source || data.source || '',
     contributors: meta.contributors || data.contributors || [],
     links: meta.links || data.links || [],
+    aliases: meta.aliases || data.aliases || [],
   };
   codex.entries = (data.entries || []).map((entry, i) => normalizeEntry(entry, codex, i));
   codex.entryCount = Number(codex.entryCount || codex.entries.length);

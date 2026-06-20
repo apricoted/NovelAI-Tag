@@ -5,7 +5,7 @@ import { toast } from './feedback.js';
 import { currentHighlightTerms, renderHighlightedText } from './search.js';
 import { hasEntryImage, entryImages, thumbUrl, localAssetUrl, cacheBustUrl } from './media.js';
 import { copyText, combinedPrompt } from './copy.js';
-import { favKey } from './favorites.js';
+import { isFav } from './favorites.js';
 import { updateResultBar, updateEmptyState } from './codex-ui.js';
 
 const masonryActions = {
@@ -265,7 +265,7 @@ export function makeCard(placement) {
   }
 
   const fav = node.querySelector('.fav-btn');
-  const faved = state.favs.has(favKey(e));
+  const faved = isFav(e);
   fav.textContent = faved ? '★' : '☆';
   fav.classList.toggle('on', faved);
   fav.title = faved ? '取消收藏' : '收藏';

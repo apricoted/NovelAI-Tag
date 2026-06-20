@@ -1,7 +1,7 @@
 import { state } from './state.js';
 import { esc } from './utils.js';
 import { entryImages, hasEntryImage } from './media.js';
-import { favKey } from './favorites.js';
+import { isFav } from './favorites.js';
 
 export function searchableText(e) {
   return [e.title, e.tags, e.negative, e.note, e.rawTags, ...(e.path || [])]
@@ -109,7 +109,7 @@ export function matchSearchPlan(e, plan) {
   if (plan.text && !searchableText(e).includes(plan.text)) return false;
   if (plan.path && !pathMatchesQuery(e.path || [], plan.path)) return false;
   if (plan.hasImage !== null && hasEntryImage(e) !== plan.hasImage) return false;
-  if (plan.fav !== null && state.favs.has(favKey(e)) !== plan.fav) return false;
+  if (plan.fav !== null && isFav(e) !== plan.fav) return false;
   if (plan.author && !entryAuthorText(e).includes(plan.author)) return false;
   return true;
 }

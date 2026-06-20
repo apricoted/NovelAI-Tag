@@ -2,9 +2,9 @@
   {
     "id": "suozhang",
     "title": "所长常规NovelAI个人法典",
-    "version": "2026.5.20",
+    "version": "2026.6.19",
     "author": "戒红所",
-    "entryCount": 5270,
+    "entryCount": 5389,
     "imagedCount": 5033,
     "source": "戒红所 · 所长常规法典",
     "contributors": [
@@ -13,23 +13,36 @@
     ]
   },
   {
-    "id": "codex_70c0e66f",
+    "id": "qianteng",
     "title": "叫我千藤就好了の衣柜",
     "version": "2026.3.1",
     "author": "叫我千藤就好了",
     "entryCount": 125,
     "imagedCount": 124,
+    "aliases": ["codex_70c0e66f"],
     "source": "千藤 · 叫我千藤就好了の衣柜",
     "contributors": [
       { "name": "叫我千藤就好了", "role": "法典原作者" }
     ]
   },
   {
+    "id": "jiegou_yuandian",
+    "title": "解构原典",
+    "version": "2025.7.18",
+    "author": "解构原典编撰组",
+    "entryCount": 274,
+    "imagedCount": 265,
+    "source": "解构原典编撰组 · 解构原典",
+    "contributors": [
+      { "name": "解构原典编撰组", "role": "法典原作者 / 编撰" }
+    ]
+  },
+  {
     "id": "suozhang_r18",
     "title": "所长色色NovalAI个人法典（合并版）",
-    "version": "2026.5.20",
+    "version": "2026.6.19",
     "author": "戒红所",
-    "entryCount": 9868,
+    "entryCount": 10269,
     "imagedCount": 9178,
     "nsfw": true,
     "source": "戒红所 · 所长色色法典（上 + 下 合并）",
@@ -39,7 +52,7 @@
     ]
   },
   {
-    "id": "codex_3f60585d",
+    "id": "mengshen_r18",
     "title": "涩涩法典(梦神版)",
     "version": "外部源",
     "author": "梦神",
@@ -47,10 +60,11 @@
     "imagedCount": 351,
     "nsfw": true,
     "dataUrl": "https://prompt-vault-gallery.pages.dev/data/prompt-vault.json",
-    "fallbackDataUrl": "data/codex_3f60585d.json",
+    "fallbackDataUrl": "data/mengshen_r18.json",
     "fallbackVersion": "本地快照",
     "assetBaseUrl": "https://prompt-vault-gallery.pages.dev",
     "assetPathMode": "relative",
+    "aliases": ["codex_3f60585d"],
     "source": "梦神 · 涩涩法典",
     "contributors": [
       { "name": "梦神", "role": "法典原作者 / 数据维护" },

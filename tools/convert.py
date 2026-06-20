@@ -39,7 +39,7 @@ META_OVERRIDES = {
     "suozhang": {"author": "戒红所"},
     "codex_6e699406": {"title": "所长色色NovalAI个人法典(上)", "author": "戒红所"},
     "codex_8489ac52": {"title": "所长色色NovalAI个人法典(下)", "author": "戒红所"},
-    "codex_3f60585d": {"title": "涩涩法典(梦神版)", "author": "梦神"},
+    "mengshen_r18": {"title": "涩涩法典(梦神版)", "author": "梦神"},
 }
 IMG_EXTS = ["jpg", "jpeg", "png", "webp", "gif", "avif"]
 MAXDIM = 1100

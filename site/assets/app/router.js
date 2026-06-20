@@ -47,7 +47,13 @@ export function syncUrlState({ replace = true, entry, saveBrowse = true } = {}) 
 
 export function openEntryDeepLink(entryId) {
   if (!state.codex || !entryId) return;
-  const entry = state.codex.entries.find(e => e.id === entryId);
+  const candidates = [entryId];
+  for (const alias of state.codex.aliases || []) {
+    if (entryId.startsWith(`${alias}-`)) {
+      candidates.push(`${state.codex.id}${entryId.slice(alias.length)}`);
+    }
+  }
+  const entry = state.codex.entries.find(e => candidates.includes(e.id));
   if (!entry) return;
   if (!state.query && !state.activePath.length && entry.path?.length) {
     state.activePath = entry.path;

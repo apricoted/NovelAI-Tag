@@ -2,10 +2,10 @@ import { state, RECENT_STORAGE_KEY, LAST_BROWSE_STORAGE_KEY, NSFW_STORAGE_KEY, D
 import { $, esc, safeJsonParse, updateSearchClear } from './app/utils.js';
 import { setLoading, showSkeleton, hideSkeleton } from './app/feedback.js';
 import { isCodexLocked, firstUnlockedCodex, showNsfwLockedHint } from './app/access.js';
-import { loadMedia, loadAbout, fetchCodex, notifyCodexDataStatus } from './app/data.js';
+import { loadMedia, loadAbout, fetchCodex, findCodexMeta, notifyCodexDataStatus } from './app/data.js';
 import { parseSearchQuery, matchSearchPlan } from './app/search.js';
 import { hasEntryImage, primeResourceHints } from './app/media.js';
-import { favKey, setFavoritesActions, toggleFav } from './app/favorites.js';
+import { isFav, setFavoritesActions, toggleFav } from './app/favorites.js';
 import { renderList, clearMasonry, updateVirtualCards, setMasonryActions } from './app/masonry.js';
 import { openLightbox } from './app/lightbox.js';
 import { copyEntry } from './app/copy.js';
@@ -44,9 +44,9 @@ export async function init() {
     setupAbout();
     bindUI();
     state.pendingUrlState = readUrlState();
-    const initialMeta = state.codexes.find(c => c.id === state.pendingUrlState.codex);
+    const initialMeta = findCodexMeta(state.pendingUrlState.codex);
     const initialId = initialMeta && !isCodexLocked(initialMeta)
-      ? state.pendingUrlState.codex
+      ? initialMeta.id
       : firstUnlockedCodex()?.id || codexes[0]?.id;
     if (initialMeta && isCodexLocked(initialMeta)) showNsfwLockedHint();
     if (codexes.length) {
@@ -64,11 +64,11 @@ export async function init() {
 }
 
 export async function loadCodex(id, options = {}) {
-  const meta = state.codexes.find(c => c.id === id) || { id };
+  const meta = findCodexMeta(id) || { id };
   if (isCodexLocked(meta)) {
     showNsfwLockedHint();
     const fallback = firstUnlockedCodex();
-    if (fallback && fallback.id !== id) {
+    if (fallback && fallback.id !== meta.id) {
       return loadCodex(fallback.id, { ...options, urlState: null, replaceUrl: true });
     }
     setLoading('需要在设置中开启 NSFW 法典展示后才能查看');
@@ -91,7 +91,7 @@ export async function loadCodex(id, options = {}) {
     const codexBtnText = $('#codexBtnText');
     if (codexBtnText) codexBtnText.textContent = c.title;
     updateCodexPickerState();
-    const urlState = options.urlState && (!options.urlState.codex || options.urlState.codex === c.id)
+    const urlState = options.urlState && (!options.urlState.codex || options.urlState.codex === c.id || (c.aliases || []).includes(options.urlState.codex))
       ? options.urlState
       : null;
     state.activePath = urlState?.path?.length ? urlState.path : [];
@@ -131,7 +131,7 @@ export function applyFilter(options = {}) {
     list = list.filter(e => p.every((seg, i) => e.path[i] === seg));
   }
   if (state.onlyImaged) list = list.filter(hasEntryImage);
-  if (state.onlyFav) list = list.filter(e => state.favs.has(favKey(e)));
+  if (state.onlyFav) list = list.filter(isFav);
   state.list = list;
   updateResultBar();
   renderList(options);

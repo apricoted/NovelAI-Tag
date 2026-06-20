@@ -4,6 +4,7 @@ import { hasEntryImage, thumbUrl } from './media.js';
 import { syncUrlState } from './router.js';
 import { isCodexLocked, showNsfwLockedHint } from './access.js';
 import { toast } from './feedback.js';
+import { findCodexMeta } from './data.js';
 
 const historyActions = {
   loadCodex: async () => {},
@@ -221,15 +222,16 @@ function restoreBrowseScroll(top) {
 export async function resumeLastBrowse() {
   const snapshot = state.lastBrowse;
   if (!snapshot) return;
-  const meta = state.codexes.find(c => c.id === snapshot.codexId);
+  const meta = findCodexMeta(snapshot.codexId);
+  const targetId = meta?.id || snapshot.codexId;
   if (meta && isCodexLocked(meta)) {
     showNsfwLockedHint();
     return;
   }
   applyBrowseControls(snapshot);
-  if (!state.codex || state.codex.id !== snapshot.codexId) {
-    await historyActions.loadCodex(snapshot.codexId, {
-      urlState: { codex: snapshot.codexId, path: snapshot.path || [], q: snapshot.q || '', entry: snapshot.entryId || '' },
+  if (!state.codex || state.codex.id !== targetId) {
+    await historyActions.loadCodex(targetId, {
+      urlState: { codex: targetId, path: snapshot.path || [], q: snapshot.q || '', entry: snapshot.entryId || '' },
       replaceUrl: true,
       saveBrowse: false,
     });
@@ -245,17 +247,18 @@ export async function resumeLastBrowse() {
 
 export async function openRecentEntry(item) {
   if (!item?.codexId || !item.entryId) return;
-  const meta = state.codexes.find(c => c.id === item.codexId);
+  const meta = findCodexMeta(item.codexId);
+  const targetId = meta?.id || item.codexId;
   if (meta && isCodexLocked(meta)) {
     showNsfwLockedHint();
     return;
   }
-  const urlState = { codex: item.codexId, path: item.path || [], q: '', entry: item.entryId };
-  if (!state.codex || state.codex.id !== item.codexId) {
+  const urlState = { codex: targetId, path: item.path || [], q: '', entry: item.entryId };
+  if (!state.codex || state.codex.id !== targetId) {
     state.onlyFav = false;
     state.onlyImaged = false;
     applyBrowseControls({ onlyFav: false, onlyImaged: false });
-    await historyActions.loadCodex(item.codexId, { urlState, replaceUrl: true });
+    await historyActions.loadCodex(targetId, { urlState, replaceUrl: true });
   } else {
     state.query = '';
     state.activePath = item.path || [];

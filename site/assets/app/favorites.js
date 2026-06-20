@@ -7,10 +7,25 @@ export function setFavoritesActions(actions = {}) {
   Object.assign(favoriteActions, actions);
 }
 
-export function favKey(e) { return state.codex.id + ':' + e.id; }
+export function favKeys(e) {
+  const keys = [`${state.codex.id}:${e.id}`];
+  for (const alias of state.codex.aliases || []) {
+    const aliasEntryId = e.id.startsWith(`${state.codex.id}-`)
+      ? `${alias}${e.id.slice(state.codex.id.length)}`
+      : e.id;
+    keys.push(`${alias}:${aliasEntryId}`);
+  }
+  return keys;
+}
+
+export function favKey(e) { return favKeys(e)[0]; }
+export function isFav(e) { return favKeys(e).some(key => state.favs.has(key)); }
+
 export function toggleFav(e, btn) {
-  const k = favKey(e);
-  if (state.favs.has(k)) state.favs.delete(k); else state.favs.add(k);
+  const keys = favKeys(e);
+  const k = keys[0];
+  if (isFav(e)) keys.forEach(key => state.favs.delete(key));
+  else state.favs.add(k);
   localStorage.setItem('fadian-favs', JSON.stringify([...state.favs]));
   const on = state.favs.has(k);
   if (btn) {
