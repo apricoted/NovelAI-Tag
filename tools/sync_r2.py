@@ -268,16 +268,43 @@ def collect_assets(apply_metadata=False, cfg=None, manifest_objects=None):
                 if original_key and original_path and original_path.exists()
                 else ""
             )
-            if thumb_sha:
-                rev = rev_from_hashes([thumb_sha, original_sha])
-                if entry.get("assetRev") != rev:
-                    entry["assetRev"] = rev
-                    changed = True
-
             if thumb_path.exists():
                 assets.append(("image", asset_cid, image, thumb_path, thumb_sha))
             if original_name and original_path and original_path.exists():
                 assets.append(("original", asset_cid, original_name, original_path, original_sha))
+
+            rev_hashes = [thumb_sha, original_sha]
+
+            # 多图副图(entry.images[] 里除主图外的 -02/-03… 图）同样要上传。
+            # 主图逻辑只处理 entry.image；本地多图法典(如 jiegou_yuandian)的副图缩略图
+            # 在 images/、原图在 originals/，这里逐张补进上传队列。
+            for item in entry.get("images") or []:
+                sec = item.get("path")
+                if not sec or sec == image:
+                    continue
+                sec_thumb_path = THUMB_DIR / asset_cid / sec
+                sec_orig = item.get("original") or sec
+                sec_orig_path = ORIG_DIR / asset_cid / sec_orig
+                sec_thumb_key = key_for(image_prefix, asset_cid, sec)
+                sec_orig_key = key_for(original_prefix, asset_cid, sec_orig)
+                if sec_thumb_path.exists():
+                    sec_thumb_sha = sha256_cached(sec_thumb_path, sec_thumb_key, manifest_objects, hash_stats)
+                    assets.append(("image", asset_cid, sec, sec_thumb_path, sec_thumb_sha))
+                    rev_hashes.append(sec_thumb_sha)
+                else:
+                    issues.append(f"missing secondary thumbnail: {asset_cid}/{sec}")
+                if sec_orig_path.exists():
+                    sec_orig_sha = sha256_cached(sec_orig_path, sec_orig_key, manifest_objects, hash_stats)
+                    assets.append(("original", asset_cid, sec_orig, sec_orig_path, sec_orig_sha))
+                    rev_hashes.append(sec_orig_sha)
+                else:
+                    issues.append(f"missing secondary original: {asset_cid}/{sec_orig}")
+
+            if thumb_sha:
+                rev = rev_from_hashes(rev_hashes)
+                if entry.get("assetRev") != rev:
+                    entry["assetRev"] = rev
+                    changed = True
 
         if codex.get("imagedCount") != imaged:
             codex["imagedCount"] = imaged
