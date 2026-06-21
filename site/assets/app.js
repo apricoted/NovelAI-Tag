@@ -96,7 +96,7 @@ export async function loadCodex(id, options = {}) {
     const urlState = options.urlState && (!options.urlState.codex || options.urlState.codex === c.id || (c.aliases || []).includes(options.urlState.codex))
       ? options.urlState
       : null;
-    const nextPath = urlState?.path?.length ? urlState.path : [];
+    const nextPath = normalizeRoutePath(c.tree, urlState?.path || []);
     state.activePath = !state.allowR18g && isR18gPath(nextPath) ? [] : nextPath;
     state.query = urlState?.q || '';
     state.seenAnimated.clear();
@@ -139,6 +139,19 @@ export function applyFilter(options = {}) {
   state.list = list;
   updateResultBar();
   renderList(options);
+}
+
+function normalizeRoutePath(tree, path) {
+  if (!Array.isArray(path) || !path.length) return [];
+  let nodes = Array.isArray(tree) ? tree : [];
+  const normalized = [];
+  for (const seg of path) {
+    const node = nodes.find(nd => nd?.name === seg);
+    if (!node) return [];
+    normalized.push(node.name);
+    nodes = Array.isArray(node.children) ? node.children : [];
+  }
+  return normalized;
 }
 
 setRouterActions({

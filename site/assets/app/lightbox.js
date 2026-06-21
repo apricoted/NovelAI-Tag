@@ -117,7 +117,13 @@ export function openLightbox(entry, index = 0, sourceEl = null) {
   lb.classList.toggle('folded', localStorage.getItem('fadian-lbinfo') === 'folded');
   lb.classList.toggle('has-thumbs', images.length > 1);
   lb.hidden = false;
-  renderLightbox();
+  try {
+    renderLightbox();
+  } catch (err) {
+    console.error('[lightbox] 渲染失败，回退关闭以免整页卡死', err);
+    closeLightbox();
+    return;
+  }
   void lb.offsetWidth;
   lb.classList.add('is-open');
   syncUrlState({ entry: entry.id });

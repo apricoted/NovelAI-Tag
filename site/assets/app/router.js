@@ -19,10 +19,10 @@ export function setRouterActions(actions = {}) {
 export function readUrlState() {
   const params = new URLSearchParams(location.search);
   const hash = new URLSearchParams(String(location.hash || '').replace(/^#/, ''));
-  const path = (params.get('path') || '')
-    .split('/')
-    .map(seg => seg.trim())
-    .filter(Boolean);
+  const pathValues = params.getAll('path');
+  const path = pathValues.length > 1
+    ? pathValues.map(seg => seg.trim()).filter(Boolean)
+    : decodeLegacyPathParam(pathValues[0] || '');
   return {
     codex: params.get('codex') || '',
     path,
@@ -37,13 +37,28 @@ export function syncUrlState({ replace = true, entry, saveBrowse = true } = {}) 
   params.set('codex', state.codex.id);
   const q = state.query.trim();
   if (q) params.set('q', q);
-  else if (state.activePath.length) params.set('path', state.activePath.join('/'));
+  else if (state.activePath.length) {
+    for (const seg of state.activePath) params.append('path', seg);
+  }
   const entryId = entry === undefined ? (state.lightbox.entry?.id || '') : entry;
   if (entryId) params.set('entry', entryId);
   const next = `${location.pathname}?${params.toString()}`;
   if (next === location.pathname + location.search && !location.hash) return;
   history[replace ? 'replaceState' : 'pushState'](null, '', next);
   if (saveBrowse) routerActions.onUrlSync(entryId);
+}
+
+function decodeLegacyPathParam(value) {
+  return String(value || '')
+    .split('/')
+    .map(seg => {
+      try {
+        return decodeURIComponent(seg).trim();
+      } catch {
+        return String(seg || '').trim();
+      }
+    })
+    .filter(Boolean);
 }
 
 export function openEntryDeepLink(entryId) {

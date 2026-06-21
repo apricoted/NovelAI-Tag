@@ -626,8 +626,9 @@ body.density-compact .mini-copy{padding:2px 6px;font-size:10.5px}
   position:fixed;inset:0;z-index:70;display:grid;place-items:center;padding:20px;
   background:rgba(15,18,30,.45);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
   opacity:0;transition:opacity .2s ease;
+  pointer-events:none;   /* 仅 .show 时接管交互；淡出/异常半开态不拦截页面，避免卡死整页 */
 }
-.settings-mask.show{opacity:1}
+.settings-mask.show{opacity:1;pointer-events:auto}
 .settings-panel{
   position:relative;width:min(560px,94vw);max-height:min(660px,90vh);overflow-y:auto;
   background:var(--glass);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
@@ -912,10 +913,11 @@ body.dark .r18g-note{color:#ffb4ab;background:rgba(217,45,32,.2)}
   background:rgba(228,231,242,.52);
   backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
   opacity:0;transition:opacity .25s ease;
+  pointer-events:none;   /* 仅在 is-open 时才接管交互；半开/淡出态不拦截页面点击，避免卡死整页 */
 }
 body.dark .lightbox{background:rgba(7,9,15,.58)}
 .lightbox:not([hidden]){display:block}
-.lightbox.is-open{opacity:1}
+.lightbox.is-open{opacity:1;pointer-events:auto}
 .lightbox.folded{--lb-right:18px}
 .lightbox-stage{
   position:absolute;left:18px;top:18px;bottom:18px;right:var(--lb-right);
