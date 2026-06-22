@@ -210,7 +210,7 @@ export function selectPath(path, rowEl) {
   document.querySelectorAll('.tree-row.active').forEach(r => r.classList.remove('active'));
   rowEl.classList.add('active');
   if (window.innerWidth <= 600) $('#sidebar').classList.add('closed');
-  codexUiActions.applyFilter({ resetScroll: true });
+  codexUiActions.applyFilter({ resetScroll: true, transition: 'filter' });
   codexUiActions.syncUrlState();
 }
 
@@ -349,7 +349,7 @@ export function handleEmptyAction(action) {
     updateSearchClear();
     renderTree();
   }
-  codexUiActions.applyFilter({ resetScroll: true });
+  codexUiActions.applyFilter({ resetScroll: true, transition: 'filter' });
   codexUiActions.syncUrlState();
 }
 
