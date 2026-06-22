@@ -8,9 +8,10 @@
 <!-- Static cold-start hints; keep this origin in sync with data/media.json baseUrl. -->
 <link rel="preconnect" href="https://assets.quicktagcloud.com">
 <link rel="dns-prefetch" href="https://assets.quicktagcloud.com">
-<link rel="stylesheet" href="assets/styles.css?v=20260618-skeleton">
+<link rel="stylesheet" href="assets/styles.css?v=20260622-feedback5">
 <link rel="modulepreload" href="assets/app/state.js">
 <link rel="modulepreload" href="assets/app/utils.js">
+<link rel="modulepreload" href="assets/app/modal.js">
 <link rel="modulepreload" href="assets/app/feedback.js">
 <link rel="modulepreload" href="assets/app/access.js">
 <link rel="modulepreload" href="assets/app/data.js">
@@ -23,6 +24,9 @@
 <link rel="modulepreload" href="assets/app/masonry.js">
 <link rel="modulepreload" href="assets/app/lightbox.js">
 <link rel="modulepreload" href="assets/app/history.js">
+<link rel="modulepreload" href="assets/app/report.js">
+<link rel="modulepreload" href="assets/app/announcements.js">
+<link rel="modulepreload" href="assets/app/onboarding.js">
 <link rel="modulepreload" href="assets/app/ui.js">
 </head>
 <body>
@@ -76,6 +80,10 @@
   </label>
   <div class="topbar-actions">
     <button id="sdBadge" class="sd-badge" type="button" title="正在以 Stable Diffusion 格式复制 · 点此关闭" hidden>SD权重开启</button>
+    <button id="announcementsBtn" class="icon-btn announce-btn" type="button" title="公告" aria-label="公告">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5a2 2 0 0 1 4 0v1a5 5 0 0 1 4 4.9v3.2l1.4 2.4A1 1 0 0 1 18.5 18h-13a1 1 0 0 1-.9-1.5L6 14.1v-3.2A5 5 0 0 1 10 6z"/><path d="M9.5 19a2.5 2.5 0 0 0 5 0"/></svg>
+      <i id="announcementsDot" class="announce-dot" hidden></i>
+    </button>
     <button id="themeBtn" class="icon-btn theme-btn" type="button" title="深色 / 浅色" aria-label="切换深色模式"></button>
     <div class="more-wrap">
       <button id="moreBtn" class="icon-btn more-btn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="moreMenu" title="更多" aria-label="更多">
@@ -101,6 +109,10 @@
         <button id="historyBtn" class="more-item" type="button" role="menuitem">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 7v5l3 2"/></svg>
           <span><b>浏览与收藏</b><small>继续上次浏览</small></span>
+        </button>
+        <button id="globalReportBtn" class="more-item" type="button" role="menuitem">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/><path d="M8 9h8M8 13h5"/></svg>
+          <span><b>反馈问题</b><small>BUG反馈与新功能建议</small></span>
         </button>
         <button id="aboutBtn" class="more-item" type="button" role="menuitem">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11.5v5"/><path d="M12 8h.01"/></svg>
@@ -296,6 +308,88 @@
   </div>
 </div>
 
+<div id="announcementsPanel" class="settings-mask" hidden>
+  <div class="settings-panel announcements-panel" role="dialog" aria-modal="true" aria-label="公告">
+    <button id="announcementsClose" class="settings-close" type="button" aria-label="关闭">×</button>
+    <div class="panel-kicker">
+      <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M10 5a2 2 0 0 1 4 0v1a5 5 0 0 1 4 4.9v3.2l1.4 2.4A1 1 0 0 1 18.5 18h-13a1 1 0 0 1-.9-1.5L6 14.1v-3.2A5 5 0 0 1 10 6z"/><path d="M9.5 19a2.5 2.5 0 0 0 5 0"/></svg></span>
+      <h2 class="settings-title">公告</h2>
+    </div>
+    <div id="announcementsList" class="announcements-list"></div>
+  </div>
+</div>
+
+<div id="feedbackPanel" class="settings-mask" hidden>
+  <div class="settings-panel feedback-panel" role="dialog" aria-modal="true" aria-label="反馈问题">
+    <button id="feedbackClose" class="settings-close" type="button" aria-label="关闭">×</button>
+    <h2 class="settings-title">反馈问题</h2>
+    <p class="settings-note">会自动带上当前页面、法典和词条上下文，不会上传截图、收藏列表或浏览历史。</p>
+    <form id="feedbackForm" class="feedback-form">
+      <label class="feedback-field">
+        <span>类型</span>
+        <select id="feedbackType" required>
+          <option value="site_bug">站点 Bug / 使用问题</option>
+          <option value="card_content">卡片内容错误</option>
+          <option value="image_error">图片加载 / 配图问题</option>
+          <option value="copy_error">复制结果问题</option>
+          <option value="suggestion">建议 / 想法</option>
+        </select>
+      </label>
+      <label class="feedback-field">
+        <span>描述</span>
+        <textarea id="feedbackDesc" maxlength="1000" rows="5" placeholder="简单说一下你遇到的问题，或希望优化加入的功能。" required></textarea>
+      </label>
+      <label class="feedback-field">
+        <span>联系方式 <small class="field-live">选填</small></span>
+        <input id="feedbackContact" maxlength="120" placeholder="QQ / 昵称 / 其他能联系到你的方式">
+      </label>
+      <label class="feedback-hp" aria-hidden="true">
+        <span>请留空</span>
+        <input id="feedbackHoneypot" tabindex="-1" autocomplete="off">
+      </label>
+      <div class="feedback-context">
+        <b>将随反馈一同提交</b>
+        <pre id="feedbackContextPreview"></pre>
+      </div>
+      <div id="feedbackFallback" class="feedback-fallback" hidden>
+        <b>提交失败时可复制这段内容发给作者或发到群里</b>
+        <textarea id="feedbackFallbackText" rows="7" readonly></textarea>
+        <button id="feedbackCopyFallback" class="nsfw-secondary" type="button">复制反馈文本</button>
+      </div>
+      <div id="feedbackStatus" class="feedback-status" aria-live="polite"></div>
+      <div class="nsfw-actions">
+        <button id="feedbackCancel" class="nsfw-secondary" type="button">取消</button>
+        <button id="feedbackSubmit" class="nsfw-primary feedback-submit" type="submit">提交反馈</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="onboarding" class="settings-mask" hidden>
+  <div class="settings-panel onboarding-panel" role="dialog" aria-modal="true" aria-label="快速引导">
+    <div class="onboarding-top">
+      <span id="onboardingStep" class="onboarding-step">1 / 3</span>
+      <button id="onboardingSkip" class="onboarding-skip" type="button">跳过</button>
+    </div>
+    <div class="onboarding-row">
+      <div id="onboardingScene" class="onboarding-scene" aria-hidden="true"></div>
+      <div class="onboarding-text">
+        <h2 id="onboardingTitle" class="settings-title">看图，点一下就复制</h2>
+        <p id="onboardingBody" class="onboarding-body"></p>
+      </div>
+    </div>
+    <div class="onboarding-dots" aria-hidden="true">
+      <i class="onboarding-dot active"></i>
+      <i class="onboarding-dot"></i>
+      <i class="onboarding-dot"></i>
+    </div>
+    <div class="nsfw-actions">
+      <button id="onboardingBack" class="nsfw-secondary" type="button" disabled>上一步</button>
+      <button id="onboardingNext" class="nsfw-primary onboarding-next" type="button">下一步</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast" class="toast"></div>
 
 <div id="lightbox" class="lightbox" hidden>
@@ -321,6 +415,7 @@
       <div class="lightbox-actions">
         <button id="copyAll" type="button">复制全部</button>
         <button id="copyRawTag" type="button">复制当前图 Raw</button>
+        <button id="reportLightbox" type="button">反馈此图</button>
       </div>
       <div class="lightbox-section">
         <div class="section-head">
@@ -368,6 +463,7 @@
         <span class="card-actions">
           <button class="mini-copy copy-negative" type="button" hidden>负面</button>
           <button class="mini-copy copy-all" type="button" hidden>全部</button>
+          <button class="mini-copy report-card-btn" type="button" title="反馈此卡片" aria-label="反馈此卡片">!</button>
           <span class="copy-hint">📋 点击复制</span>
         </span>
       </div>
@@ -375,6 +471,6 @@
   </article>
 </template>
 
-<script type="module" src="assets/app.js?v=20260618-skeleton-loading"></script>
+<script type="module" src="assets/app.js?v=20260622-feedback5"></script>
 </body>
 </html>

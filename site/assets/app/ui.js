@@ -8,6 +8,10 @@ import { syncUrlState } from './router.js';
 import { renderHistoryPanel, resumeLastBrowse, openRecentEntry, saveRecentEntries, scheduleBrowseStateSave } from './history.js';
 import { captureMasonryAnchor, restoreMasonryAnchor, relayoutVisible, updateVirtualCards, scheduleVirtualUpdate, scheduleRelayout } from './masonry.js';
 import { bindLightboxControls } from './lightbox.js';
+import { openMask, closeMask, trapFocus } from './modal.js';
+import { setupAnnouncements } from './announcements.js';
+import { setupReport, openReportDialog } from './report.js';
+import { setupOnboarding } from './onboarding.js';
 
 const THEME_ICONS = {
   moon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.5 6.5 0 0 0 9.8 9.8Z"/></svg>',
@@ -201,6 +205,16 @@ export function bindUI() {
       if (!moreMenu.hidden && !moreMenu.contains(ev.target) && !moreBtn.contains(ev.target)) closeMore();
     });
   }
+  setupReport();
+  setupAnnouncements({ closeMore });
+  setupOnboarding();
+  const globalReportBtn = $('#globalReportBtn');
+  if (globalReportBtn) {
+    globalReportBtn.onclick = () => {
+      closeMore();
+      openReportDialog({ source: 'global', trigger: moreBtn || globalReportBtn });
+    };
+  }
 
   /* 设置 / 关于 悬浮框：开关三件套（按钮/遮罩/Esc），带淡入淡出 */
   const settingsMask = $('#settings');
@@ -209,42 +223,9 @@ export function bindUI() {
   const historyMask = $('#historyPanel');
   const aboutMask = $('#about');
   const archiveMask = $('#codexArchive');
-  const maskTimers = new WeakMap();
-  const maskOpeners = new WeakMap();
-  const focusableIn = root => [...root.querySelectorAll('button:not([disabled]),a[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')]
-    .filter(el => el.offsetParent !== null || el === document.activeElement);
-  const focusFirstIn = root => requestAnimationFrame(() => focusableIn(root)[0]?.focus());
-  const trapFocus = (ev, root) => {
-    if (ev.key !== 'Tab') return;
-    const list = focusableIn(root);
-    if (!list.length) return;
-    const first = list[0];
-    const last = list[list.length - 1];
-    if (ev.shiftKey && document.activeElement === first) { ev.preventDefault(); last.focus(); }
-    else if (!ev.shiftKey && document.activeElement === last) { ev.preventDefault(); first.focus(); }
-  };
-  const openMask = (mask, trigger = document.activeElement) => {
-    clearTimeout(maskTimers.get(mask));
-    if (trigger instanceof HTMLElement) maskOpeners.set(mask, trigger);
-    mask.hidden = false;
-    void mask.offsetWidth;            // 强制回流，让淡入过渡生效
-    mask.classList.add('show');
-    focusFirstIn(mask);
-  };
-  const closeMask = mask => {
-    mask.classList.remove('show');
-    const restoreFocus = () => {
-      const opener = maskOpeners.get(mask);
-      if (opener?.isConnected) opener.focus();
-    };
-    if (prefersReducedMotion()) { mask.hidden = true; restoreFocus(); return; }
-    maskTimers.set(mask, setTimeout(() => {
-      if (!mask.classList.contains('show')) {
-        mask.hidden = true;   // 期间未被重新打开才真正收起
-        restoreFocus();
-      }
-    }, 240));
-  };
+  const announcementsMask = $('#announcementsPanel');
+  const feedbackMask = $('#feedbackPanel');
+  const onboardingMask = $('#onboarding');
   const nsfwToggle = $('#nsfwToggle');
   const setNsfwAccess = (on, { announce = false } = {}) => {
     state.allowNsfw = Boolean(on);
@@ -433,6 +414,9 @@ export function bindUI() {
     if (!historyMask.hidden) closeMask(historyMask);
     if (!aboutMask.hidden) closeMask(aboutMask);
     if (!archiveMask.hidden) closeMask(archiveMask);
+    if (announcementsMask && !announcementsMask.hidden) closeMask(announcementsMask);
+    if (feedbackMask && !feedbackMask.hidden) closeMask(feedbackMask);
+    if (onboardingMask && !onboardingMask.hidden) closeMask(onboardingMask);
     closeBannerAbout();
   });
   bindLightboxControls({ mobileQuery });
@@ -483,7 +467,10 @@ export function bindUI() {
     !shortcutMask.hidden ||
     !historyMask.hidden ||
     !aboutMask.hidden ||
-    !archiveMask.hidden;
+    !archiveMask.hidden ||
+    (announcementsMask && !announcementsMask.hidden) ||
+    (feedbackMask && !feedbackMask.hidden) ||
+    (onboardingMask && !onboardingMask.hidden);
   window.addEventListener('keydown', ev => {
     if (ev.ctrlKey || ev.metaKey || ev.altKey || typingTarget()) return;
     if (ev.key === '?' && !overlayOpen()) {

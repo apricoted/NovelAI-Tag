@@ -9,10 +9,12 @@ import { isFav, setFavoritesActions, toggleFav } from './app/favorites.js';
 import { renderList, clearMasonry, updateVirtualCards, setMasonryActions } from './app/masonry.js';
 import { openLightbox } from './app/lightbox.js';
 import { copyEntry } from './app/copy.js';
+import { openReportDialog } from './app/report.js';
 import { readUrlState, syncUrlState, openEntryDeepLink, setRouterActions } from './app/router.js';
 import { setupCodexPicker, setupAbout, updateCodexPickerState, renderTree, renderCodexHeader, updateRailActive, updateResultBar, updateEmptyState, setCodexUiActions } from './app/codex-ui.js';
 import { normalizeRecentEntries, normalizeLastBrowse, scheduleBrowseStateSave, suppressBrowseStateSave, setHistoryActions } from './app/history.js';
 import { bindUI, applyDensity, setUiActions } from './app/ui.js';
+import { maybeShowOnboarding } from './app/onboarding.js';
 
 let codexLoadSeq = 0;
 
@@ -54,6 +56,7 @@ export async function init() {
     if (codexes.length) {
       hideSkeleton(initSkeletonToken);
       await loadCodex(initialId, { urlState: state.pendingUrlState, replaceUrl: true, saveBrowse: false });
+      maybeShowOnboarding();
     } else {
       hideSkeleton(initSkeletonToken);
       setLoading('还没有可显示的法典数据');
@@ -180,7 +183,12 @@ setHistoryActions({
 
 setFavoritesActions({ applyFilter });
 
-setMasonryActions({ openLightbox, copyEntry, toggleFav });
+setMasonryActions({
+  openLightbox,
+  copyEntry,
+  toggleFav,
+  reportEntry: (entry, opts = {}) => openReportDialog({ entry, ...opts }),
+});
 
 setUiActions({ loadCodex, applyFilter });
 
