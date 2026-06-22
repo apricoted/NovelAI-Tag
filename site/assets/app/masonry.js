@@ -17,7 +17,6 @@ const masonryActions = {
 
 const FILTER_EXIT_MS = 140;
 const FILTER_EXIT_PAD_MS = 24;
-const FILTER_EXIT_OFFSET = '10px';
 
 let filterTransitionSeq = 0;
 let filterTransitionTimer = 0;
@@ -41,7 +40,6 @@ function cleanupFilterTransition(m = $('#masonry')) {
   m.querySelectorAll('.card-leaving').forEach(node => {
     node.classList.remove('card-leaving');
     node.style.removeProperty('--filter-delay');
-    node.style.setProperty('--entry-offset', '0px');
   });
 }
 
@@ -154,7 +152,6 @@ export function renderList({ resetScroll = false, transition = 'none' } = {}) {
     const delay = Math.min(90, col * 18 + (index % Math.max(1, state.colN)) * 6);
     maxDelay = Math.max(maxDelay, delay);
     node.style.setProperty('--filter-delay', `${delay}ms`);
-    node.style.setProperty('--entry-offset', FILTER_EXIT_OFFSET);
     node.classList.add('card-leaving');
   }
 
