@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex,nofollow">
-<title>投稿审核</title>
+<title>站点后台</title>
 <style>
 :root{
   --bg:#eff2f5;--panel:#ffffff;--card:#ffffff;--text:#1a1f27;--muted:#798495;
@@ -37,6 +37,9 @@ input,textarea,select{font-family:inherit;color:var(--text)}
 .tabs{display:inline-flex;background:var(--tagbg);border:1px solid var(--line);border-radius:12px;padding:4px;margin-bottom:16px}
 .tab{padding:7px 22px;border:none;background:transparent;color:var(--muted);font-size:13px;font-weight:600;border-radius:9px}
 .tab.on{background:var(--panel);color:var(--accent);box-shadow:var(--shadow)}
+.feedback-tools{display:flex;gap:8px;flex-wrap:wrap;margin:-6px 0 16px}
+.fstatus{border:1px solid var(--line);background:var(--panel);color:var(--muted);border-radius:999px;padding:6px 13px;font-size:12px;font-weight:700}
+.fstatus.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
 
 .login{max-width:380px;margin:90px auto;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:28px;box-shadow:var(--shadow)}
 .login h2{font-size:17px;margin-bottom:6px}
@@ -75,6 +78,24 @@ input,textarea,select{font-family:inherit;color:var(--text)}
 .pub .info{flex:1;min-width:0}
 .pub .t{font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pub .s{font-size:11px;color:var(--muted)}
+.feedback-item{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:var(--shadow)}
+.feedback-item .item-head{margin-bottom:8px}
+.fb-type{font-size:11px;font-weight:800;color:#fff;background:var(--accent);border-radius:999px;padding:3px 9px}
+.fb-type.image_error,.fb-type.copy_error{background:#bc6b1e}
+.fb-type.suggestion{background:#5b6cc9}
+.fb-type.card_content{background:#8a63d2}
+.fb-desc{white-space:pre-wrap;word-break:break-word;background:var(--tagbg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:9px 0 12px;font-size:13px;line-height:1.7}
+.fb-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.fb-meta{min-width:0;border:1px solid var(--line);border-radius:10px;background:var(--card);padding:8px 10px}
+.fb-meta b{display:block;color:var(--muted);font-size:11px;margin-bottom:3px}
+.fb-meta span,.fb-meta a{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;color:var(--text);font-size:12px;text-decoration:none;white-space:nowrap}
+.fb-meta a{color:var(--accent)}
+.fb-meta a:hover{text-decoration:underline}
+.fb-context{margin-top:10px}
+.fb-context summary{font-size:12px;color:var(--muted);cursor:pointer;user-select:none}
+.fb-context pre{max-height:220px;overflow:auto;margin-top:7px;background:var(--tagbg);border:1px solid var(--line);border-radius:10px;padding:10px;font:11px/1.55 var(--font-mono);white-space:pre-wrap;word-break:break-word}
+.copy-btn{border:1px solid var(--line);background:var(--panel);color:var(--muted);font-weight:600;font-size:13px;padding:8px 16px;border-radius:9px}
+.copy-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
 
 .empty{color:var(--muted);text-align:center;padding:70px 0;font-size:13px}
 .count{font-size:12px;color:var(--muted);margin-bottom:14px}
@@ -82,13 +103,17 @@ input,textarea,select{font-family:inherit;color:var(--text)}
 .toast{position:fixed;left:50%;bottom:40px;transform:translateX(-50%);background:var(--accent);color:#fff;padding:10px 22px;border-radius:999px;font-weight:600;font-size:13px;opacity:0;pointer-events:none;transition:opacity .25s;z-index:50}
 .toast.show{opacity:1}
 [hidden]{display:none!important}
+@media (max-width:620px){
+  .fb-grid{grid-template-columns:1fr}
+  .tab{padding:7px 16px}
+}
 </style>
 <script>if(localStorage.getItem('strings-dark')==='true')document.addEventListener('DOMContentLoaded',()=>document.body.classList.add('dark'))</script>
 </head>
 <body>
 
 <header class="topbar">
-  <div class="brand">投稿<span>审核</span></div>
+  <div class="brand">站点<span>后台</span></div>
   <div class="topbar-right">
     <button class="tbtn" id="themeBtn">深/浅色</button>
     <button class="tbtn" id="reloadBtn" hidden>刷新</button>
@@ -108,6 +133,12 @@ input,textarea,select{font-family:inherit;color:var(--text)}
   <div class="tabs">
     <button class="tab on" data-tab="pending">待审</button>
     <button class="tab" data-tab="published">已发布</button>
+    <button class="tab" data-tab="feedback">反馈</button>
+  </div>
+  <div class="feedback-tools" id="feedbackTools" hidden>
+    <button class="fstatus on" data-fstatus="pending">待处理</button>
+    <button class="fstatus" data-fstatus="resolved">已处理</button>
+    <button class="fstatus" data-fstatus="ignored">已忽略</button>
   </div>
   <div class="count" id="count"></div>
   <div id="list"></div>
@@ -121,8 +152,10 @@ input,textarea,select{font-family:inherit;color:var(--text)}
 const $ = (s, r = document) => r.querySelector(s);
 const KEY = 'strings-admin-token';
 let tab = 'pending';
+let feedbackStatus = 'pending';
 let pendingItems = [];
 let publishedItems = [];
+let feedbackItems = [];
 
 function token() { return localStorage.getItem(KEY) || ''; }
 function escHtml(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
@@ -168,16 +201,21 @@ async function enter() {
 async function reload() {
   $('#list').innerHTML = '<div class="empty">加载中…</div>';
   $('#empty').hidden = true;
+  $('#feedbackTools').hidden = tab !== 'feedback';
   try {
     if (tab === 'pending') {
       const data = await api('/api/admin/pending');
       pendingItems = data.items || [];
       renderPending();
-    } else {
+    } else if (tab === 'published') {
       const r = await fetch('/api/community?_=' + Date.now());
       const data = await r.json().catch(() => ({}));
       publishedItems = data.entries || [];
       renderPublished();
+    } else if (tab === 'feedback') {
+      const data = await api('/api/admin/feedback?status=' + encodeURIComponent(feedbackStatus));
+      feedbackItems = data.items || [];
+      renderFeedback();
     }
   } catch (e) {
     if (e.message !== 'unauthorized') $('#list').innerHTML = `<div class="empty">加载失败：${escHtml(e.message)}</div>`;
@@ -301,6 +339,119 @@ function renderPublished() {
   }
 }
 
+function renderFeedback() {
+  const list = $('#list');
+  const names = { pending: '待处理反馈', resolved: '已处理反馈', ignored: '已忽略反馈' };
+  $('#count').innerHTML = `${names[feedbackStatus] || '反馈'} <b>${feedbackItems.length}</b> 条`;
+  list.innerHTML = '';
+  $('#empty').hidden = feedbackItems.length > 0;
+  for (const it of feedbackItems) {
+    const ctx = it.context || {};
+    const entry = ctx.entry || {};
+    const page = ctx.page || {};
+    const codex = ctx.codex || {};
+    const div = document.createElement('div');
+    div.className = 'feedback-item';
+    div.dataset.id = it.id;
+    const when = it.receivedAt || it.createdAt ? new Date(it.createdAt || it.receivedAt).toLocaleString() : '';
+    const handled = it.handledAt ? ` · ${new Date(it.handledAt).toLocaleString()} 已${it.handledAction === 'ignore' ? '忽略' : '处理'}` : '';
+    div.innerHTML = `
+      <div class="item-head">
+        <span class="fb-type ${escAttr(it.type)}">${escHtml(it.typeLabel || it.type)}</span>
+        <span class="when">${escHtml(when)}${escHtml(handled)}</span>
+      </div>
+      <div class="fb-desc">${escHtml(it.description)}</div>
+      <div class="fb-grid">
+        ${metaBlock('联系方式', it.contact || '未填写')}
+        ${linkBlock('页面 URL', page.url)}
+        ${metaBlock('法典', codex.title || codex.id || '未加载')}
+        ${metaBlock('词条', entry.title || entry.id || '无')}
+        ${metaBlock('路径', (entry.path || []).join(' › ') || '无')}
+        ${linkBlock('原图 URL', entry.originalUrl)}
+        ${metaBlock('Commit', it.commitSha || 'local')}
+        ${metaBlock('CF-Ray', it.cfRay || '无')}
+      </div>
+      <details class="fb-context">
+        <summary>查看完整上下文</summary>
+        <pre>${escHtml(JSON.stringify(ctx, null, 2))}</pre>
+      </details>
+      <div class="acts">
+        <button class="copy-btn" type="button">复制上下文</button>
+        ${feedbackStatus === 'pending' ? '<button class="ok-btn" type="button">标记已处理</button><button class="no-btn" type="button">忽略</button>' : ''}
+        <span class="msg"></span>
+      </div>`;
+    div.querySelector('.copy-btn').onclick = () => copyFeedback(it);
+    const ok = div.querySelector('.ok-btn');
+    const no = div.querySelector('.no-btn');
+    if (ok) ok.onclick = () => decideFeedback(div, it.id, 'resolve');
+    if (no) no.onclick = () => decideFeedback(div, it.id, 'ignore');
+    list.appendChild(div);
+  }
+}
+
+function metaBlock(label, value) {
+  return `<div class="fb-meta"><b>${escHtml(label)}</b><span title="${escAttr(value)}">${escHtml(value || '无')}</span></div>`;
+}
+
+function linkBlock(label, value) {
+  if (!value) return metaBlock(label, '无');
+  return `<div class="fb-meta"><b>${escHtml(label)}</b><a href="${escAttr(value)}" target="_blank" rel="noopener" title="${escAttr(value)}">${escHtml(value)}</a></div>`;
+}
+
+async function decideFeedback(div, id, action) {
+  if (action === 'ignore' && !confirm('确认忽略这条反馈？它会移入已忽略留档。')) return;
+  const msg = div.querySelector('.msg');
+  const btns = div.querySelectorAll('.acts button');
+  btns.forEach(b => b.disabled = true);
+  msg.textContent = '';
+  try {
+    await api('/api/admin/feedback-decide', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ id, action }),
+    });
+    feedbackItems = feedbackItems.filter(x => x.id !== id);
+    div.remove();
+    const names = { pending: '待处理反馈', resolved: '已处理反馈', ignored: '已忽略反馈' };
+    $('#count').innerHTML = `${names[feedbackStatus] || '反馈'} <b>${feedbackItems.length}</b> 条`;
+    $('#empty').hidden = feedbackItems.length > 0;
+    toast(action === 'resolve' ? '已标记处理' : '已忽略');
+  } catch (e) {
+    if (e.message !== 'unauthorized') msg.textContent = e.message;
+    btns.forEach(b => b.disabled = false);
+  }
+}
+
+async function copyFeedback(it) {
+  const ctx = it.context || {};
+  const entry = ctx.entry || {};
+  const page = ctx.page || {};
+  const lines = [
+    '【法典图鉴反馈】',
+    `类型：${it.typeLabel || it.type}`,
+    `描述：${it.description}`,
+    `联系方式：${it.contact || '未填写'}`,
+    `页面：${page.url || ''}`,
+    `词条：${entry.title || entry.id || ''}`,
+    `原图：${entry.originalUrl || ''}`,
+    `Commit：${it.commitSha || ''}`,
+    '',
+    '【完整上下文】',
+    JSON.stringify(ctx, null, 2),
+  ].join('\n');
+  try {
+    await navigator.clipboard.writeText(lines);
+  } catch {
+    const ta = document.createElement('textarea');
+    ta.value = lines;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+  }
+  toast('反馈上下文已复制');
+}
+
 /* ---- 绑定 ---- */
 document.querySelectorAll('.tab').forEach(btn => {
   btn.onclick = () => {
@@ -308,6 +459,14 @@ document.querySelectorAll('.tab').forEach(btn => {
     btn.classList.add('on');
     tab = btn.dataset.tab;
     reload();
+  };
+});
+document.querySelectorAll('.fstatus').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('.fstatus').forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+    feedbackStatus = btn.dataset.fstatus || 'pending';
+    if (tab === 'feedback') reload();
   };
 });
 $('#reloadBtn').onclick = reload;

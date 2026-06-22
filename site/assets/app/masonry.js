@@ -13,6 +13,7 @@ const masonryActions = {
   openLightbox: () => {},
   copyEntry: () => {},
   toggleFav: () => {},
+  reportEntry: () => {},
 };
 
 const FILTER_EXIT_MS = 140;
@@ -360,6 +361,21 @@ export function makeCard(placement) {
   fav.title = faved ? '取消收藏' : '收藏';
   fav.setAttribute('aria-label', faved ? '取消收藏' : '收藏');
   fav.onclick = ev => { ev.stopPropagation(); masonryActions.toggleFav(e, fav); };
+
+  const reportBtn = node.querySelector('.report-card-btn');
+  if (reportBtn) {
+    reportBtn.onclick = ev => {
+      ev.stopPropagation();
+      const imageError = Boolean(node.querySelector('.card-img-wrap')?.classList.contains('is-error'));
+      masonryActions.reportEntry(e, {
+        source: 'card',
+        imageIndex: 0,
+        imageError,
+        defaultType: imageError ? 'image_error' : 'card_content',
+        trigger: reportBtn,
+      });
+    };
+  }
 
   if (hasImage) {
     setupImage(node, placement);

@@ -8,6 +8,7 @@ import { recordRecentEntry } from './history.js';
 import { syncUrlState } from './router.js';
 import { entryImages, imageItemUrl } from './media.js';
 import { isR18gBlocked, needsR18gReveal, showR18gLockedHint } from './access.js';
+import { openReportDialog } from './report.js';
 
 /* ---------------- 灯箱（沉浸浮影 + 原位展开） ---------------- */
 let lbSeq = 0;
@@ -275,8 +276,22 @@ export function renderLightbox() {
   $('#copyAll').onclick = ev => { ev.stopPropagation(); copyText(combinedPrompt(e), `已复制正向+负面：${e.title}`); };
   $('#copyRawTag').hidden = !item.rawTag;
   $('#copyRawTag').onclick = ev => { ev.stopPropagation(); copyText(item.rawTag, `已复制当前图 raw tag：${e.title}`); };
+  const reportBtn = $('#reportLightbox');
+  if (reportBtn) {
+    reportBtn.hidden = false;
+    reportBtn.onclick = ev => {
+      ev.stopPropagation();
+      openReportDialog({
+        source: 'lightbox',
+        entry: e,
+        imageIndex: lb.index,
+        defaultType: 'card_content',
+        trigger: reportBtn,
+      });
+    };
+  }
   const actions = document.querySelector('.lightbox-actions');
-  if (actions) actions.hidden = $('#copyAll').hidden && $('#copyRawTag').hidden;
+  if (actions) actions.hidden = $('#copyAll').hidden && $('#copyRawTag').hidden && reportBtn?.hidden;
 
   const prev = $('#lightboxPrev');
   const next = $('#lightboxNext');
