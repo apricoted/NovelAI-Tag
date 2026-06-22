@@ -95,14 +95,14 @@ export function bindUI() {
       state.query = '';
       updateSearchClear();
       renderTree();
-      uiActions.applyFilter({ resetScroll: true });
+      uiActions.applyFilter({ resetScroll: true, transition: 'filter' });
       syncUrlState();
       searchInput.focus();
     };
   }
 
-  $('#onlyImaged').onchange = e => { state.onlyImaged = e.target.checked; uiActions.applyFilter({ resetScroll: true }); };
-  $('#onlyFav').onchange = e => { state.onlyFav = e.target.checked; uiActions.applyFilter({ resetScroll: true }); };
+  $('#onlyImaged').onchange = e => { state.onlyImaged = e.target.checked; uiActions.applyFilter({ resetScroll: true, transition: 'filter' }); };
+  $('#onlyFav').onchange = e => { state.onlyFav = e.target.checked; uiActions.applyFilter({ resetScroll: true, transition: 'filter' }); };
 
   const applyTheme = d => {
     document.body.classList.toggle('dark', d);

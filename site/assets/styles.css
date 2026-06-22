@@ -426,6 +426,7 @@ button.crumb:hover{color:var(--accent);border-color:var(--accent);background:var
 
 /* ---------- 瀑布流 ---------- */
 .masonry{position:relative;min-height:1px;contain:layout paint}
+.masonry.is-filtering{pointer-events:none}
 .col{display:none}
 
 .card{
@@ -435,6 +436,11 @@ button.crumb:hover{color:var(--accent);border-color:var(--accent);background:var
 }
 .card.card-enter{opacity:0;transition-delay:var(--entry-delay,0ms)}
 .card.card-enter.is-entered{opacity:1}
+.card.card-leaving{
+  opacity:0;
+  transition:opacity .14s linear;
+  transition-delay:var(--filter-delay,0ms);
+}
 .masonry.is-relayouting .card{
   transition:
     transform .32s cubic-bezier(.22,1,.36,1),
@@ -587,6 +593,7 @@ body.density-compact .mini-copy{padding:2px 6px;font-size:10.5px}
   .masonry.is-relayouting .card,
   .masonry.is-relayouting .card-img-wrap,
   .masonry.is-relayouting .card-tags,
+  .card.card-leaving,
   .topbar,.sidebar,
   .lightbox,.lightbox-stage,.lightbox-info,.lb-fold,.lb-circle,.lb-fly,#lightboxImg,.lightbox-thumbs,
   .settings-mask,.settings-panel,.sd-badge,.card,.card-img,.toast,.scroll-progress{

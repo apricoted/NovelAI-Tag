@@ -15,8 +15,61 @@ const masonryActions = {
   toggleFav: () => {},
 };
 
+const FILTER_EXIT_MS = 140;
+const FILTER_EXIT_PAD_MS = 24;
+
+let filterTransitionSeq = 0;
+let filterTransitionTimer = 0;
+let forceEntryAnim = false;
+
 export function setMasonryActions(actions = {}) {
   Object.assign(masonryActions, actions);
+}
+
+function clearFilterTransitionTimer() {
+  if (!filterTransitionTimer) return;
+  clearTimeout(filterTransitionTimer);
+  filterTransitionTimer = 0;
+}
+
+function cleanupFilterTransition(m = $('#masonry')) {
+  clearFilterTransitionTimer();
+  forceEntryAnim = false;
+  if (!m) return;
+  m.classList.remove('is-filtering');
+  m.querySelectorAll('.card-leaving').forEach(node => {
+    node.classList.remove('card-leaving');
+    node.style.removeProperty('--filter-delay');
+  });
+}
+
+function isNearFilterTop() {
+  return window.scrollY <= Math.min(window.innerHeight * 0.75, 640);
+}
+
+function canRunFilterTransition(m, transition) {
+  if (transition !== 'filter' || prefersReducedMotion() || !state.codex || !m) return false;
+  if (state.lightbox?.entry) return false;
+  const main = $('#main');
+  if (main?.classList.contains('has-skeleton') || main?.classList.contains('skeleton-visible')) return false;
+  return [...state.nodes.values()].some(node => node.isConnected);
+}
+
+function canForceFilterEntry(transition) {
+  if (transition !== 'filter' || prefersReducedMotion() || !state.codex) return false;
+  if (state.lightbox?.entry) return false;
+  const main = $('#main');
+  return !(main?.classList.contains('has-skeleton') || main?.classList.contains('skeleton-visible'));
+}
+
+function renderListNow({ resetScroll = false, forceEntry = false } = {}) {
+  clearMasonry();
+  if (resetScroll) window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  computeLayout();
+  forceEntryAnim = Boolean(forceEntry);
+  updateVirtualCards(true);
+  forceEntryAnim = false;
+  updateScrollProgress();
 }
 
 export function captureMasonryAnchor() {
@@ -53,6 +106,7 @@ export function colCount() {
 }
 
 export function clearMasonry() {
+  cleanupFilterTransition();
   for (const node of state.nodes.values()) cleanupCard(node);
   state.nodes.clear();
   state.placements = [];
@@ -61,18 +115,52 @@ export function clearMasonry() {
   if (m) {
     relayoutAnimating = false;
     clearTimeout(relayoutAnimTimer);
-    m.classList.remove('is-relayouting');
+    m.classList.remove('is-relayouting', 'is-filtering');
     m.innerHTML = '';
     m.style.height = '0px';
   }
 }
 
-export function renderList({ resetScroll = false } = {}) {
-  clearMasonry();
-  if (resetScroll) window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
-  computeLayout();
-  updateVirtualCards(true);
-  updateScrollProgress();
+export function renderList({ resetScroll = false, transition = 'none' } = {}) {
+  const m = $('#masonry');
+  const shouldTransition = canRunFilterTransition(m, transition);
+  const seq = ++filterTransitionSeq;
+  cleanupFilterTransition(m);
+
+  if (!shouldTransition) {
+    renderListNow({ resetScroll, forceEntry: canForceFilterEntry(transition) });
+    return;
+  }
+
+  if (!isNearFilterTop()) {
+    renderListNow({ resetScroll, forceEntry: true });
+    return;
+  }
+
+  const nodes = [...state.nodes.values()].filter(node => node.isConnected);
+  if (!nodes.length) {
+    renderListNow({ resetScroll, forceEntry: true });
+    return;
+  }
+
+  m.classList.add('is-filtering');
+  let maxDelay = 0;
+  for (const node of nodes) {
+    const index = Number(node.dataset.index || 0);
+    const placement = state.placements[index];
+    const col = placement?.col || 0;
+    const delay = Math.min(90, col * 18 + (index % Math.max(1, state.colN)) * 6);
+    maxDelay = Math.max(maxDelay, delay);
+    node.style.setProperty('--filter-delay', `${delay}ms`);
+    node.classList.add('card-leaving');
+  }
+
+  filterTransitionTimer = window.setTimeout(() => {
+    filterTransitionTimer = 0;
+    if (seq !== filterTransitionSeq) return;
+    m.classList.remove('is-filtering');
+    renderListNow({ resetScroll, forceEntry: true });
+  }, maxDelay + FILTER_EXIT_MS + FILTER_EXIT_PAD_MS);
 }
 
 export function computeLayout() {
@@ -318,7 +406,7 @@ export function updateCardPosition(node, placement) {
 export function maybeAnimateCardEntry(node, placement) {
   if (prefersReducedMotion() || relayoutAnimating || !state.codex) return;
   const key = `${state.codex.id}:${placement.entry.id}`;
-  if (state.seenAnimated.has(key)) return;
+  if (!forceEntryAnim && state.seenAnimated.has(key)) return;
   state.seenAnimated.add(key);
 
   const delay = Math.min(210, placement.col * 30 + (placement.index % Math.max(1, state.colN)) * 10);

@@ -34,6 +34,6 @@ export function toggleFav(e, btn) {
     btn.title = on ? '取消收藏' : '收藏';
     btn.setAttribute('aria-label', on ? '取消收藏' : '收藏');
   }
-  if (state.onlyFav) favoriteActions.applyFilter({ resetScroll: true });
+  if (state.onlyFav) favoriteActions.applyFilter({ resetScroll: true, transition: 'filter' });
   toast(on ? `已收藏：${e.title}` : `已取消收藏：${e.title}`);
 }
