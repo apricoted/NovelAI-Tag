@@ -6,6 +6,7 @@
     "author": "戒红所",
     "entryCount": 5389,
     "imagedCount": 5033,
+    "hasOriginal": true,
     "source": "戒红所 · 所长常规法典",
     "contributors": [
       { "name": "戒红所", "role": "法典原作者" },
@@ -19,6 +20,7 @@
     "author": "叫我千藤就好了",
     "entryCount": 125,
     "imagedCount": 124,
+    "hasOriginal": false,
     "aliases": ["codex_70c0e66f"],
     "source": "千藤 · 叫我千藤就好了の衣柜",
     "contributors": [
@@ -32,6 +34,7 @@
     "author": "解构原典编撰组",
     "entryCount": 274,
     "imagedCount": 265,
+    "hasOriginal": true,
     "source": "解构原典编撰组 · 解构原典",
     "contributors": [
       { "name": "解构原典编撰组", "role": "法典原作者 / 编撰" }
@@ -44,6 +47,7 @@
     "author": "戒红所",
     "entryCount": 10269,
     "imagedCount": 9178,
+    "hasOriginal": true,
     "nsfw": true,
     "source": "戒红所 · 所长色色法典（上 + 下 合并）",
     "contributors": [
@@ -58,6 +62,7 @@
     "author": "梦神",
     "entryCount": 351,
     "imagedCount": 351,
+    "hasOriginal": false,
     "nsfw": true,
     "dataUrl": "https://prompt-vault-gallery.pages.dev/data/prompt-vault.json",
     "fallbackDataUrl": "data/mengshen_r18.json",

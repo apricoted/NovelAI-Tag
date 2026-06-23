@@ -72,7 +72,7 @@ export function setupCodexPicker() {
       `<span class="ci-mark">${String(i + 1).padStart(2, '0')}</span>` +
       `<span class="ci-main">` +
       `<span class="ci-name">${esc(c.title)}</span>` +
-      `<span class="ci-meta">${esc(c.author || '未知作者')} · ${Number(c.entryCount || 0)} 条 · ${pct}% 配图 · ${esc(codexStatusLabel(c))}</span>` +
+      `<span class="ci-meta">${esc(c.author || '未知作者')} · ${Number(c.entryCount || 0)} 条 · ${pct}% 配图</span>` +
       `<span class="ci-bar"><i style="width:${pct}%"></i></span>` +
       `<span class="ci-lock"${locked ? '' : ' hidden'}>需设置解锁</span>` +
       `</span>` +
@@ -408,12 +408,11 @@ export function renderCodexHeader() {
   const cover = c.entries.find(hasEntryImage);
   const pct = c.entryCount ? Math.round((c.imagedCount / c.entryCount) * 100) : 0;
   const metaText = [c.author, c.version].filter(Boolean).join(' · ');
-  const statusLabel = codexStatusLabel(c);
   banner.innerHTML =
     `<div class="banner-cover">${cover ? `<img src="${esc(thumbUrl(cover))}" alt="">` : ''}</div>` +
     `<div class="banner-info">` +
     `<div class="banner-title">${esc(c.title)}</div>` +
-    `<div class="banner-meta"><span>${esc(metaText)}</span><span class="data-pill ${codexStatusClass(c)}" title="${esc(codexStatusTitle(c))}">${esc(statusLabel)}</span></div>` +
+    `<div class="banner-meta"><span>${esc(metaText)}</span><span class="data-pill ${c.hasOriginal ? 'has-orig' : 'no-orig'}" title="${esc(c.hasOriginal ? '本法典保留原图：放大后可拖入 NovelAI 读取生成参数' : '本法典为压缩缩略图，拖入 NovelAI 读不出参数')}">${c.hasOriginal ? '含原图' : '无原图'}</span></div>` +
     `<div class="banner-progress"><div class="bp-track"><div class="bp-fill" style="width:${pct}%"></div></div>` +
     `<span class="bp-text">${c.imagedCount} / ${c.entryCount} 已配图</span></div>` +
     `</div>`;

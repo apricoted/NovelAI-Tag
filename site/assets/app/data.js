@@ -87,6 +87,7 @@ export function normalizeCodex(data, meta = {}) {
     contributors: meta.contributors || data.contributors || [],
     links: meta.links || data.links || [],
     aliases: meta.aliases || data.aliases || [],
+    hasOriginal: meta.hasOriginal ?? data.hasOriginal ?? false,
   };
   codex.entries = (data.entries || []).map((entry, i) => normalizeEntry(entry, codex, i));
   codex.entryCount = Number(codex.entryCount || codex.entries.length);
