@@ -8,26 +8,26 @@
 <!-- Static cold-start hints; keep this origin in sync with data/media.json baseUrl. -->
 <link rel="preconnect" href="https://assets.quicktagcloud.com">
 <link rel="dns-prefetch" href="https://assets.quicktagcloud.com">
-<link rel="stylesheet" href="assets/styles.css?v=20260622-feedback6">
-<link rel="modulepreload" href="assets/app/state.js">
-<link rel="modulepreload" href="assets/app/utils.js">
-<link rel="modulepreload" href="assets/app/modal.js">
-<link rel="modulepreload" href="assets/app/feedback.js">
-<link rel="modulepreload" href="assets/app/access.js">
-<link rel="modulepreload" href="assets/app/data.js">
-<link rel="modulepreload" href="assets/app/search.js">
-<link rel="modulepreload" href="assets/app/router.js">
-<link rel="modulepreload" href="assets/app/media.js">
-<link rel="modulepreload" href="assets/app/copy.js">
-<link rel="modulepreload" href="assets/app/favorites.js">
-<link rel="modulepreload" href="assets/app/codex-ui.js">
-<link rel="modulepreload" href="assets/app/masonry.js">
-<link rel="modulepreload" href="assets/app/lightbox.js">
-<link rel="modulepreload" href="assets/app/history.js">
-<link rel="modulepreload" href="assets/app/report.js">
-<link rel="modulepreload" href="assets/app/announcements.js">
-<link rel="modulepreload" href="assets/app/onboarding.js">
-<link rel="modulepreload" href="assets/app/ui.js">
+<link rel="stylesheet" href="assets/styles.css?v=20260623-cache1">
+<link rel="modulepreload" href="assets/app/state.js?v=20260623-cache1">
+<link rel="modulepreload" href="assets/app/utils.js?v=20260623-cache1">
+<link rel="modulepreload" href="assets/app/modal.js?v=20260623-cache1">
+<link rel="modulepreload" href="assets/app/feedback.js?v=20260623-cache1">
+<link rel="modulepreload" href="assets/app/access.js?v=20260623-cache1">
+<link rel="modulepreload" href="assets/app/data.js?v=20260623-cache1">
+<link rel="modulepreload" href="assets/app/search.js?v=20260623-cache1">
+<link rel="modulepreload" href="assets/app/router.js?v=20260623-cache1">
+<link rel="modulepreload" href="assets/app/media.js?v=20260623-cache1">
+<link rel="modulepreload" href="assets/app/copy.js?v=20260623-cache1">
+<link rel="modulepreload" href="assets/app/favorites.js?v=20260623-cache1">
+<link rel="modulepreload" href="assets/app/codex-ui.js?v=20260623-cache1">
+<link rel="modulepreload" href="assets/app/masonry.js?v=20260623-cache1">
+<link rel="modulepreload" href="assets/app/lightbox.js?v=20260623-cache1">
+<link rel="modulepreload" href="assets/app/history.js?v=20260623-cache1">
+<link rel="modulepreload" href="assets/app/report.js?v=20260623-cache1">
+<link rel="modulepreload" href="assets/app/announcements.js?v=20260623-cache1">
+<link rel="modulepreload" href="assets/app/onboarding.js?v=20260623-cache1">
+<link rel="modulepreload" href="assets/app/ui.js?v=20260623-cache1">
 </head>
 <body>
 <div id="scrollProgress" class="scroll-progress" aria-hidden="true"></div>
@@ -190,10 +190,14 @@
     <div class="set-row">
       <div class="set-info">
         <div class="set-name">界面风格</div>
-        <div class="set-desc">整站换肤：画册装裱 / 暗夜工坊 / 终端 / 和风樱纸…</div>
+        <div class="set-desc">整站换肤 · 深浅色通用</div>
       </div>
-      <span class="soon">即将推出</span>
-      <select disabled><option>默认 · 紫调</option></select>
+      <div id="themeControl" class="theme-control" role="group" aria-label="界面风格">
+        <button class="theme-option" type="button" data-theme="" aria-pressed="true"><i style="background:#6f5cf2"></i>紫调</button>
+        <button class="theme-option" type="button" data-theme="teal" aria-pressed="false"><i style="background:#0fa173"></i>青翠</button>
+        <button class="theme-option" type="button" data-theme="sakura" aria-pressed="false"><i style="background:#e0577f"></i>樱粉</button>
+        <button class="theme-option" type="button" data-theme="amber" aria-pressed="false"><i style="background:#a87f2f"></i>暖金</button>
+      </div>
     </div>
     <div class="set-row density-row">
       <div class="set-info">
@@ -471,6 +475,6 @@
   </article>
 </template>
 
-<script type="module" src="assets/app.js?v=20260622-feedback6"></script>
+<script type="module" src="assets/app.js?v=20260623-cache1"></script>
 </body>
 </html>

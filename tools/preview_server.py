@@ -19,7 +19,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         super().__init__(*args, directory=SITE, **kwargs)
 
     def end_headers(self):
-        if self.path.endswith(".json"):
+        request_path = self.path.split("?", 1)[0]
+        if request_path == "/" or request_path.endswith((".html", ".json", ".js", ".css")):
             self.send_header("Cache-Control", "no-store")
         super().end_headers()
 

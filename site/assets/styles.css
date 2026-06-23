@@ -18,6 +18,18 @@ body.dark{
   --popover-line:rgba(255,255,255,.14);
   --popover-shadow:0 20px 54px rgba(0,0,0,.56),0 5px 18px rgba(0,0,0,.34);
 }
+/* ============ 主题色（换肤）：每套含 light + dark，与深浅色正交；默认紫=base 不加类 ============ */
+body.theme-teal{--bg:#eaeef5;--panel:#ffffff;--card:#ffffff;--text:#22304a;--muted:#7d8aa3;--line:#dbe2ee;--accent:#0fa173;--accent-soft:#dff4ea;--tagbg:#f1f4f9;--tagbg-hover:#e8eef6}
+body.theme-teal.dark{--bg:#10141c;--panel:#171c26;--card:#181e2a;--text:#e4e9f3;--muted:#7e8aa0;--line:#262e3e;--accent:#2ecb86;--accent-soft:#14352a;--tagbg:#1e2533;--tagbg-hover:#242c3d}
+body.theme-sakura{--bg:#fbf4f1;--panel:#fffaf7;--card:#ffffff;--text:#3d3034;--muted:#a18d92;--line:#f0dde0;--accent:#e0577f;--accent-soft:#fce8ee;--tagbg:#faf1ef;--tagbg-hover:#f7e9e7;--new:#c2342d}
+body.theme-sakura.dark{--bg:#1b1418;--panel:#241a20;--card:#281d23;--text:#f2e6ea;--muted:#9c8790;--line:#3a2b33;--accent:#f08fb0;--accent-soft:#3d2230;--tagbg:#2e2129;--tagbg-hover:#362730;--new:#e0577f}
+body.theme-amber{--bg:#f4eee1;--panel:#faf6ec;--card:#ffffff;--text:#2b261e;--muted:#94896f;--line:#e0d5bb;--accent:#a87f2f;--accent-soft:#f1e7cd;--tagbg:#f5f0e3;--tagbg-hover:#efe7d2;--new:#b5452f}
+body.theme-amber.dark{--bg:#16120c;--panel:#1d1812;--card:#221c13;--text:#e9e0cd;--muted:#8d8268;--line:#362d1e;--accent:#d2a651;--accent-soft:#332a1a;--tagbg:#262017;--tagbg-hover:#2d2619;--new:#e06a52}
+.theme-control{display:flex;flex-wrap:wrap;gap:6px}
+.theme-option{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--tagbg);color:var(--text);border-radius:999px;padding:5px 11px;font-size:12px;font-weight:700;cursor:pointer;transition:border-color .12s,background .12s,color .12s}
+.theme-option i{width:11px;height:11px;border-radius:50%;flex:none;box-shadow:inset 0 0 0 1px rgba(0,0,0,.12)}
+.theme-option:hover{border-color:var(--accent)}
+.theme-option[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
 *{box-sizing:border-box}
 html,body{margin:0}
 html{scrollbar-gutter:stable}

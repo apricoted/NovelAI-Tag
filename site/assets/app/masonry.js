@@ -1,13 +1,13 @@
-import { state, VIRTUAL_BUFFER_UP, VIRTUAL_BUFFER_DOWN, IMAGE_LOAD_DELAY, RELAYOUT_INTERVAL, RELAYOUT_ANIM_MS, DEFAULT_IMAGE_RATIO } from './state.js';
-import { densityConfig } from './state.js';
-import { $, clamp, prefersReducedMotion, updateScrollProgress } from './utils.js';
-import { toast } from './feedback.js';
-import { currentHighlightTerms, renderHighlightedText } from './search.js';
-import { hasEntryImage, entryImages, thumbUrl, localAssetUrl, cacheBustUrl } from './media.js';
-import { copyText, combinedPrompt } from './copy.js';
-import { isFav } from './favorites.js';
-import { needsR18gReveal, revealR18gEntry } from './access.js';
-import { updateResultBar, updateEmptyState } from './codex-ui.js';
+import { state, VIRTUAL_BUFFER_UP, VIRTUAL_BUFFER_DOWN, IMAGE_LOAD_DELAY, RELAYOUT_INTERVAL, RELAYOUT_ANIM_MS, DEFAULT_IMAGE_RATIO } from './state.js?v=20260623-cache1';
+import { densityConfig } from './state.js?v=20260623-cache1';
+import { $, clamp, prefersReducedMotion, updateScrollProgress } from './utils.js?v=20260623-cache1';
+import { toast } from './feedback.js?v=20260623-cache1';
+import { currentHighlightTerms, renderHighlightedText } from './search.js?v=20260623-cache1';
+import { hasEntryImage, entryImages, thumbUrl, localAssetUrl, cacheBustUrl } from './media.js?v=20260623-cache1';
+import { copyText, combinedPrompt } from './copy.js?v=20260623-cache1';
+import { isFav } from './favorites.js?v=20260623-cache1';
+import { needsR18gReveal, revealR18gEntry } from './access.js?v=20260623-cache1';
+import { updateResultBar, updateEmptyState } from './codex-ui.js?v=20260623-cache1';
 
 const masonryActions = {
   openLightbox: () => {},

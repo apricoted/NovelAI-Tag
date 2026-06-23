@@ -7,6 +7,13 @@ export const DEFAULT_IMAGE_RATIO = 1.18;
 export const RANDOM_RECENT_LIMIT = 20;
 export const DENSITY_STORAGE_KEY = 'fadian-density';
 export const DEFAULT_DENSITY = 'standard';
+export const THEME_STORAGE_KEY = 'fadian-theme';
+export const THEMES = [
+  { id: '', name: '紫调' },
+  { id: 'teal', name: '青翠' },
+  { id: 'sakura', name: '樱粉' },
+  { id: 'amber', name: '暖金' },
+];
 export const RECENT_STORAGE_KEY = 'fadian-recent';
 export const LAST_BROWSE_STORAGE_KEY = 'fadian-last-browse';
 export const RECENT_ENTRY_LIMIT = 18;

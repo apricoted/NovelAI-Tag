@@ -1,20 +1,20 @@
-import { state, RECENT_STORAGE_KEY, LAST_BROWSE_STORAGE_KEY, NSFW_STORAGE_KEY, R18G_STORAGE_KEY, DENSITY_STORAGE_KEY } from './app/state.js';
-import { $, esc, safeJsonParse, updateSearchClear } from './app/utils.js';
-import { setLoading, showSkeleton, hideSkeleton } from './app/feedback.js';
-import { isCodexLocked, firstUnlockedCodex, showNsfwLockedHint, isR18gEntry, isR18gPath } from './app/access.js';
-import { loadMedia, loadAbout, fetchCodex, findCodexMeta, notifyCodexDataStatus } from './app/data.js';
-import { parseSearchQuery, matchSearchPlan } from './app/search.js';
-import { hasEntryImage, primeResourceHints } from './app/media.js';
-import { isFav, setFavoritesActions, toggleFav } from './app/favorites.js';
-import { renderList, clearMasonry, updateVirtualCards, setMasonryActions } from './app/masonry.js';
-import { openLightbox } from './app/lightbox.js';
-import { copyEntry } from './app/copy.js';
-import { openReportDialog } from './app/report.js';
-import { readUrlState, syncUrlState, openEntryDeepLink, setRouterActions } from './app/router.js';
-import { setupCodexPicker, setupAbout, updateCodexPickerState, renderTree, renderCodexHeader, updateRailActive, updateResultBar, updateEmptyState, setCodexUiActions } from './app/codex-ui.js';
-import { normalizeRecentEntries, normalizeLastBrowse, scheduleBrowseStateSave, suppressBrowseStateSave, setHistoryActions } from './app/history.js';
-import { bindUI, applyDensity, setUiActions } from './app/ui.js';
-import { maybeShowOnboarding } from './app/onboarding.js';
+import { state, RECENT_STORAGE_KEY, LAST_BROWSE_STORAGE_KEY, NSFW_STORAGE_KEY, R18G_STORAGE_KEY, DENSITY_STORAGE_KEY } from './app/state.js?v=20260623-cache1';
+import { $, esc, safeJsonParse, updateSearchClear } from './app/utils.js?v=20260623-cache1';
+import { setLoading, showSkeleton, hideSkeleton } from './app/feedback.js?v=20260623-cache1';
+import { isCodexLocked, firstUnlockedCodex, showNsfwLockedHint, isR18gEntry, isR18gPath } from './app/access.js?v=20260623-cache1';
+import { loadMedia, loadAbout, fetchCodex, findCodexMeta, notifyCodexDataStatus } from './app/data.js?v=20260623-cache1';
+import { parseSearchQuery, matchSearchPlan } from './app/search.js?v=20260623-cache1';
+import { hasEntryImage, primeResourceHints } from './app/media.js?v=20260623-cache1';
+import { isFav, setFavoritesActions, toggleFav } from './app/favorites.js?v=20260623-cache1';
+import { renderList, clearMasonry, updateVirtualCards, setMasonryActions } from './app/masonry.js?v=20260623-cache1';
+import { openLightbox } from './app/lightbox.js?v=20260623-cache1';
+import { copyEntry } from './app/copy.js?v=20260623-cache1';
+import { openReportDialog } from './app/report.js?v=20260623-cache1';
+import { readUrlState, syncUrlState, openEntryDeepLink, setRouterActions } from './app/router.js?v=20260623-cache1';
+import { setupCodexPicker, setupAbout, updateCodexPickerState, renderTree, renderCodexHeader, updateRailActive, updateResultBar, updateEmptyState, setCodexUiActions } from './app/codex-ui.js?v=20260623-cache1';
+import { normalizeRecentEntries, normalizeLastBrowse, scheduleBrowseStateSave, suppressBrowseStateSave, setHistoryActions } from './app/history.js?v=20260623-cache1';
+import { bindUI, applyDensity, setUiActions } from './app/ui.js?v=20260623-cache1';
+import { maybeShowOnboarding } from './app/onboarding.js?v=20260623-cache1';
 
 let codexLoadSeq = 0;
 

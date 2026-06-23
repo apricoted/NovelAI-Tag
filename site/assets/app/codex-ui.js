@@ -1,9 +1,9 @@
-import { state, RANDOM_RECENT_LIMIT, NSFW_LOCKED_MESSAGE } from './state.js';
-import { $, esc, samePath, pathStartsWith, updateSearchClear } from './utils.js';
-import { isCodexLocked, showNsfwLockedHint, isR18gName } from './access.js';
-import { codexStatusLabel, codexStatusClass, codexStatusTitle } from './data.js';
-import { hasEntryImage, thumbUrl } from './media.js';
-import { toast } from './feedback.js';
+import { state, RANDOM_RECENT_LIMIT, NSFW_LOCKED_MESSAGE } from './state.js?v=20260623-cache1';
+import { $, esc, samePath, pathStartsWith, updateSearchClear } from './utils.js?v=20260623-cache1';
+import { isCodexLocked, showNsfwLockedHint, isR18gName } from './access.js?v=20260623-cache1';
+import { codexStatusLabel, codexStatusClass, codexStatusTitle } from './data.js?v=20260623-cache1';
+import { hasEntryImage, thumbUrl } from './media.js?v=20260623-cache1';
+import { toast } from './feedback.js?v=20260623-cache1';
 
 const codexUiActions = {
   loadCodex: async () => {},

@@ -1,17 +1,17 @@
-import { state, DENSITY_PRESETS, DENSITY_STORAGE_KEY, NSFW_STORAGE_KEY, R18G_STORAGE_KEY } from './state.js';
-import { normalizeDensity, densityConfig } from './state.js';
-import { $, updateSearchClear, updateScrollProgress, prefersReducedMotion } from './utils.js';
-import { toast } from './feedback.js';
-import { firstUnlockedCodex, isNsfwCodex, isR18gName } from './access.js';
-import { closeBannerAbout, renderCodexArchive, renderTree, renderCodexHeader, randomExplore, updateCodexPickerState } from './codex-ui.js';
-import { syncUrlState } from './router.js';
-import { renderHistoryPanel, resumeLastBrowse, openRecentEntry, saveRecentEntries, scheduleBrowseStateSave } from './history.js';
-import { captureMasonryAnchor, restoreMasonryAnchor, relayoutVisible, updateVirtualCards, scheduleVirtualUpdate, scheduleRelayout } from './masonry.js';
-import { bindLightboxControls } from './lightbox.js';
-import { openMask, closeMask, trapFocus } from './modal.js';
-import { setupAnnouncements } from './announcements.js';
-import { setupReport, openReportDialog } from './report.js';
-import { setupOnboarding } from './onboarding.js';
+import { state, DENSITY_PRESETS, DENSITY_STORAGE_KEY, THEME_STORAGE_KEY, THEMES, NSFW_STORAGE_KEY, R18G_STORAGE_KEY } from './state.js?v=20260623-cache1';
+import { normalizeDensity, densityConfig } from './state.js?v=20260623-cache1';
+import { $, updateSearchClear, updateScrollProgress, prefersReducedMotion } from './utils.js?v=20260623-cache1';
+import { toast } from './feedback.js?v=20260623-cache1';
+import { firstUnlockedCodex, isNsfwCodex, isR18gName } from './access.js?v=20260623-cache1';
+import { closeBannerAbout, renderCodexArchive, renderTree, renderCodexHeader, randomExplore, updateCodexPickerState } from './codex-ui.js?v=20260623-cache1';
+import { syncUrlState } from './router.js?v=20260623-cache1';
+import { renderHistoryPanel, resumeLastBrowse, openRecentEntry, saveRecentEntries, scheduleBrowseStateSave } from './history.js?v=20260623-cache1';
+import { captureMasonryAnchor, restoreMasonryAnchor, relayoutVisible, updateVirtualCards, scheduleVirtualUpdate, scheduleRelayout } from './masonry.js?v=20260623-cache1';
+import { bindLightboxControls } from './lightbox.js?v=20260623-cache1';
+import { openMask, closeMask, trapFocus } from './modal.js?v=20260623-cache1';
+import { setupAnnouncements } from './announcements.js?v=20260623-cache1';
+import { setupReport, openReportDialog } from './report.js?v=20260623-cache1';
+import { setupOnboarding } from './onboarding.js?v=20260623-cache1';
 
 const THEME_ICONS = {
   moon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.5 6.5 0 0 0 9.8 9.8Z"/></svg>',
@@ -116,6 +116,20 @@ export function bindUI() {
   };
   $('#themeBtn').onclick = () => applyTheme(!document.body.classList.contains('dark'));
   applyTheme(localStorage.getItem('fadian-dark') === '1');
+
+  /* 界面风格（换肤）：与深浅色正交，每套 light+dark 都在 CSS 里；默认紫=不加类 */
+  const applySkin = id => {
+    const t = THEMES.find(x => x.id === id) || THEMES[0];
+    for (const x of THEMES) if (x.id) document.body.classList.remove('theme-' + x.id);
+    if (t.id) document.body.classList.add('theme-' + t.id);
+    localStorage.setItem(THEME_STORAGE_KEY, t.id);
+    for (const b of document.querySelectorAll('#themeControl [data-theme]'))
+      b.setAttribute('aria-pressed', b.dataset.theme === t.id ? 'true' : 'false');
+    return t;
+  };
+  for (const b of document.querySelectorAll('#themeControl [data-theme]'))
+    b.onclick = () => toast(`已切换主题：${applySkin(b.dataset.theme).name}`);
+  applySkin(localStorage.getItem(THEME_STORAGE_KEY) || '');
 
   /* SD 复制模式：设置里的开关 + 顶栏常驻角标（开着才显示，点角标可关），状态存 localStorage */
   const sdToggle = $('#sdModeToggle');
