@@ -113,11 +113,11 @@ async function hashIp(request, env) {
 }
 
 function hasNotificationChannel(env) {
-  return Boolean((env.FEEDBACK_RELAY_URL && env.FEEDBACK_RELAY_SECRET) || env.SERVERCHAN_KEY);
+  return Boolean((cleanEnv(env.FEEDBACK_RELAY_URL) && cleanEnv(env.FEEDBACK_RELAY_SECRET)) || env.SERVERCHAN_KEY);
 }
 
 function notificationProvider(env) {
-  if (env.FEEDBACK_RELAY_URL && env.FEEDBACK_RELAY_SECRET) return 'relay';
+  if (cleanEnv(env.FEEDBACK_RELAY_URL) && cleanEnv(env.FEEDBACK_RELAY_SECRET)) return 'relay';
   return 'serverchan';
 }
 
@@ -243,7 +243,7 @@ async function pushNotificationRelay(url, secret, record) {
   const timeout = setTimeout(() => controller.abort(), 10000);
   let response;
   try {
-    response = await fetch(String(url).trim(), {
+    response = await fetch(cleanEnv(url), {
       method: 'POST',
       headers: {
         'content-type': 'application/json; charset=UTF-8',
@@ -298,13 +298,17 @@ async function hmacHex(secret, text) {
   const enc = new TextEncoder();
   const key = await crypto.subtle.importKey(
     'raw',
-    enc.encode(String(secret)),
+    enc.encode(cleanEnv(secret)),
     { name: 'HMAC', hash: 'SHA-256' },
     false,
     ['sign']
   );
   const sig = await crypto.subtle.sign('HMAC', key, enc.encode(text));
   return [...new Uint8Array(sig)].map(v => v.toString(16).padStart(2, '0')).join('');
+}
+
+function cleanEnv(value) {
+  return String(value || '').trim();
 }
 
 async function readLimitedText(response, maxBytes) {
