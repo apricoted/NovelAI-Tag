@@ -1,6 +1,6 @@
 'use strict';
 
-import { json, err, LIMITS, cleanLine, cleanText, readJson } from '../_lib.js';
+import { json, err, LIMITS, cleanLine, cleanText, readJson, listAll } from '../_lib.js';
 
 const TYPES = new Set(['site_bug', 'card_content', 'image_error', 'copy_error', 'suggestion']);
 const LIMIT = {
@@ -61,16 +61,17 @@ export async function onRequestPost(context) {
     commitSha: cleanLine(env.CF_PAGES_COMMIT_SHA, 80) || 'local',
     ipHash,
     cfRay: cleanLine(request.headers.get('cf-ray'), 120),
+    notification: env.SERVERCHAN_KEY
+      ? { provider: 'serverchan', status: 'pending' }
+      : { provider: 'serverchan', status: 'skipped', message: 'SERVERCHAN_KEY 未配置' },
   };
 
   await env.STRINGS_BUCKET.put(key, JSON.stringify(record), {
     httpMetadata: { contentType: 'application/json; charset=utf-8' },
   });
 
-  if (env.SERVERCHAN_KEY && context.waitUntil) {
-    context.waitUntil(pushServerChan(env.SERVERCHAN_KEY, record).catch(ex => {
-      console.warn('[feedback] ServerChan push failed', ex);
-    }));
+  if (env.SERVERCHAN_KEY) {
+    context.waitUntil(deliverServerChanNotification(env.STRINGS_BUCKET, key, env.SERVERCHAN_KEY, record));
   }
 
   return json({ ok: true, id }, 201);
@@ -113,6 +114,72 @@ async function hashIp(request, env) {
   return [...new Uint8Array(digest)].map(v => v.toString(16).padStart(2, '0')).join('').slice(0, 32);
 }
 
+async function deliverServerChanNotification(bucket, recordKey, serverChanKey, record) {
+  const attemptedAt = new Date().toISOString();
+  try {
+    const result = await pushServerChan(serverChanKey, record);
+    record.notification = {
+      provider: 'serverchan',
+      status: 'sent',
+      attemptedAt,
+      completedAt: new Date().toISOString(),
+      httpStatus: result.httpStatus,
+      code: result.code,
+      message: result.message,
+    };
+    console.log(JSON.stringify({
+      event: 'feedback_serverchan_sent',
+      feedbackId: record.id,
+      httpStatus: result.httpStatus,
+      code: result.code,
+    }));
+  } catch (ex) {
+    const failure = normalizeServerChanFailure(ex);
+    record.notification = {
+      provider: 'serverchan',
+      status: 'failed',
+      attemptedAt,
+      completedAt: new Date().toISOString(),
+      httpStatus: failure.httpStatus,
+      code: failure.code,
+      message: failure.message,
+    };
+    console.warn(JSON.stringify({
+      event: 'feedback_serverchan_failed',
+      feedbackId: record.id,
+      httpStatus: failure.httpStatus,
+      code: failure.code,
+      message: failure.message,
+    }));
+  }
+
+  try {
+    const currentKey = await findFeedbackRecordKey(bucket, record.id, recordKey);
+    if (!currentKey) {
+      console.log(JSON.stringify({
+        event: 'feedback_notification_status_skipped',
+        feedbackId: record.id,
+        reason: 'record_no_longer_exists',
+      }));
+      return;
+    }
+    const currentRecord = await readJson(bucket, currentKey);
+    if (!currentRecord) return;
+    await bucket.put(currentKey, JSON.stringify({
+      ...currentRecord,
+      notification: record.notification,
+    }), {
+      httpMetadata: { contentType: 'application/json; charset=utf-8' },
+    });
+  } catch (ex) {
+    console.error(JSON.stringify({
+      event: 'feedback_notification_status_write_failed',
+      feedbackId: record.id,
+      message: cleanLine(ex?.message || ex, 300),
+    }));
+  }
+}
+
 async function pushServerChan(key, record) {
   const title = `法典图鉴反馈：${record.type}`;
   const lines = [
@@ -124,13 +191,87 @@ async function pushServerChan(key, record) {
     record.context?.entry?.title ? `词条：${record.context.entry.title}` : '',
   ].filter(Boolean);
   const form = new URLSearchParams();
-  form.set('title', title);
+  form.set('text', title);
   form.set('desp', lines.join('\n\n'));
-  await fetch(`https://sctapi.ftqq.com/${encodeURIComponent(String(key))}.send`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/x-www-form-urlencoded;charset=UTF-8' },
-    body: form.toString(),
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
+  let response;
+  try {
+    response = await fetch(`https://sctapi.ftqq.com/${encodeURIComponent(String(key).trim())}.send`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+      body: form.toString(),
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
+  const raw = await readLimitedText(response, 4000);
+  let payload = {};
+  try { payload = JSON.parse(raw); } catch {}
+  const code = Number.isFinite(Number(payload?.code)) ? Number(payload.code) : null;
+  const message = cleanLine(payload?.message || payload?.msg || raw || response.statusText, 300);
+  if (!response.ok || (code !== null && code !== 0)) {
+    const error = new Error(message || `ServerChan HTTP ${response.status}`);
+    error.httpStatus = response.status;
+    error.serverChanCode = code;
+    throw error;
+  }
+  return {
+    httpStatus: response.status,
+    code,
+    message: message || '发送成功',
+  };
+}
+
+async function readLimitedText(response, maxBytes) {
+  if (!response.body) return '';
+  const reader = response.body.getReader();
+  const chunks = [];
+  let total = 0;
+  try {
+    while (total < maxBytes) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value?.byteLength) continue;
+      const take = Math.min(value.byteLength, maxBytes - total);
+      chunks.push(value.slice(0, take));
+      total += take;
+      if (total >= maxBytes) {
+        await reader.cancel();
+        break;
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(bytes);
+}
+
+function normalizeServerChanFailure(ex) {
+  return {
+    httpStatus: Number(ex?.httpStatus || 0),
+    code: ex?.serverChanCode != null && Number.isFinite(Number(ex.serverChanCode))
+      ? Number(ex.serverChanCode)
+      : null,
+    message: cleanLine(ex?.message || ex || 'ServerChan 推送失败', 300),
+  };
+}
+
+async function findFeedbackRecordKey(bucket, id, preferredKey) {
+  if (preferredKey && await bucket.head(preferredKey)) return preferredKey;
+  for (const status of ['pending', 'resolved', 'ignored']) {
+    const keys = await listAll(bucket, `feedback/${status}/`);
+    const found = keys.find(key => key.endsWith(`/${id}.json`) || key.endsWith(`${id}.json`));
+    if (found) return found;
+  }
+  return '';
 }
 
 function safeStringify(value) {

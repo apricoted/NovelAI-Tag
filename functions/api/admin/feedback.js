@@ -54,5 +54,19 @@ function sanitizeFeedbackRecord(record, status) {
     handledAction: String(record.handledAction || ''),
     commitSha: String(record.commitSha || ''),
     cfRay: String(record.cfRay || ''),
+    notification: sanitizeNotification(record.notification),
+  };
+}
+
+function sanitizeNotification(value) {
+  if (!value || typeof value !== 'object') return null;
+  return {
+    provider: String(value.provider || ''),
+    status: String(value.status || ''),
+    attemptedAt: String(value.attemptedAt || ''),
+    completedAt: String(value.completedAt || ''),
+    httpStatus: Number(value.httpStatus || 0),
+    code: value.code == null ? null : Number(value.code),
+    message: String(value.message || ''),
   };
 }

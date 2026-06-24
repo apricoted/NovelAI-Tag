@@ -8,3 +8,6 @@
 
 /assets/styles.css
   Cache-Control: no-store
+
+/review.html
+  Cache-Control: no-store

@@ -96,6 +96,9 @@ input,textarea,select{font-family:inherit;color:var(--text)}
 .fb-context pre{max-height:220px;overflow:auto;margin-top:7px;background:var(--tagbg);border:1px solid var(--line);border-radius:10px;padding:10px;font:11px/1.55 var(--font-mono);white-space:pre-wrap;word-break:break-word}
 .copy-btn{border:1px solid var(--line);background:var(--panel);color:var(--muted);font-weight:600;font-size:13px;padding:8px 16px;border-radius:9px}
 .copy-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+.delete-btn{margin-left:auto;border:1px solid transparent;background:transparent;color:var(--muted);font-weight:600;font-size:12px;padding:8px 10px;border-radius:9px}
+.delete-btn:hover{border-color:var(--red);background:rgba(211,47,47,.08);color:var(--red)}
+.delete-btn:disabled{opacity:.45;cursor:not-allowed}
 
 .empty{color:var(--muted);text-align:center;padding:70px 0;font-size:13px}
 .count{font-size:12px;color:var(--muted);margin-bottom:14px}
@@ -368,6 +371,7 @@ function renderFeedback() {
         ${metaBlock('词条', entry.title || entry.id || '无')}
         ${metaBlock('路径', (entry.path || []).join(' › ') || '无')}
         ${linkBlock('原图 URL', entry.originalUrl)}
+        ${metaBlock('方糖通知', notificationLabel(it.notification))}
         ${metaBlock('Commit', it.commitSha || 'local')}
         ${metaBlock('CF-Ray', it.cfRay || '无')}
       </div>
@@ -379,12 +383,15 @@ function renderFeedback() {
         <button class="copy-btn" type="button">复制上下文</button>
         ${feedbackStatus === 'pending' ? '<button class="ok-btn" type="button">标记已处理</button><button class="no-btn" type="button">忽略</button>' : ''}
         <span class="msg"></span>
+        <button class="delete-btn" type="button">删除反馈</button>
       </div>`;
     div.querySelector('.copy-btn').onclick = () => copyFeedback(it);
     const ok = div.querySelector('.ok-btn');
     const no = div.querySelector('.no-btn');
+    const del = div.querySelector('.delete-btn');
     if (ok) ok.onclick = () => decideFeedback(div, it.id, 'resolve');
     if (no) no.onclick = () => decideFeedback(div, it.id, 'ignore');
+    if (del) del.onclick = () => deleteFeedback(div, it);
     list.appendChild(div);
   }
 }
@@ -396,6 +403,23 @@ function metaBlock(label, value) {
 function linkBlock(label, value) {
   if (!value) return metaBlock(label, '无');
   return `<div class="fb-meta"><b>${escHtml(label)}</b><a href="${escAttr(value)}" target="_blank" rel="noopener" title="${escAttr(value)}">${escHtml(value)}</a></div>`;
+}
+
+function notificationLabel(value) {
+  if (!value) return '未记录（旧反馈）';
+  const status = String(value.status || '');
+  if (status === 'sent') return '已发送';
+  if (status === 'pending') return '等待发送';
+  if (status === 'skipped') return value.message || '未配置';
+  if (status === 'failed') {
+    const details = [
+      value.httpStatus ? `HTTP ${value.httpStatus}` : '',
+      value.code != null ? `代码 ${value.code}` : '',
+      value.message || '',
+    ].filter(Boolean);
+    return `失败${details.length ? `：${details.join(' · ')}` : ''}`;
+  }
+  return status || '未知';
 }
 
 async function decideFeedback(div, id, action) {
@@ -416,6 +440,33 @@ async function decideFeedback(div, id, action) {
     $('#count').innerHTML = `${names[feedbackStatus] || '反馈'} <b>${feedbackItems.length}</b> 条`;
     $('#empty').hidden = feedbackItems.length > 0;
     toast(action === 'resolve' ? '已标记处理' : '已忽略');
+  } catch (e) {
+    if (e.message !== 'unauthorized') msg.textContent = e.message;
+    btns.forEach(b => b.disabled = false);
+  }
+}
+
+async function deleteFeedback(div, item) {
+  const description = String(item.description || '');
+  const preview = description.replace(/\s+/g, ' ').slice(0, 42);
+  const prompt = `确认永久删除这条反馈？\n\n${preview}${description.length > 42 ? '…' : ''}\n\n删除后无法恢复。`;
+  if (!confirm(prompt)) return;
+  const msg = div.querySelector('.msg');
+  const btns = div.querySelectorAll('.acts button');
+  btns.forEach(b => b.disabled = true);
+  msg.textContent = '';
+  try {
+    await api('/api/admin/feedback-delete', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ id: item.id, status: feedbackStatus }),
+    });
+    feedbackItems = feedbackItems.filter(x => x.id !== item.id);
+    div.remove();
+    const names = { pending: '待处理反馈', resolved: '已处理反馈', ignored: '已忽略反馈' };
+    $('#count').innerHTML = `${names[feedbackStatus] || '反馈'} <b>${feedbackItems.length}</b> 条`;
+    $('#empty').hidden = feedbackItems.length > 0;
+    toast('反馈已永久删除');
   } catch (e) {
     if (e.message !== 'unauthorized') msg.textContent = e.message;
     btns.forEach(b => b.disabled = false);
