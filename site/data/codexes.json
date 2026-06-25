@@ -1,6 +1,7 @@
 [
   {
     "id": "suozhang",
+    "type": "codex",
     "title": "所长常规NovelAI个人法典",
     "version": "2026.6.19",
     "author": "戒红所",
@@ -15,6 +16,7 @@
   },
   {
     "id": "qianteng",
+    "type": "codex",
     "title": "叫我千藤就好了の衣柜",
     "version": "2026.3.1",
     "author": "叫我千藤就好了",
@@ -29,6 +31,7 @@
   },
   {
     "id": "jiegou_yuandian",
+    "type": "codex",
     "title": "解构原典",
     "version": "2025.7.18",
     "author": "解构原典编撰组",
@@ -42,6 +45,7 @@
   },
   {
     "id": "suozhang_r18",
+    "type": "codex",
     "title": "所长色色NovalAI个人法典（合并版）",
     "version": "2026.6.19",
     "author": "戒红所",
@@ -57,6 +61,7 @@
   },
   {
     "id": "mengshen_r18",
+    "type": "codex",
     "title": "涩涩法典(梦神版)",
     "version": "外部源",
     "author": "梦神",

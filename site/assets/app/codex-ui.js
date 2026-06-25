@@ -1,9 +1,34 @@
-import { state, RANDOM_RECENT_LIMIT, NSFW_LOCKED_MESSAGE } from './state.js?v=20260623-cache1';
-import { $, esc, samePath, pathStartsWith, updateSearchClear } from './utils.js?v=20260623-cache1';
-import { isCodexLocked, showNsfwLockedHint, isR18gName } from './access.js?v=20260623-cache1';
-import { codexStatusLabel, codexStatusClass, codexStatusTitle } from './data.js?v=20260623-cache1';
-import { hasEntryImage, thumbUrl } from './media.js?v=20260623-cache1';
-import { toast } from './feedback.js?v=20260623-cache1';
+import { state, RANDOM_RECENT_LIMIT, NSFW_LOCKED_MESSAGE } from './state.js?v=20260625-cache1';
+import { $, esc, samePath, pathStartsWith, updateSearchClear } from './utils.js?v=20260625-cache1';
+import { isCodexLocked, showNsfwLockedHint, isR18gName } from './access.js?v=20260625-cache1';
+import { codexStatusLabel, codexStatusClass, codexStatusTitle } from './data.js?v=20260625-cache1';
+import { hasEntryImage, thumbUrl } from './media.js?v=20260625-cache1';
+import { toast } from './feedback.js?v=20260625-cache1';
+
+/* 选择器类型图标（描边 SVG，跟随 currentColor） */
+const TYPE_ICONS = {
+  book: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H18a1 1 0 0 1 1 1v15H5.5A1.5 1.5 0 0 1 4 18.5z"/><path d="M8 4v16"/></svg>',
+  palette: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5a8.5 8.5 0 1 0 0 17c1.4 0 1.9-1 1.9-1.9 0-.5-.3-.9-.3-1.6 0-.7.6-1.2 1.4-1.2H17a3.5 3.5 0 0 0 3.5-3.5C20.5 6.9 16.7 3.5 12 3.5Z"/><circle cx="8" cy="10.5" r="1"/><circle cx="12" cy="8" r="1"/><circle cx="16" cy="10.5" r="1"/></svg>',
+  image: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><circle cx="8.5" cy="10" r="1.6"/><path d="m4.5 17 4.8-4.8a1.5 1.5 0 0 1 2.1 0L16.2 17"/><path d="m13.8 14.6 1.4-1.4a1.5 1.5 0 0 1 2.1 0L20 16"/></svg>',
+  clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v5l3 2"/></svg>',
+};
+
+/* 选择器类型分类法。法典=真实可加载；画风串 / 精选图包暂为占位：
+   某类型在 codexes.json 里没有对应 type 的真法典时，显示其 placeholders（点击只提示「即将上线」，进不去）。
+   将来给某本加 type:"string"/"pack" 即自动变为可加载、该类占位被忽略。 */
+const CODEX_TYPES = [
+  { id: 'codex', name: '法典', sub: '按分类查词条', icon: 'book' },
+  { id: 'string', name: '画风串', sub: '复制整串画风', icon: 'palette', placeholders: [
+    { title: '社区画风串合集', meta: '看图复制整串画风' },
+    { title: '人气画风精选', meta: '编辑精选画风串' },
+  ] },
+  { id: 'pack', name: '精选图包', sub: '拖图读 NAI 参数', icon: 'image', placeholders: [
+    { title: '精选构图图包', meta: '原图直出 · 含 NAI 生成参数' },
+  ] },
+];
+
+const codexType = c => (c && c.type) || 'codex';
+const realCodexesOfType = typeId => state.codexes.filter(c => codexType(c) === typeId);
 
 const codexUiActions = {
   loadCodex: async () => {},
@@ -17,24 +42,33 @@ export function setCodexUiActions(actions = {}) {
   Object.assign(codexUiActions, actions);
 }
 
-/* ??????????? select ????????? */
+/* 自绘法典选择器：PC = 类型级联双栏（左类型轨 + 右列表）；移动端 = 分组下拉（各类型小标题 + 条目堆叠）。
+   原生 #codexSelect 仅做值同步。画风串 / 精选图包暂为占位类型，点击只提示「即将上线」。 */
 export function setupCodexPicker() {
   const sel = $('#codexSelect');
   const btn = $('#codexBtn');
   const menu = $('#codexMenu');
   if (!btn || !menu) return;
-  const items = () => [...menu.querySelectorAll('.codex-item')];
-  const activeIndex = () => Math.max(0, items().findIndex(item => item.classList.contains('active')));
+
+  let activeType = null;  // 级联模式下当前选中的类型
+
+  const focusableItems = () => [...menu.querySelectorAll('.codex-type, .codex-item')];
   const focusItem = index => {
-    const list = items();
+    const list = focusableItems();
     if (!list.length) return;
     list[(index + list.length) % list.length].focus();
   };
-  const open = ({ focus = false, index = activeIndex() } = {}) => {
+  const focusPreferredItem = () => {
+    const target = menu.querySelector('.codex-item.active') || menu.querySelector('.codex-type.active') || focusableItems()[0];
+    target?.focus();
+  };
+  const isMobile = () => window.matchMedia('(max-width: 600px)').matches;
+  const open = ({ focus = false } = {}) => {
+    renderMenu();
     menu.hidden = false;
     btn.classList.add('open');
     btn.setAttribute('aria-expanded', 'true');
-    if (focus) requestAnimationFrame(() => focusItem(index));
+    if (focus) requestAnimationFrame(focusPreferredItem);
   };
   const close = ({ focusButton = false } = {}) => {
     menu.hidden = true;
@@ -42,34 +76,36 @@ export function setupCodexPicker() {
     btn.setAttribute('aria-expanded', 'false');
     if (focusButton) btn.focus();
   };
-  const choose = item => {
-    if (!item) return;
-    if (item.getAttribute('aria-disabled') === 'true') {
-      showNsfwLockedHint();
-      return;
-    }
+
+  const chooseCodex = c => {
+    if (!c) return;
+    if (isCodexLocked(c)) { showNsfwLockedHint(); return; }
     close({ focusButton: true });
-    if (sel.value !== item.dataset.id) {
-      sel.value = item.dataset.id;
-      codexUiActions.loadCodex(item.dataset.id);
+    if (sel.value !== c.id) {
+      sel.value = c.id;
+      codexUiActions.loadCodex(c.id);
     }
   };
-  menu.innerHTML = '';
-  state.codexes.forEach((c, i) => {
-    const pct = c.entryCount ? Math.round((Number(c.imagedCount || 0) / Number(c.entryCount || 1)) * 100) : 0;
+
+  /* 类型清单：每类带真实法典 real[] 与是否占位 soon */
+  const buildTypes = () => CODEX_TYPES.map(t => {
+    const real = realCodexesOfType(t.id);
+    return { ...t, real, soon: real.length === 0 };
+  });
+
+  const makeRealItem = (c, n) => {
     const locked = isCodexLocked(c);
+    const active = state.codex?.id === c.id;
+    const pct = c.entryCount ? Math.round((Number(c.imagedCount || 0) / Number(c.entryCount || 1)) * 100) : 0;
     const item = document.createElement('button');
     item.type = 'button';
-    item.className = `codex-item${locked ? ' locked' : ''}`;
+    item.className = `codex-item${locked ? ' locked' : ''}${active ? ' active' : ''}`;
     item.dataset.id = c.id;
-    item.id = `codexOption-${i}`;
-    item.setAttribute('role', 'option');
-    item.setAttribute('aria-selected', 'false');
     item.setAttribute('aria-disabled', locked ? 'true' : 'false');
+    if (active) item.setAttribute('aria-current', 'true');
     if (locked) item.title = NSFW_LOCKED_MESSAGE;
-    item.tabIndex = -1;
     item.innerHTML =
-      `<span class="ci-mark">${String(i + 1).padStart(2, '0')}</span>` +
+      `<span class="ci-mark">${String(n).padStart(2, '0')}</span>` +
       `<span class="ci-main">` +
       `<span class="ci-name">${esc(c.title)}</span>` +
       `<span class="ci-meta">${esc(c.author || '未知作者')} · ${Number(c.entryCount || 0)} 条 · ${pct}% 配图</span>` +
@@ -77,41 +113,135 @@ export function setupCodexPicker() {
       `<span class="ci-lock"${locked ? '' : ' hidden'}>需设置解锁</span>` +
       `</span>` +
       '<svg class="ck" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 13 4 4L19 7"/></svg>';
-    item.onclick = () => choose(item);
-    menu.appendChild(item);
-  });
+    item.onclick = () => chooseCodex(c);
+    return item;
+  };
+
+  const makeSoonItem = (t, ph) => {
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = 'codex-item soon';
+    item.dataset.soon = t.id;
+    item.innerHTML =
+      `<span class="ci-mark ico">${TYPE_ICONS[t.icon]}</span>` +
+      `<span class="ci-main">` +
+      `<span class="ci-name">${esc(ph.title)}</span>` +
+      `<span class="ci-meta">${esc(ph.meta || '')}</span>` +
+      `<span class="ci-soon-chip">占位册</span>` +
+      `</span>`;
+    item.onclick = () => toast(`「${t.name}」即将上线`, '');
+    return item;
+  };
+
+  const makeSoonBanner = t => {
+    const b = document.createElement('div');
+    b.className = 'codex-soon-banner';
+    b.innerHTML = `${TYPE_ICONS.clock}<span><b>${esc(t.name)}</b> 即将上线 —— 下面是预览，一切内容均为占位，非实际内容。</span>`;
+    return b;
+  };
+
+  const fillItems = (container, t) => {
+    if (t.soon) {
+      (t.placeholders || []).forEach(ph => container.appendChild(makeSoonItem(t, ph)));
+    } else {
+      t.real.forEach((c, i) => container.appendChild(makeRealItem(c, i + 1)));
+    }
+  };
+
+  /* PC：级联双栏 */
+  const renderCascade = types => {
+    menu.classList.add('cascade');
+    menu.classList.remove('grouped');
+    menu.innerHTML = '';
+    if (!activeType || !types.some(t => t.id === activeType)) {
+      activeType = codexType(state.codex) || types[0].id;
+    }
+    const rail = document.createElement('div');
+    rail.className = 'codex-rail';
+    const listWrap = document.createElement('div');
+    listWrap.className = 'codex-list';
+    const setActive = id => {
+      activeType = id;
+      rail.querySelectorAll('.codex-type').forEach(el => {
+        const active = el.dataset.type === id;
+        el.classList.toggle('active', active);
+        el.setAttribute('aria-pressed', active ? 'true' : 'false');
+      });
+      listWrap.innerHTML = '';
+      const t = types.find(x => x.id === id);
+      if (t.soon) listWrap.appendChild(makeSoonBanner(t));
+      fillItems(listWrap, t);
+    };
+    types.forEach(t => {
+      const el = document.createElement('button');
+      el.type = 'button';
+      el.className = 'codex-type';
+      el.dataset.type = t.id;
+      el.setAttribute('aria-pressed', 'false');
+      const count = t.soon ? (t.placeholders || []).length : t.real.length;
+      el.innerHTML =
+        `<span class="ct-ico">${TYPE_ICONS[t.icon]}</span>` +
+        `<span class="ct-main"><span class="ct-name">${esc(t.name)}${t.soon ? '<span class="codex-soon-tag">占位</span>' : ''}</span>` +
+        `<span class="ct-sub">${esc(t.sub)}</span></span>` +
+        `<span class="ct-n">${count}</span>`;
+      el.onclick = () => setActive(t.id);
+      rail.appendChild(el);
+    });
+    menu.appendChild(rail);
+    menu.appendChild(listWrap);
+    setActive(activeType);
+  };
+
+  /* 移动端：分组下拉（方案 A） */
+  const renderGrouped = types => {
+    menu.classList.add('grouped');
+    menu.classList.remove('cascade');
+    menu.innerHTML = '';
+    types.forEach(t => {
+      const head = document.createElement('div');
+      head.className = 'codex-group-head';
+      head.innerHTML =
+        `<span class="cg-ico">${TYPE_ICONS[t.icon]}</span>` +
+        `<span class="cg-name">${esc(t.name)}</span>` +
+        `<span class="cg-sub">${esc(t.sub)}</span>` +
+        (t.soon ? '<span class="codex-soon-tag">占位</span>' : '');
+      menu.appendChild(head);
+      if (t.soon) menu.appendChild(makeSoonBanner(t));
+      fillItems(menu, t);
+    });
+  };
+
+  const renderMenu = () => {
+    if (isMobile()) renderGrouped(buildTypes());
+    else renderCascade(buildTypes());
+  };
+
   btn.onclick = ev => {
     ev.stopPropagation();
     if (menu.hidden) open({ focus: true });
     else close();
   };
   btn.onkeydown = ev => {
-    const list = items();
-    if (!list.length) return;
-    if (ev.key === 'Enter' || ev.key === ' ') {
+    if ((ev.key === 'Enter' || ev.key === ' ' || ev.key === 'ArrowDown') && menu.hidden) {
       ev.preventDefault();
-      if (menu.hidden) open({ focus: true });
-      else close();
-    } else if (ev.key === 'ArrowDown') {
+      open({ focus: true });
+    } else if (!menu.hidden && (ev.key === 'ArrowDown' || ev.key === 'ArrowUp')) {
       ev.preventDefault();
-      open({ focus: true, index: menu.hidden ? activeIndex() : activeIndex() + 1 });
-    } else if (ev.key === 'ArrowUp') {
-      ev.preventDefault();
-      open({ focus: true, index: menu.hidden ? activeIndex() : activeIndex() - 1 });
+      focusItem(ev.key === 'ArrowUp' ? -1 : 0);
     }
   };
   menu.onkeydown = ev => {
-    const list = items();
+    const list = focusableItems();
     const current = list.indexOf(document.activeElement);
     if (ev.key === 'Escape') {
       ev.preventDefault();
       close({ focusButton: true });
     } else if (ev.key === 'Tab') {
       close();
-    } else if (ev.key === 'ArrowDown') {
+    } else if (ev.key === 'ArrowDown' || ev.key === 'ArrowRight') {
       ev.preventDefault();
       focusItem(current + 1);
-    } else if (ev.key === 'ArrowUp') {
+    } else if (ev.key === 'ArrowUp' || ev.key === 'ArrowLeft') {
       ev.preventDefault();
       focusItem(current - 1);
     } else if (ev.key === 'Home') {
@@ -120,9 +250,6 @@ export function setupCodexPicker() {
     } else if (ev.key === 'End') {
       ev.preventDefault();
       focusItem(list.length - 1);
-    } else if (ev.key === 'Enter' || ev.key === ' ') {
-      ev.preventDefault();
-      choose(document.activeElement.closest('.codex-item'));
     }
   };
   document.addEventListener('click', ev => {
@@ -131,18 +258,25 @@ export function setupCodexPicker() {
   window.addEventListener('keydown', ev => {
     if (ev.key === 'Escape' && !menu.hidden) close({ focusButton: true });
   });
-  updateCodexPickerState();
+  let resizeRaf = 0;
+  window.addEventListener('resize', () => {
+    if (menu.hidden) return;
+    cancelAnimationFrame(resizeRaf);
+    resizeRaf = requestAnimationFrame(renderMenu);
+  });
 }
 
 export function updateCodexPickerState() {
   document.querySelectorAll('#codexMenu .codex-item').forEach(it => {
+    if (!it.dataset.id) return;  // 跳过占位条目
     const c = state.codexes.find(item => item.id === it.dataset.id);
     const locked = isCodexLocked(c);
     const active = state.codex?.id === c?.id;
     it.classList.toggle('locked', locked);
     it.classList.toggle('active', active);
     it.setAttribute('aria-disabled', locked ? 'true' : 'false');
-    it.setAttribute('aria-selected', active ? 'true' : 'false');
+    if (active) it.setAttribute('aria-current', 'true');
+    else it.removeAttribute('aria-current');
     if (locked) it.title = NSFW_LOCKED_MESSAGE;
     else it.removeAttribute('title');
     const lock = it.querySelector('.ci-lock');

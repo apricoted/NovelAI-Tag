@@ -8,26 +8,26 @@
 <!-- Static cold-start hints; keep this origin in sync with data/media.json baseUrl. -->
 <link rel="preconnect" href="https://assets.quicktagcloud.com">
 <link rel="dns-prefetch" href="https://assets.quicktagcloud.com">
-<link rel="stylesheet" href="assets/styles.css?v=20260623-cache1">
-<link rel="modulepreload" href="assets/app/state.js?v=20260623-cache1">
-<link rel="modulepreload" href="assets/app/utils.js?v=20260623-cache1">
-<link rel="modulepreload" href="assets/app/modal.js?v=20260623-cache1">
-<link rel="modulepreload" href="assets/app/feedback.js?v=20260623-cache1">
-<link rel="modulepreload" href="assets/app/access.js?v=20260623-cache1">
-<link rel="modulepreload" href="assets/app/data.js?v=20260623-cache1">
-<link rel="modulepreload" href="assets/app/search.js?v=20260623-cache1">
-<link rel="modulepreload" href="assets/app/router.js?v=20260623-cache1">
-<link rel="modulepreload" href="assets/app/media.js?v=20260623-cache1">
-<link rel="modulepreload" href="assets/app/copy.js?v=20260623-cache1">
-<link rel="modulepreload" href="assets/app/favorites.js?v=20260623-cache1">
-<link rel="modulepreload" href="assets/app/codex-ui.js?v=20260623-cache1">
-<link rel="modulepreload" href="assets/app/masonry.js?v=20260623-cache1">
-<link rel="modulepreload" href="assets/app/lightbox.js?v=20260623-cache1">
-<link rel="modulepreload" href="assets/app/history.js?v=20260623-cache1">
-<link rel="modulepreload" href="assets/app/report.js?v=20260623-cache1">
-<link rel="modulepreload" href="assets/app/announcements.js?v=20260623-cache1">
-<link rel="modulepreload" href="assets/app/onboarding.js?v=20260623-cache1">
-<link rel="modulepreload" href="assets/app/ui.js?v=20260623-cache1">
+<link rel="stylesheet" href="assets/styles.css?v=20260625-cache1">
+<link rel="modulepreload" href="assets/app/state.js?v=20260625-cache1">
+<link rel="modulepreload" href="assets/app/utils.js?v=20260625-cache1">
+<link rel="modulepreload" href="assets/app/modal.js?v=20260625-cache1">
+<link rel="modulepreload" href="assets/app/feedback.js?v=20260625-cache1">
+<link rel="modulepreload" href="assets/app/access.js?v=20260625-cache1">
+<link rel="modulepreload" href="assets/app/data.js?v=20260625-cache1">
+<link rel="modulepreload" href="assets/app/search.js?v=20260625-cache1">
+<link rel="modulepreload" href="assets/app/router.js?v=20260625-cache1">
+<link rel="modulepreload" href="assets/app/media.js?v=20260625-cache1">
+<link rel="modulepreload" href="assets/app/copy.js?v=20260625-cache1">
+<link rel="modulepreload" href="assets/app/favorites.js?v=20260625-cache1">
+<link rel="modulepreload" href="assets/app/codex-ui.js?v=20260625-cache1">
+<link rel="modulepreload" href="assets/app/masonry.js?v=20260625-cache1">
+<link rel="modulepreload" href="assets/app/lightbox.js?v=20260625-cache1">
+<link rel="modulepreload" href="assets/app/history.js?v=20260625-cache1">
+<link rel="modulepreload" href="assets/app/report.js?v=20260625-cache1">
+<link rel="modulepreload" href="assets/app/announcements.js?v=20260625-cache1">
+<link rel="modulepreload" href="assets/app/onboarding.js?v=20260625-cache1">
+<link rel="modulepreload" href="assets/app/ui.js?v=20260625-cache1">
 </head>
 <body>
 <div id="scrollProgress" class="scroll-progress" aria-hidden="true"></div>
@@ -37,11 +37,11 @@
 
   <div class="codex-pick">
     <select id="codexSelect" class="codex-native" aria-hidden="true" tabindex="-1"></select>
-    <button id="codexBtn" class="codex-btn" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="codexMenu">
+    <button id="codexBtn" class="codex-btn" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="codexMenu">
       <span id="codexBtnText">加载中…</span>
       <svg class="codex-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
     </button>
-    <div id="codexMenu" class="codex-menu" role="listbox" hidden></div>
+    <div id="codexMenu" class="codex-menu" role="dialog" aria-label="选择内容类型和法典" hidden></div>
   </div>
 
   <div class="search-wrap">
@@ -475,6 +475,6 @@
   </article>
 </template>
 
-<script type="module" src="assets/app.js?v=20260623-cache1"></script>
+<script type="module" src="assets/app.js?v=20260625-cache1"></script>
 </body>
 </html>

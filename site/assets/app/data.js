@@ -1,7 +1,7 @@
-import { state } from './state.js?v=20260623-cache1';
-import { stripTrailingSlash } from './utils.js?v=20260623-cache1';
-import { hasEntryImage } from './media.js?v=20260623-cache1';
-import { toast } from './feedback.js?v=20260623-cache1';
+import { state } from './state.js?v=20260625-cache1';
+import { stripTrailingSlash } from './utils.js?v=20260625-cache1';
+import { hasEntryImage } from './media.js?v=20260625-cache1';
+import { toast } from './feedback.js?v=20260625-cache1';
 
 export async function loadMedia() {
   try {
@@ -71,6 +71,7 @@ export function normalizeCodex(data, meta = {}) {
   const codex = {
     ...data,
     id: meta.id || data.id,
+    type: meta.type || data.type || 'codex',
     title: meta.title || data.title || data.id || meta.id,
     version: meta.version || data.version || '',
     author: meta.author || data.author || '',
