@@ -1,9 +1,9 @@
-import { state, RANDOM_RECENT_LIMIT, NSFW_LOCKED_MESSAGE } from './state.js?v=20260625-cache1';
-import { $, esc, samePath, pathStartsWith, updateSearchClear } from './utils.js?v=20260625-cache1';
-import { isCodexLocked, showNsfwLockedHint, isR18gName } from './access.js?v=20260625-cache1';
-import { codexStatusLabel, codexStatusClass, codexStatusTitle } from './data.js?v=20260625-cache1';
-import { hasEntryImage, thumbUrl } from './media.js?v=20260625-cache1';
-import { toast } from './feedback.js?v=20260625-cache1';
+import { state, RANDOM_RECENT_LIMIT, NSFW_LOCKED_MESSAGE } from './state.js?v=20260627-cache2';
+import { $, esc, samePath, pathStartsWith, updateSearchClear } from './utils.js?v=20260627-cache2';
+import { isCodexLocked, showNsfwLockedHint, isEntryAccessBlocked, isEntryNsfw, isNsfwPathSegment, isR18gEntry, isR18gName } from './access.js?v=20260627-cache2';
+import { codexStatusLabel, codexStatusClass, codexStatusTitle } from './data.js?v=20260627-cache2';
+import { hasEntryImage, thumbUrl } from './media.js?v=20260627-cache2';
+import { toast } from './feedback.js?v=20260627-cache2';
 
 /* 选择器类型图标（描边 SVG，跟随 currentColor） */
 const TYPE_ICONS = {
@@ -22,7 +22,7 @@ const CODEX_TYPES = [
     { title: '社区画风串合集', meta: '看图复制整串画风' },
     { title: '人气画风精选', meta: '编辑精选画风串' },
   ] },
-  { id: 'pack', name: '精选图包', sub: '拖图读 NAI 参数', icon: 'image', placeholders: [
+  { id: 'pack', name: '精选图包', sub: '社区收集原图包', icon: 'image', placeholders: [
     { title: '精选构图图包', meta: '原图直出 · 含 NAI 生成参数' },
   ] },
 ];
@@ -110,7 +110,7 @@ export function setupCodexPicker() {
       `<span class="ci-name">${esc(c.title)}</span>` +
       `<span class="ci-meta">${esc(c.author || '未知作者')} · ${Number(c.entryCount || 0)} 条 · ${pct}% 配图</span>` +
       `<span class="ci-bar"><i style="width:${pct}%"></i></span>` +
-      `<span class="ci-lock"${locked ? '' : ' hidden'}>需设置解锁</span>` +
+      `<span class="ci-lock"${locked ? '' : ' hidden'}>开启设置解锁</span>` +
       `</span>` +
       '<svg class="ck" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 13 4 4L19 7"/></svg>';
     item.onclick = () => chooseCodex(c);
@@ -284,14 +284,13 @@ export function updateCodexPickerState() {
   });
 }
 
-/* R18G 默认完全隐藏：算出被隐藏的词条数，让「全部」计数与实际可见数一致 */
-export function r18gHiddenCount() {
-  if (state.allowR18g || !state.codex) return 0;
-  return (state.codex.tree || []).reduce((sum, nd) => sum + (isR18gName(nd.name) ? Number(nd.count || 0) : 0), 0);
+export function accessHiddenCount() {
+  if (!state.codex) return 0;
+  return (state.codex.entries || []).filter(isEntryAccessBlocked).length;
 }
 
 export function visibleEntryCount() {
-  return Math.max(0, Number(state.codex?.entryCount || 0) - r18gHiddenCount());
+  return Math.max(0, Number(state.codex?.entryCount || 0) - accessHiddenCount());
 }
 
 /* ---------------- ??? ---------------- */
@@ -305,7 +304,41 @@ export function renderTree() {
   all.innerHTML = `<span class="tw-arrow"></span><span class="tw-name">全部</span><span class="tw-count">${visibleEntryCount()}</span>`;
   all.onclick = () => selectPath([], all);
   nav.appendChild(all);
-  buildNodes(state.codex.tree, nav, [], 0);
+  buildNodes(visibleTree(), nav, [], 0);
+}
+
+export function visibleTree() {
+  return buildAccessTree(state.codex?.entries || []);
+}
+
+function nsfwLockStart(entry, path) {
+  if (state.allowNsfw || !isEntryNsfw(entry)) return -1;
+  const nsfwIndex = path.findIndex(isNsfwPathSegment);
+  return nsfwIndex >= 0 ? nsfwIndex : 0;
+}
+
+function buildAccessTree(entries) {
+  const root = new Map();
+  for (const entry of entries) {
+    if (!state.allowR18g && isR18gEntry(entry)) continue;
+    const path = Array.isArray(entry.path) ? entry.path : [];
+    const lockFrom = nsfwLockStart(entry, path);
+    let node = root;
+    path.forEach((name, index) => {
+      if (!node.has(name)) node.set(name, { name, count: 0, locked: false, children: new Map() });
+      const cur = node.get(name);
+      cur.count += 1;
+      if (lockFrom >= 0 && index >= lockFrom) cur.locked = true;
+      node = cur.children;
+    });
+  }
+  const toList = map => [...map.values()].map(n => ({
+    name: n.name,
+    count: n.count,
+    locked: Boolean(n.locked),
+    children: toList(n.children),
+  }));
+  return toList(root);
 }
 
 export function buildNodes(nodes, parent, prefix, depth) {
@@ -313,18 +346,31 @@ export function buildNodes(nodes, parent, prefix, depth) {
     if (!state.allowR18g && isR18gName(nd.name)) continue;  // 隐藏 R18G/重口 分类
     const path = prefix.concat(nd.name);
     const item = document.createElement('div');
-    const active = !state.query.trim() && samePath(path, state.activePath);
+    const locked = Boolean(nd.locked && !state.allowNsfw);
+    const active = !locked && !state.query.trim() && samePath(path, state.activePath);
     const activeAncestor = pathStartsWith(state.activePath, path);
     item.className = 'tree-item' + (depth >= 1 && !activeAncestor ? ' collapsed' : '');
     const row = document.createElement('div');
-    row.className = 'tree-row' + (active ? ' active' : '');
+    row.className = 'tree-row' + (active ? ' active' : '') + (locked ? ' locked' : '');
     row.dataset.path = path.join('\u0001');
+    row.dataset.locked = locked ? '1' : '';
+    row.setAttribute('aria-disabled', locked ? 'true' : 'false');
+    if (locked) row.title = NSFW_LOCKED_MESSAGE;
     const hasKids = nd.children && nd.children.length;
     row.innerHTML =
       `<span class="tw-arrow">${hasKids ? '▾' : ''}</span>` +
-      `<span class="tw-name">${esc(nd.name)}</span><span class="tw-count">${nd.count}</span>`;
+      `<span class="tw-name">${esc(nd.name)}</span>` +
+      `<span class="tw-count">${nd.count}</span>`;
     row.querySelector('.tw-arrow').onclick = e => { e.stopPropagation(); item.classList.toggle('collapsed'); };
-    row.onclick = () => { selectPath(path, row); if (hasKids) item.classList.remove('collapsed'); };
+    row.onclick = () => {
+      if (locked) {
+        showNsfwLockedHint();
+        if (hasKids) item.classList.remove('collapsed');
+        return;
+      }
+      selectPath(path, row);
+      if (hasKids) item.classList.remove('collapsed');
+    };
     item.appendChild(row);
     if (hasKids) {
       const kids = document.createElement('div');
@@ -353,6 +399,10 @@ export function selectPathByPath(path) {
   const key = path.join('\u0001');
   for (const row of document.querySelectorAll('.tree-row')) {
     if ((row.dataset.path || '') !== key) continue;
+    if (row.dataset.locked === '1') {
+      showNsfwLockedHint();
+      return;
+    }
     let item = row.closest('.tree-item');
     while (item) {
       item.classList.remove('collapsed');
@@ -405,7 +455,7 @@ export function updateResultBar() {
   if (q) t = `${state.searchPlan?.isSyntax ? '筛选' : '搜索'} “${esc(q)}”：<b>${n}</b> 条结果`;
   else if (state.onlyFav) t = `⭐ 我的收藏：<b>${n}</b> 条`;
   else if (state.activePath.length) t = `<b>${n}</b> 条`;
-  else t = `共 <b>${n}</b> 条词条 · ${state.codex.imagedCount} 条已配图`;
+  else t = `共 <b>${n}</b> 条词条 · ${state.list.filter(hasEntryImage).length} 条已配图`;
   count.innerHTML = t;
   box.appendChild(count);
 
@@ -554,21 +604,23 @@ export function renderCodexHeader() {
   const rail = $('#chipRail');
   if (!rail) return;
   rail.innerHTML = '';
-  const mkChip = (label, path, count, hue) => {
+  const mkChip = (label, path, count, hue, { locked = false } = {}) => {
     const chip = document.createElement('button');
     chip.type = 'button';
-    chip.className = 'rail-chip';
+    chip.className = 'rail-chip' + (locked ? ' locked' : '');
     chip.dataset.path = path.join('\u0001');
+    chip.setAttribute('aria-disabled', locked ? 'true' : 'false');
+    if (locked) chip.title = NSFW_LOCKED_MESSAGE;
     chip.innerHTML = `<span class="rc-dot" style="background:${hue}"></span>${esc(label)}<span class="rc-n">${count}</span>`;
-    chip.onclick = () => selectPathByPath(path);
+    chip.onclick = () => locked ? showNsfwLockedHint() : selectPathByPath(path);
     rail.appendChild(chip);
   };
   mkChip('全部', [], visibleEntryCount(), 'var(--accent)');
-  for (const nd of c.tree) {
+  for (const nd of visibleTree()) {
     if (!state.allowR18g && isR18gName(nd.name)) continue;  // 隐藏 R18G/重口 胶囊
     let h = 0;
     for (const ch of nd.name) h = (h * 31 + ch.codePointAt(0)) % 360;
-    mkChip(nd.name, [nd.name], nd.count, `hsl(${h},58%,52%)`);
+    mkChip(nd.name, [nd.name], nd.count, `hsl(${h},58%,52%)`, { locked: Boolean(nd.locked && !state.allowNsfw) });
   }
   updateRailActive();
 }

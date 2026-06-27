@@ -1,8 +1,8 @@
-import { state } from './state.js?v=20260625-cache1';
-import { $ } from './utils.js?v=20260625-cache1';
-import { hasEntryImage } from './media.js?v=20260625-cache1';
-import { toast } from './feedback.js?v=20260625-cache1';
-import { isR18gBlocked, showR18gLockedHint } from './access.js?v=20260625-cache1';
+import { state } from './state.js?v=20260627-cache2';
+import { $ } from './utils.js?v=20260627-cache2';
+import { hasEntryImage } from './media.js?v=20260627-cache2';
+import { toast } from './feedback.js?v=20260627-cache2';
+import { isEntryAccessBlocked, isR18gBlocked, showNsfwLockedHint, showR18gLockedHint } from './access.js?v=20260627-cache2';
 
 const routerActions = {
   onUrlSync: () => {},
@@ -73,6 +73,11 @@ export function openEntryDeepLink(entryId) {
   if (!entry) return;
   if (isR18gBlocked(entry)) {
     showR18gLockedHint();
+    syncUrlState({ entry: '' });
+    return;
+  }
+  if (isEntryAccessBlocked(entry)) {
+    showNsfwLockedHint();
     syncUrlState({ entry: '' });
     return;
   }

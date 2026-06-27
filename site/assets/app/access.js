@@ -1,8 +1,24 @@
-import { state, NSFW_LOCKED_MESSAGE, R18G_LOCKED_MESSAGE } from './state.js?v=20260625-cache1';
-import { toast } from './feedback.js?v=20260625-cache1';
+import { state, NSFW_LOCKED_MESSAGE, R18G_LOCKED_MESSAGE } from './state.js?v=20260627-cache2';
+import { toast } from './feedback.js?v=20260627-cache2';
 
 export function isNsfwCodex(c) {
   return Boolean(c?.nsfw);
+}
+
+export function entryRating(e) {
+  return String(e?.rating || e?.level || '').toLowerCase();
+}
+
+export function isNsfwRating(rating) {
+  return ['restricted', 'r18', 'r18g', 'nsfw'].includes(String(rating || '').toLowerCase());
+}
+
+export function isNsfwPathSegment(name) {
+  return String(name || '').toLowerCase() === 'nsfw';
+}
+
+export function isEntryNsfw(e) {
+  return isNsfwRating(entryRating(e));
 }
 
 export function isCodexLocked(c) {
@@ -25,15 +41,20 @@ export function isR18gName(name) {
 
 export function isR18gEntry(e) {
   const p = e?.path;
-  return Array.isArray(p) && p.length > 0 && isR18gName(p[0]);
+  return entryRating(e) === 'r18g' || (Array.isArray(p) && p.some(isR18gName));
 }
 
 export function isR18gPath(path) {
-  return Array.isArray(path) && path.length > 0 && isR18gName(path[0]);
+  return Array.isArray(path) && path.some(isR18gName);
 }
 
 export function isR18gBlocked(e) {
   return isR18gEntry(e) && !state.allowR18g;
+}
+
+export function isEntryAccessBlocked(e) {
+  if (isR18gBlocked(e)) return true;
+  return isEntryNsfw(e) && !state.allowNsfw;
 }
 
 export function r18gRevealKey(e) {

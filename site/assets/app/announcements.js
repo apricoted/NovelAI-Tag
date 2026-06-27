@@ -1,6 +1,6 @@
-import { $, esc, safeJsonParse } from './utils.js?v=20260625-cache1';
-import { openMask, closeMask, trapFocus } from './modal.js?v=20260625-cache1';
-import { formatRecentTime } from './history.js?v=20260625-cache1';
+import { $, esc, safeJsonParse } from './utils.js?v=20260627-cache2';
+import { openMask, closeMask, trapFocus } from './modal.js?v=20260627-cache2';
+import { formatRecentTime } from './history.js?v=20260627-cache2';
 
 const ANNOUNCEMENT_URL = 'data/announcements.json';
 const READ_STORAGE_KEY = 'fadian-ann-read-ids';

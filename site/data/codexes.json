@@ -83,5 +83,21 @@
     "links": [
       { "label": "数据来源 · prompt-vault-gallery", "url": "https://prompt-vault-gallery.pages.dev" }
     ]
+  },
+  {
+    "id": "mengshen_pack",
+    "type": "pack",
+    "title": "社区整理图包",
+    "version": "2026.6.27",
+    "author": "梦神整理",
+    "entryCount": 1944,
+    "imagedCount": 1944,
+    "hasOriginal": true,
+    "source": "梦神整理 · 社区收集原图包",
+    "contributors": [
+      { "name": "梦神", "role": "图包整理 / 数据来源" },
+      { "name": "社区贡献者", "role": "原图与参数收集" }
+    ],
+    "links": []
   }
 ]

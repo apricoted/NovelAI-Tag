@@ -1,17 +1,17 @@
-import { state, DENSITY_PRESETS, DENSITY_STORAGE_KEY, THEME_STORAGE_KEY, THEMES, NSFW_STORAGE_KEY, R18G_STORAGE_KEY } from './state.js?v=20260625-cache1';
-import { normalizeDensity, densityConfig } from './state.js?v=20260625-cache1';
-import { $, updateSearchClear, updateScrollProgress, prefersReducedMotion } from './utils.js?v=20260625-cache1';
-import { toast } from './feedback.js?v=20260625-cache1';
-import { firstUnlockedCodex, isNsfwCodex, isR18gName } from './access.js?v=20260625-cache1';
-import { closeBannerAbout, renderCodexArchive, renderTree, renderCodexHeader, randomExplore, updateCodexPickerState } from './codex-ui.js?v=20260625-cache1';
-import { syncUrlState } from './router.js?v=20260625-cache1';
-import { renderHistoryPanel, resumeLastBrowse, openRecentEntry, saveRecentEntries, scheduleBrowseStateSave } from './history.js?v=20260625-cache1';
-import { captureMasonryAnchor, restoreMasonryAnchor, relayoutVisible, updateVirtualCards, scheduleVirtualUpdate, scheduleRelayout } from './masonry.js?v=20260625-cache1';
-import { bindLightboxControls } from './lightbox.js?v=20260625-cache1';
-import { openMask, closeMask, trapFocus } from './modal.js?v=20260625-cache1';
-import { setupAnnouncements } from './announcements.js?v=20260625-cache1';
-import { setupReport, openReportDialog } from './report.js?v=20260625-cache1';
-import { setupOnboarding } from './onboarding.js?v=20260625-cache1';
+import { state, DENSITY_PRESETS, DENSITY_STORAGE_KEY, THEME_STORAGE_KEY, THEMES, NSFW_STORAGE_KEY, R18G_STORAGE_KEY } from './state.js?v=20260627-cache2';
+import { normalizeDensity, densityConfig } from './state.js?v=20260627-cache2';
+import { $, updateSearchClear, updateScrollProgress, prefersReducedMotion } from './utils.js?v=20260627-cache2';
+import { toast } from './feedback.js?v=20260627-cache2';
+import { firstUnlockedCodex, isNsfwCodex, isNsfwPathSegment, isR18gName } from './access.js?v=20260627-cache2';
+import { closeBannerAbout, renderCodexArchive, renderTree, renderCodexHeader, randomExplore, updateCodexPickerState } from './codex-ui.js?v=20260627-cache2';
+import { syncUrlState } from './router.js?v=20260627-cache2';
+import { renderHistoryPanel, resumeLastBrowse, openRecentEntry, saveRecentEntries, scheduleBrowseStateSave } from './history.js?v=20260627-cache2';
+import { captureMasonryAnchor, restoreMasonryAnchor, relayoutVisible, updateVirtualCards, scheduleVirtualUpdate, scheduleRelayout } from './masonry.js?v=20260627-cache2';
+import { bindLightboxControls } from './lightbox.js?v=20260627-cache2';
+import { openMask, closeMask, trapFocus } from './modal.js?v=20260627-cache2';
+import { setupAnnouncements } from './announcements.js?v=20260627-cache2';
+import { setupReport, openReportDialog } from './report.js?v=20260627-cache2';
+import { setupOnboarding } from './onboarding.js?v=20260627-cache2';
 
 const THEME_ICONS = {
   moon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.5 6.5 0 0 0 9.8 9.8Z"/></svg>',
@@ -247,11 +247,16 @@ export function bindUI() {
     localStorage.setItem(NSFW_STORAGE_KEY, state.allowNsfw ? '1' : '0');
     if (nsfwToggle) nsfwToggle.checked = state.allowNsfw;
     if (!state.allowNsfw) setR18gAccess(false);  // R18G 依赖 NSFW，关掉 NSFW 一并强制关闭 R18G
+    if (!state.allowNsfw && (state.activePath || []).some(isNsfwPathSegment)) state.activePath = [];
     updateR18gToggleState();
     updateCodexPickerState();
     if (!state.allowNsfw && isNsfwCodex(state.codex)) {
       const fallback = firstUnlockedCodex();
       if (fallback) uiActions.loadCodex(fallback.id, { replaceUrl: true });
+    } else if (state.codex) {
+      renderTree();
+      renderCodexHeader();
+      uiActions.applyFilter({ resetScroll: true });
     }
     if (announce) toast(state.allowNsfw ? 'NSFW 法典已解锁' : 'NSFW 法典已锁定');
   };
@@ -319,7 +324,7 @@ export function bindUI() {
     document.body.classList.toggle('r18g-unlocked', state.allowR18g);
     localStorage.setItem(R18G_STORAGE_KEY, state.allowR18g ? '1' : '0');
     if (r18gToggle) r18gToggle.checked = state.allowR18g;
-    if (!state.allowR18g && isR18gName(state.activePath[0] || '')) state.activePath = [];  // 关闭时若停在 r18g 分类则退回全部
+    if (!state.allowR18g && (state.activePath || []).some(isR18gName)) state.activePath = [];  // 关闭时若停在 r18g 分类则退回全部
     if (state.codex) {
       renderTree();
       renderCodexHeader();

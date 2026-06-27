@@ -1,13 +1,13 @@
-import { state, VIRTUAL_BUFFER_UP, VIRTUAL_BUFFER_DOWN, IMAGE_LOAD_DELAY, RELAYOUT_INTERVAL, RELAYOUT_ANIM_MS, DEFAULT_IMAGE_RATIO } from './state.js?v=20260625-cache1';
-import { densityConfig } from './state.js?v=20260625-cache1';
-import { $, clamp, prefersReducedMotion, updateScrollProgress } from './utils.js?v=20260625-cache1';
-import { toast } from './feedback.js?v=20260625-cache1';
-import { currentHighlightTerms, renderHighlightedText } from './search.js?v=20260625-cache1';
-import { hasEntryImage, entryImages, thumbUrl, localAssetUrl, cacheBustUrl } from './media.js?v=20260625-cache1';
-import { copyText, combinedPrompt } from './copy.js?v=20260625-cache1';
-import { isFav } from './favorites.js?v=20260625-cache1';
-import { needsR18gReveal, revealR18gEntry } from './access.js?v=20260625-cache1';
-import { updateResultBar, updateEmptyState } from './codex-ui.js?v=20260625-cache1';
+import { state, VIRTUAL_BUFFER_UP, VIRTUAL_BUFFER_DOWN, IMAGE_LOAD_DELAY, RELAYOUT_INTERVAL, RELAYOUT_ANIM_MS, DEFAULT_IMAGE_RATIO } from './state.js?v=20260627-cache2';
+import { densityConfig } from './state.js?v=20260627-cache2';
+import { $, clamp, prefersReducedMotion, updateScrollProgress } from './utils.js?v=20260627-cache2';
+import { toast } from './feedback.js?v=20260627-cache2';
+import { currentHighlightTerms, renderHighlightedText } from './search.js?v=20260627-cache2';
+import { hasEntryImage, entryImages, thumbUrl, localAssetUrl, cacheBustUrl } from './media.js?v=20260627-cache2';
+import { copyText, combinedPrompt } from './copy.js?v=20260627-cache2';
+import { isFav } from './favorites.js?v=20260627-cache2';
+import { needsR18gReveal, revealR18gEntry } from './access.js?v=20260627-cache2';
+import { updateResultBar, updateEmptyState } from './codex-ui.js?v=20260627-cache2';
 
 const masonryActions = {
   openLightbox: () => {},
@@ -385,7 +385,17 @@ export function makeCard(placement) {
 
   applyR18gCensor(node, e, hasImage);
 
-  node.onclick = () => masonryActions.copyEntry(e, node);
+  const packMode = state.codex?.type === 'pack';
+  const copyHint = node.querySelector('.copy-hint');
+  if (copyHint && packMode) copyHint.textContent = hasImage ? '🔍 点击查看' : '暂无图片';
+  node.onclick = () => {
+    if (packMode && hasImage) {
+      const img = node.querySelector('.card-img');
+      masonryActions.openLightbox(e, 0, img || null);
+      return;
+    }
+    masonryActions.copyEntry(e, node);
+  };
   maybeAnimateCardEntry(node, placement);
   return node;
 }
