@@ -68,12 +68,13 @@ async function init(){
     loadMedia()
   ]);
   state.media={...state.media,...media};
-  $('#codex').innerHTML=cx.map(c=>`<option value="${c.id}">${c.title}</option>`).join('');
+  const writable=cx.filter(c=>!c.dataUrl);
+  $('#codex').innerHTML=writable.map(c=>`<option value="${c.id}">${c.title}</option>`).join('');
   $('#codex').onchange=()=>load($('#codex').value);
   $('#q').oninput=debounce(filter,180);
   $('#onlyTodo').onchange=filter;
   new IntersectionObserver(e=>{if(e[0].isIntersecting)more();},{rootMargin:'500px'}).observe($('#sentinel'));
-  if(cx.length) await load(cx[0].id);
+  if(writable.length) await load(writable[0].id);
 }
 async function loadMedia(){
   try{
@@ -97,7 +98,7 @@ function filter(){
   const q=$('#q').value.trim().toLowerCase();
   let l=state.codex.entries;
   if($('#onlyTodo').checked) l=l.filter(e=>!e.image);
-  if(q) l=l.filter(e=>e.title.toLowerCase().includes(q)||e.tags.toLowerCase().includes(q));
+  if(q) l=l.filter(e=>String(e.title||'').toLowerCase().includes(q)||String(e.tags||'').toLowerCase().includes(q));
   state.list=l; state.rendered=0; $('#list').innerHTML='';
   $('#empty').hidden=l.length>0;
   more();
@@ -125,7 +126,7 @@ function makeRow(e){
   zone.appendChild(input);
   const meta=document.createElement('div'); meta.className='meta';
   meta.innerHTML=`<h3>${esc(e.title)}<span class="eid">${e.id}</span></h3>`+
-    `<div class="tags">${esc(e.tags)}</div><div class="path">${esc(e.path.join(' › '))}</div>`;
+    `<div class="tags">${esc(e.tags||'')}</div><div class="path">${esc((e.path||[]).join(' › '))}</div>`;
   row.append(zone,meta);
   return row;
 }
@@ -137,7 +138,8 @@ function upload(e,row,zone,file){
       const r=await fetch('/__upload__',{method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({codexId:state.cid,entryId:e.id,dataURL:fr.result})}).then(r=>r.json());
       if(!r.ok) throw new Error(r.error||'失败');
-      e.image=r.image; e.original=r.original; e.assetRev=r.assetRev; row.classList.add('done');
+      e.image=r.image; e.imageWidth=r.imageWidth; e.imageHeight=r.imageHeight;
+      e.original=r.original; e.assetRev=r.assetRev; delete e.assetCodexId; row.classList.add('done');
       zone.innerHTML=`<img src="${thumbUrl(e)}"><span class="badge">✓</span>`;
       updateProgress();
       if($('#onlyTodo').checked){ row.style.transition='.4s';row.style.opacity='.0';setTimeout(()=>row.remove(),400); }
@@ -152,7 +154,8 @@ function mediaPath(kind,e){
   const file=kind==='original'?e.original:e.image;
   if(!file) return '';
   const prefix=kind==='original'?state.media.originalPrefix:state.media.imagePrefix;
-  return [prefix||(kind==='original'?'originals':'images'),state.cid,file]
+  const cid=e.assetCodexId||state.cid;
+  return [prefix||(kind==='original'?'originals':'images'),cid,file]
     .map(part=>encodeURIComponent(part).replace(/%2F/g,'/')).join('/');
 }
 function withRev(url,e){

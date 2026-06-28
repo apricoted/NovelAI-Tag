@@ -9,7 +9,7 @@
                        · 更新 site/data/<codexId>.json 的 entry.image / original / assetRev
 用法：python tools/imgserver.py  （或双击 配图工具.bat）
 """
-import http.server, socketserver, json, base64, io, os, threading, hashlib, mimetypes, urllib.parse
+import http.server, socketserver, json, base64, io, os, threading, hashlib, mimetypes, urllib.parse, re
 from PIL import Image
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -48,37 +48,85 @@ def _ext_from_dataurl(durl):
     return {"jpeg": "jpg", "svg+xml": "svg"}.get(ext, ext) or "png"
 
 
+def _write_json_like(path, data):
+    try:
+        with open(path, encoding="utf-8") as f:
+            before = f.read(256)
+    except Exception:
+        before = ""
+    kwargs = {"ensure_ascii": False}
+    if before.startswith('{"id":"') or before.startswith("[{"):
+        kwargs["separators"] = (",", ":")
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(data, f, **kwargs)
+
+
+def _update_index_counts(cid, entry_count, imaged_count):
+    ip = os.path.join(DATA, "codexes.json")
+    if not os.path.exists(ip):
+        return
+    with open(ip, encoding="utf-8") as f:
+        text = f.read()
+
+    id_pos = text.find(f'"id": "{cid}"')
+    if id_pos == -1:
+        with open(ip, encoding="utf-8") as f:
+            index = json.load(f)
+        for item in index:
+            if item.get("id") == cid:
+                item["imagedCount"] = imaged_count
+                item["entryCount"] = entry_count
+                break
+        with open(ip, "w", encoding="utf-8") as f:
+            json.dump(index, f, ensure_ascii=False, indent=2)
+        return
+
+    start = text.rfind("  {", 0, id_pos)
+    end = text.find("\n  }", id_pos)
+    if start == -1 or end == -1:
+        raise ValueError(f"Could not locate codexes.json block for {cid}")
+    end += len("\n  }")
+    block = text[start:end]
+    block = re.sub(r'("entryCount":\s*)\d+', lambda m: m.group(1) + str(entry_count), block, count=1)
+    block = re.sub(r'("imagedCount":\s*)\d+', lambda m: m.group(1) + str(imaged_count), block, count=1)
+    with open(ip, "w", encoding="utf-8") as f:
+        f.write(text[:start] + block + text[end:])
+
+
 def save_image(cid, eid, durl):
     """存原图(原样) + 缩略图, 并更新法典 JSON。返回结果 dict。"""
     raw = base64.b64decode(durl.split(",", 1)[1])
-
-    # 1) 原图：原始字节直接落盘，不经 Pillow 重编码（保留 NAI 在 PNG 里的元数据）
-    ext = _ext_from_dataurl(durl)
-    odir = os.path.join(ORIG, cid)
-    os.makedirs(odir, exist_ok=True)
-    ofn = eid + "." + ext
-    op = os.path.join(odir, ofn)
-    with open(op, "wb") as f:
-        f.write(raw)
-
-    # 2) 缩略图：压到 MAXDIM，存 JPEG（展示/部署用）
-    im = Image.open(io.BytesIO(raw))
-    if im.mode not in ("RGB", "L"):
-        im = im.convert("RGB")
-    im.thumbnail((MAXDIM, MAXDIM), Image.LANCZOS)
-    thumb_w, thumb_h = im.size
-    tdir = os.path.join(SITE, "images", cid)
-    os.makedirs(tdir, exist_ok=True)
-    tfn = eid + ".jpg"
-    tp = os.path.join(tdir, tfn)
-    im.save(tp, "JPEG", quality=86, optimize=True)
-    rev = _asset_rev(tp, op)
-
-    # 3) 更新 JSON（entry.image 指向缩略图，沿用旧字段）
     with LOCK:
         jp = os.path.join(DATA, cid + ".json")
         with open(jp, encoding="utf-8") as f:
             d = json.load(f)
+        target = next((e for e in d["entries"] if e["id"] == eid), None)
+        if target is None:
+            raise ValueError(f"Unknown entry id for {cid}: {eid}")
+
+        # 1) 原图：原始字节直接落盘，不经 Pillow 重编码（保留 NAI 在 PNG 里的元数据）
+        ext = _ext_from_dataurl(durl)
+        odir = os.path.join(ORIG, cid)
+        os.makedirs(odir, exist_ok=True)
+        ofn = eid + "." + ext
+        op = os.path.join(odir, ofn)
+        with open(op, "wb") as f:
+            f.write(raw)
+
+        # 2) 缩略图：压到 MAXDIM，存 JPEG（展示/部署用）
+        im = Image.open(io.BytesIO(raw))
+        if im.mode not in ("RGB", "L"):
+            im = im.convert("RGB")
+        im.thumbnail((MAXDIM, MAXDIM), Image.LANCZOS)
+        thumb_w, thumb_h = im.size
+        tdir = os.path.join(SITE, "images", cid)
+        os.makedirs(tdir, exist_ok=True)
+        tfn = eid + ".jpg"
+        tp = os.path.join(tdir, tfn)
+        im.save(tp, "JPEG", quality=86, optimize=True)
+        rev = _asset_rev(tp, op)
+
+        # 3) 更新 JSON（entry.image 指向缩略图，沿用旧字段）
         for e in d["entries"]:
             if e["id"] == eid:
                 e["image"] = tfn
@@ -89,20 +137,8 @@ def save_image(cid, eid, durl):
                 e.pop("assetCodexId", None)
                 break
         d["imagedCount"] = sum(1 for e in d["entries"] if e.get("image"))
-        with open(jp, "w", encoding="utf-8") as f:
-            json.dump(d, f, ensure_ascii=False)
-
-        ip = os.path.join(DATA, "codexes.json")
-        if os.path.exists(ip):
-            with open(ip, encoding="utf-8") as f:
-                index = json.load(f)
-            for item in index:
-                if item.get("id") == cid:
-                    item["imagedCount"] = d["imagedCount"]
-                    item["entryCount"] = d.get("entryCount", item.get("entryCount"))
-                    break
-            with open(ip, "w", encoding="utf-8") as f:
-                json.dump(index, f, ensure_ascii=False, indent=2)
+        _write_json_like(jp, d)
+        _update_index_counts(cid, d.get("entryCount", len(d["entries"])), d["imagedCount"])
 
     return {
         "ok": True,
