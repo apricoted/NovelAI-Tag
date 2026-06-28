@@ -205,7 +205,7 @@ def looks_like_tags(text):
 
 def candidate_key_for_image(img, cells):
     for row in (img.row, img.row - 1, img.row + 1):
-        for col in range(img.col - 1, max(0, img.col - 5), -1):
+        for col in range(img.col, max(0, img.col - 5), -1):
             title = cells.get((row, col), "").strip()
             tags = cells.get((row + 1, col), "").strip()
             if title and looks_like_tags(tags):
