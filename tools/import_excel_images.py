@@ -366,6 +366,7 @@ def update_codex_images(codex_id, codex, updates):
     update_map = dict(updates)
     for entry in codex["entries"]:
         if entry["id"] in update_map:
+            entry.pop("assetCodexId", None)
             entry.update(update_map[entry["id"]])
     codex["imagedCount"] = sum(1 for entry in codex["entries"] if entry.get("image"))
     with open(codex_path(codex_id), "w", encoding="utf-8") as fh:
