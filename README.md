@@ -24,11 +24,13 @@
 ## 🚀 本地使用（Windows 双击即用）
 > 前置：本机装好 Python 3，并 `pip install -r requirements.txt`
 
-1. **加法典**：把法典 `.docx` 放进 `法典源/` → 双击 `转换法典.bat`
-2. **配图**：双击 `配图工具.bat` → 把图拖到对应词条上（自动压缩、命名、写入本地缓存）
-3. **预览**：双击 `启动预览.bat` → 打开 http://localhost:8766
-4. **同步图片**：复制 `r2_config.example.json` 为 `r2_config.json`，填入 Cloudflare R2 信息 → 双击 `同步R2.bat`
-5. **发布**：双击 `发布.bat`（先同步 R2，再 git push → Cloudflare 自动部署）
+**最省事：双击 `法典图鉴.bat`，一个菜单里选下面所有操作（个别脚本收在 `单项工具\` 里，平时用菜单即可）。**
+
+1. **加法典**：把法典 `.docx` 放进 `法典源/` → 总控台选 `5`（转换法典）
+2. **配图**：总控台选 `2`（配图工具）→ 把图拖到对应词条上（自动压缩、命名、写入本地缓存）
+3. **预览**：总控台选 `1`（启动预览）→ 打开 http://localhost:8766
+4. **同步图片**：复制 `r2_config.example.json` 为 `r2_config.json`，填入 Cloudflare R2 信息 → 总控台选 `3`（同步 R2）
+5. **发布**：总控台选 `4`（发布）（先同步 R2，再 git push → Cloudflare 自动部署）
 
 转换器还会生成 `site/data/待复核_*.txt`，列出极少数可能解析有误的词条，供人工复核。
 
@@ -54,7 +56,8 @@ site/              ← 部署的网站本体（无需构建）
   assets/          样式与脚本（app.js + ES Modules）
   data/            各法典 JSON + 法典索引
 functions/         Cloudflare Pages Functions（画风串投稿后端）
-转换法典.bat / 配图工具.bat / 启动预览.bat / 同步R2.bat / 发布.bat
+法典图鉴.bat       ← 总控台（一个菜单整合全部维护脚本，平时双击它即可）
+单项工具/          转换法典 / 配图工具 / 启动预览 / 同步R2 / 发布 / 投稿本地测试 / 画师串编辑 / 回归验证（拆分脚本，备用）
 originals/ 与 site/images/ 是本地图片缓存，会同步到 R2，但不会进入 Git。
 ```
 

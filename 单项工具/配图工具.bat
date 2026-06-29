@@ -1,7 +1,7 @@
 @echo off
 setlocal
 chcp 65001 >nul
-cd /d "%~dp0"
+cd /d "%~dp0.."
 
 REM --- find Python: prefer the 'py' launcher, then 'python' ---
 set "PY="

@@ -1,7 +1,7 @@
 @echo off
 setlocal
 chcp 65001 >nul
-cd /d "%~dp0"
+cd /d "%~dp0.."
 
 REM --- need Node.js for wrangler (Cloudflare Pages local dev) ---
 where node >nul 2>nul
