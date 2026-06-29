@@ -122,6 +122,12 @@ def nai_v4_caption_text(data: dict[str, Any], key: str) -> str:
     return "\n".join(parts).strip()
 
 
+def _json_text(value: Any) -> str:
+    if isinstance(value, str):
+        return value
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+
+
 def metadata_from_png_chunks(path: Path, chunks: list[dict[str, str]]) -> Metadata:
     fields = {c["keyword"]: c["text"] for c in chunks}
     prompt = ""
@@ -150,6 +156,67 @@ def metadata_from_png_chunks(path: Path, chunks: list[dict[str, str]]) -> Metada
     return Metadata(path=path, source_type=source_type, prompt=prompt, negative=negative, fields=fields, chunks=chunks)
 
 
+def _read_lsb_byte(bit_iter) -> int:
+    value = 0
+    for i in range(8):
+        value |= next(bit_iter) << (7 - i)
+    return value
+
+
+def _alpha_lsb_bits(path: Path):
+    from PIL import Image
+
+    with Image.open(path) as im:
+        alpha = im.convert("RGBA").getchannel("A")
+        pixels = alpha.load()
+        width, height = alpha.size
+        for x in range(width):
+            for y in range(height):
+                yield pixels[x, y] & 1
+
+
+def read_stealth_pngcomp(path: Path) -> dict[str, Any] | None:
+    """Read Akegarasu / NovelAI stealth_pngcomp metadata from alpha-channel LSBs."""
+    magic = b"stealth_pngcomp"
+    try:
+        bits = _alpha_lsb_bits(path)
+        found_magic = bytes(_read_lsb_byte(bits) for _ in range(len(magic)))
+        if found_magic != magic:
+            return None
+        bit_length = int.from_bytes(bytes(_read_lsb_byte(bits) for _ in range(4)), "big", signed=True)
+        if bit_length <= 0:
+            return None
+        byte_length = (bit_length + 7) // 8
+        compressed = bytes(_read_lsb_byte(bits) for _ in range(byte_length))
+        raw = zlib.decompress(compressed, 16 + zlib.MAX_WBITS)
+        decoded = json.loads(raw.decode("utf-8"))
+        return decoded if isinstance(decoded, dict) else None
+    except (EOFError, StopIteration, OSError, ValueError, json.JSONDecodeError, zlib.error):
+        return None
+
+
+def metadata_from_stealth_pngcomp(path: Path, payload: dict[str, Any]) -> Metadata:
+    chunks = [
+        {"type": "stealth_pngcomp", "keyword": str(key), "text": _json_text(value)}
+        for key, value in payload.items()
+    ]
+    meta = metadata_from_png_chunks(path, chunks)
+    meta.source_type = "NovelAI-Stealth"
+    meta.fields["StealthMagic"] = "stealth_pngcomp"
+    meta.fields["StealthJson"] = payload
+    if not meta.prompt:
+        meta.prompt = (
+            nai_v4_caption_text(payload, "v4_prompt")
+            or str(payload.get("prompt") or payload.get("positive_prompt") or payload.get("Description") or "")
+        ).strip()
+    if not meta.negative:
+        meta.negative = (
+            nai_v4_caption_text(payload, "v4_negative_prompt")
+            or str(payload.get("uc") or payload.get("negative_prompt") or payload.get("negative") or "")
+        ).strip()
+    return meta
+
+
 def extract_png_metadata_from_bytes(raw: bytes, name: str = "<bytes>") -> Metadata:
     return metadata_from_png_chunks(Path(name), read_png_text_chunks_from_bytes(raw))
 
@@ -163,7 +230,13 @@ def extract_image_metadata(path: Path) -> Metadata:
     source_type = "unknown"
 
     if path.suffix.lower() == ".png":
-        return metadata_from_png_chunks(path, read_png_text_chunks(path))
+        meta = metadata_from_png_chunks(path, read_png_text_chunks(path))
+        if meta.prompt:
+            return meta
+        stealth = read_stealth_pngcomp(path)
+        if stealth:
+            return metadata_from_stealth_pngcomp(path, stealth)
+        return meta
     else:
         # Pillow is optional for this project path; PNG originals do not need it.
         try:
@@ -183,6 +256,10 @@ def extract_image_metadata(path: Path) -> Metadata:
                     source_type = "SD-WEBUI"
         except Exception:
             pass
+        if not prompt:
+            stealth = read_stealth_pngcomp(path)
+            if stealth:
+                return metadata_from_stealth_pngcomp(path, stealth)
 
     return Metadata(path=path, source_type=source_type, prompt=prompt, negative=negative, fields=fields, chunks=chunks)
 
