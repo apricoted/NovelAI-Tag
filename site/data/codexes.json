@@ -30,6 +30,20 @@
     ]
   },
   {
+    "id": "artist_300",
+    "type": "string",
+    "title": "300画师串",
+    "version": "2025.6.9",
+    "author": "未署名",
+    "entryCount": 301,
+    "imagedCount": 300,
+    "hasOriginal": true,
+    "source": "未署名来源 · 300画师",
+    "contributors": [
+      { "name": "未署名", "role": "素材来源" }
+    ]
+  },
+  {
     "id": "jiegou_yuandian",
     "type": "codex",
     "title": "解构原典",

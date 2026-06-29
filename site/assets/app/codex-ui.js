@@ -13,15 +13,12 @@ const TYPE_ICONS = {
   clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v5l3 2"/></svg>',
 };
 
-/* 选择器类型分类法。法典=真实可加载；画风串 / 精选图包暂为占位：
+/* 选择器类型分类法。法典 / 画风串 / 精选图包均可由 codexes.json 按 type 接入。
    某类型在 codexes.json 里没有对应 type 的真法典时，显示其 placeholders（点击只提示「即将上线」，进不去）。
    将来给某本加 type:"string"/"pack" 即自动变为可加载、该类占位被忽略。 */
 const CODEX_TYPES = [
   { id: 'codex', name: '法典', sub: '按分类查词条', icon: 'book' },
-  { id: 'string', name: '画风串', sub: '复制整串画风', icon: 'palette', placeholders: [
-    { title: '社区画风串合集', meta: '看图复制整串画风' },
-    { title: '人气画风精选', meta: '编辑精选画风串' },
-  ] },
+  { id: 'string', name: '画风串', sub: '复制整串画风', icon: 'palette' },
   { id: 'pack', name: '精选图包', sub: '社区收集原图包', icon: 'image', placeholders: [
     { title: '精选构图图包', meta: '原图直出 · 含 NAI 生成参数' },
   ] },
@@ -43,7 +40,7 @@ export function setCodexUiActions(actions = {}) {
 }
 
 /* 自绘法典选择器：PC = 类型级联双栏（左类型轨 + 右列表）；移动端 = 分组下拉（各类型小标题 + 条目堆叠）。
-   原生 #codexSelect 仅做值同步。画风串 / 精选图包暂为占位类型，点击只提示「即将上线」。 */
+   原生 #codexSelect 仅做值同步。 */
 export function setupCodexPicker() {
   const sel = $('#codexSelect');
   const btn = $('#codexBtn');
