@@ -45,7 +45,11 @@ ORIGINAL_PRIORITY = {"png": 0, "jpg": 1, "jpeg": 2, "webp": 3, "gif": 4, "avif":
 DEFAULT_UPLOAD_WORKERS = 16
 DEFAULT_UPLOAD_RETRIES = 3
 DEFAULT_RETRY_BASE_DELAY = 1.0
+DEFAULT_REQUEST_TIMEOUT = 180.0
+DEFAULT_REQUEST_RETRIES = 4
 RETRYABLE_UPLOAD_STATUSES = {408, 409, 425, 429, 500, 502, 503, 504}
+RETRYABLE_REQUEST_STATUSES = RETRYABLE_UPLOAD_STATUSES
+RETRYABLE_REQUEST_EXCEPTIONS = (TimeoutError, urllib.error.URLError, ConnectionError, OSError)
 
 
 def load_json(path, default=None):
@@ -160,6 +164,17 @@ def load_config(required=False):
             + "\nCopy r2_config.example.json to r2_config.json and fill it in."
         )
     return cfg
+
+
+def request_config(cfg, args):
+    out = dict(cfg)
+    if getattr(args, "request_timeout", None) is not None:
+        out["request_timeout"] = args.request_timeout
+    if getattr(args, "request_retries", None) is not None:
+        out["request_retries"] = args.request_retries
+    if getattr(args, "retry_base_delay", None) is not None:
+        out["retry_base_delay"] = args.retry_base_delay
+    return out
 
 
 def media_from_config(cfg):
@@ -349,6 +364,9 @@ class R2Client:
         self.region = cfg.get("region") or "auto"
         self.endpoint = f"https://{self.account_id}.r2.cloudflarestorage.com"
         self.host = f"{self.account_id}.r2.cloudflarestorage.com"
+        self.request_timeout = float(cfg.get("request_timeout", DEFAULT_REQUEST_TIMEOUT))
+        self.request_retries = max(0, int(cfg.get("request_retries", DEFAULT_REQUEST_RETRIES)))
+        self.retry_base_delay = float(cfg.get("retry_base_delay", DEFAULT_RETRY_BASE_DELAY))
 
     def _signing_key(self, datestamp):
         def sign(key, msg):
@@ -377,7 +395,16 @@ class R2Client:
         pairs.sort()
         return "&".join(f"{name}={value}" for name, value in pairs)
 
-    def _request(self, method, key, body=b"", headers=None, query=None):
+    def _retry_wait(self, attempt):
+        return max(0.0, self.retry_base_delay) * (2 ** (attempt - 1))
+
+    def _request_label(self, method, key, query):
+        label = f"{method} {key or '<bucket>'}"
+        if query and query.get("prefix"):
+            label += f" prefix={query.get('prefix')}"
+        return label
+
+    def _request_once(self, method, key, body=b"", headers=None, query=None, timeout=None):
         headers = dict(headers or {})
         now = dt.datetime.now(dt.timezone.utc)
         amz_date = now.strftime("%Y%m%dT%H%M%SZ")
@@ -422,10 +449,43 @@ class R2Client:
             url += "?" + canonical_query
         req = urllib.request.Request(url, data=body if method != "HEAD" else None, headers=headers, method=method)
         try:
-            with urllib.request.urlopen(req, timeout=60) as res:
+            with urllib.request.urlopen(req, timeout=timeout or self.request_timeout) as res:
                 return res.status, {k.lower(): v for k, v in res.headers.items()}, res.read()
         except urllib.error.HTTPError as ex:
             return ex.code, {k.lower(): v for k, v in ex.headers.items()}, ex.read()
+
+    def _request(self, method, key, body=b"", headers=None, query=None, retries=None, timeout=None, retry_statuses=None):
+        attempts = max(1, int(self.request_retries if retries is None else retries) + 1)
+        retry_statuses = set(retry_statuses or ())
+        label = self._request_label(method, key, query)
+        for attempt in range(1, attempts + 1):
+            try:
+                status, response_headers, response_body = self._request_once(
+                    method,
+                    key,
+                    body=body,
+                    headers=headers,
+                    query=query,
+                    timeout=timeout,
+                )
+            except RETRYABLE_REQUEST_EXCEPTIONS as ex:
+                if attempt >= attempts:
+                    raise
+                wait = self._retry_wait(attempt)
+                print(f"request retry {attempt}/{attempts - 1} {label}: {ex}; wait {wait:.1f}s", flush=True)
+                if wait:
+                    time.sleep(wait)
+                continue
+
+            if status in retry_statuses and attempt < attempts:
+                wait = self._retry_wait(attempt)
+                print(f"request retry {attempt}/{attempts - 1} {label}: status {status}; wait {wait:.1f}s", flush=True)
+                if wait:
+                    time.sleep(wait)
+                continue
+            return status, response_headers, response_body
+
+        raise RuntimeError(f"request failed after {attempts} attempt(s): {label}")
 
     def head(self, key):
         return self._request("HEAD", key)
@@ -439,7 +499,7 @@ class R2Client:
             "Cache-Control": cache_control,
             "x-amz-meta-sha256": sha,
         }
-        return self._request("PUT", key, body=body, headers=headers)
+        return self._request("PUT", key, body=body, headers=headers, retries=0)
 
     def list_objects_v2(self, prefix):
         objects = {}
@@ -456,7 +516,7 @@ class R2Client:
             }
             if token:
                 query["continuation-token"] = token
-            status, _headers, body = self._request("GET", "", query=query)
+            status, _headers, body = self._request("GET", "", query=query, retry_statuses=RETRYABLE_REQUEST_STATUSES)
             if status >= 400:
                 raise RuntimeError(f"list failed for {prefix or '<bucket>'}: {status} {body[:200]!r}")
             pages += 1
@@ -562,7 +622,7 @@ def sync_strings_assets(args, cfg, assets):
     if not assets:
         return {"checked": 0, "upload": 0, "skip": 0, "fail": 0}, []
 
-    client = R2Client(cfg)
+    client = R2Client(request_config(cfg, args))
     cache_control = cfg.get("cache_control") or "public, max-age=31536000, immutable"
     workers = max(1, int(getattr(args, "workers", None) or cfg.get("upload_workers") or DEFAULT_UPLOAD_WORKERS))
     retries = max(0, int(getattr(args, "retries", None) if getattr(args, "retries", None) is not None else cfg.get("upload_retries", DEFAULT_UPLOAD_RETRIES)))
@@ -644,7 +704,7 @@ def sync_strings_assets(args, cfg, assets):
 
 
 def sync_assets(args, cfg, assets, manifest_objects=None):
-    client = R2Client(cfg)
+    client = R2Client(request_config(cfg, args))
     image_prefix = cfg["image_prefix"]
     original_prefix = cfg["original_prefix"]
     cache_control = cfg.get("cache_control") or "public, max-age=31536000, immutable"
@@ -771,6 +831,10 @@ def main():
                         help="Retry failed uploads this many times (default %d)." % DEFAULT_UPLOAD_RETRIES)
     parser.add_argument("--retry-base-delay", type=float, default=None,
                         help="Initial retry backoff in seconds (default %.1f)." % DEFAULT_RETRY_BASE_DELAY)
+    parser.add_argument("--request-timeout", type=float, default=None,
+                        help="Per R2 HTTP request timeout in seconds (default %.0f)." % DEFAULT_REQUEST_TIMEOUT)
+    parser.add_argument("--request-retries", type=int, default=None,
+                        help="Retry transient R2 request failures this many times (default %d)." % DEFAULT_REQUEST_RETRIES)
     args = parser.parse_args()
 
     need_cfg = not args.metadata_only and not args.dry_run
