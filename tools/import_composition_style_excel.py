@@ -321,7 +321,7 @@ def main() -> int:
     ap.add_argument("--codex-id", default="composition_style")
     ap.add_argument("--title", default="构图风格")
     ap.add_argument("--version", default="2025.10.19")
-    ap.add_argument("--author", default="未署名")
+    ap.add_argument("--author", default="凉夏之夜")
     ap.add_argument("--selector-title", default="构图风格(场景串)")
     ap.add_argument("--source-label", default="构图风格.xlsx")
     ap.add_argument("--category", default="构图风格")
