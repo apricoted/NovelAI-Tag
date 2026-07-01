@@ -1,22 +1,23 @@
-import { state, RECENT_STORAGE_KEY, LAST_BROWSE_STORAGE_KEY, NSFW_STORAGE_KEY, R18G_STORAGE_KEY, DENSITY_STORAGE_KEY } from './app/state.js?v=20260701-cache4';
-import { $, esc, safeJsonParse, updateSearchClear } from './app/utils.js?v=20260701-cache4';
-import { setLoading, showSkeleton, hideSkeleton } from './app/feedback.js?v=20260701-cache4';
-import { isCodexLocked, firstUnlockedCodex, showNsfwLockedHint, isEntryAccessBlocked, isR18gPath } from './app/access.js?v=20260701-cache4';
-import { loadMedia, loadAbout, fetchCodex, findCodexMeta, notifyCodexDataStatus } from './app/data.js?v=20260701-cache4';
-import { parseSearchQuery, matchSearchPlan } from './app/search.js?v=20260701-cache4';
-import { hasEntryImage, primeResourceHints } from './app/media.js?v=20260701-cache4';
-import { isFav, setFavoritesActions, toggleFav } from './app/favorites.js?v=20260701-cache4';
-import { renderList, clearMasonry, updateVirtualCards, setMasonryActions } from './app/masonry.js?v=20260701-cache4';
-import { openLightbox } from './app/lightbox.js?v=20260701-cache4';
-import { copyEntry } from './app/copy.js?v=20260701-cache4';
-import { openReportDialog } from './app/report.js?v=20260701-cache4';
-import { readUrlState, syncUrlState, openEntryDeepLink, setRouterActions } from './app/router.js?v=20260701-cache4';
-import { setupCodexPicker, setupAbout, updateCodexPickerState, renderTree, renderCodexHeader, updateRailActive, updateResultBar, updateEmptyState, setCodexUiActions } from './app/codex-ui.js?v=20260701-cache4';
-import { normalizeRecentEntries, normalizeLastBrowse, scheduleBrowseStateSave, suppressBrowseStateSave, setHistoryActions } from './app/history.js?v=20260701-cache4';
-import { bindUI, applyDensity, setUiActions } from './app/ui.js?v=20260701-cache4';
-import { maybeShowOnboarding } from './app/onboarding.js?v=20260701-cache4';
+import { state, RECENT_STORAGE_KEY, LAST_BROWSE_STORAGE_KEY, NSFW_STORAGE_KEY, R18G_STORAGE_KEY, DENSITY_STORAGE_KEY } from './app/state.js?v=20260701-cache5';
+import { $, esc, safeJsonParse, updateSearchClear } from './app/utils.js?v=20260701-cache5';
+import { setLoading, showSkeleton, hideSkeleton } from './app/feedback.js?v=20260701-cache5';
+import { isCodexLocked, firstUnlockedCodex, showNsfwLockedHint, isEntryAccessBlocked, isR18gPath } from './app/access.js?v=20260701-cache5';
+import { loadMedia, loadAbout, fetchCodex, findCodexMeta, notifyCodexDataStatus } from './app/data.js?v=20260701-cache5';
+import { parseSearchQuery, matchSearchPlan } from './app/search.js?v=20260701-cache5';
+import { hasEntryImage, primeResourceHints } from './app/media.js?v=20260701-cache5';
+import { isFav, setFavoritesActions, toggleFav } from './app/favorites.js?v=20260701-cache5';
+import { renderList, clearMasonry, updateVirtualCards, setMasonryActions } from './app/masonry.js?v=20260701-cache5';
+import { openLightbox } from './app/lightbox.js?v=20260701-cache5';
+import { copyEntry } from './app/copy.js?v=20260701-cache5';
+import { openReportDialog } from './app/report.js?v=20260701-cache5';
+import { readUrlState, syncUrlState, openEntryDeepLink, setRouterActions } from './app/router.js?v=20260701-cache5';
+import { setupCodexPicker, setupAbout, updateCodexPickerState, renderTree, renderCodexHeader, updateRailActive, updateResultBar, updateEmptyState, setCodexUiActions } from './app/codex-ui.js?v=20260701-cache5';
+import { normalizeRecentEntries, normalizeLastBrowse, scheduleBrowseStateSave, suppressBrowseStateSave, setHistoryActions } from './app/history.js?v=20260701-cache5';
+import { bindUI, applyDensity, setUiActions } from './app/ui.js?v=20260701-cache5';
+import { maybeShowOnboarding } from './app/onboarding.js?v=20260701-cache5';
 
 let codexLoadSeq = 0;
+const codexPickerTitle = c => c?.selectorTitle || c?.title || '';
 
 export async function init() {
   const initSkeletonToken = 'init';
@@ -42,7 +43,7 @@ export async function init() {
     state.about = about;
     primeResourceHints({ media: state.media, codexes: state.codexes });
     const sel = $('#codexSelect');
-    sel.innerHTML = codexes.map(c => `<option value="${c.id}">${esc(c.title)}</option>`).join('');
+    sel.innerHTML = codexes.map(c => `<option value="${c.id}">${esc(codexPickerTitle(c))}</option>`).join('');
     sel.onchange = () => loadCodex(sel.value);
     setupCodexPicker();
     setupAbout();
@@ -94,7 +95,7 @@ export async function loadCodex(id, options = {}) {
     $('#codexTitle').textContent = c.title;
     $('#codexMeta').textContent = `${c.author ? c.author + ' · ' : ''}${c.version} · ${c.entryCount} 条`;
     const codexBtnText = $('#codexBtnText');
-    if (codexBtnText) codexBtnText.textContent = c.title;
+    if (codexBtnText) codexBtnText.textContent = codexPickerTitle(findCodexMeta(c.id)) || c.title;
     updateCodexPickerState();
     const urlState = options.urlState && (!options.urlState.codex || options.urlState.codex === c.id || (c.aliases || []).includes(options.urlState.codex))
       ? options.urlState

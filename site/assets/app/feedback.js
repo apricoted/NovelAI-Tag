@@ -1,4 +1,4 @@
-import { $ } from './utils.js?v=20260701-cache4';
+import { $ } from './utils.js?v=20260701-cache5';
 
 export function setLoading(text) {
   const el = $('#loading');

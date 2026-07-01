@@ -92,6 +92,24 @@
     ]
   },
   {
+    "id": "composition_style",
+    "type": "string",
+    "title": "构图风格",
+    "version": "2025.10.19",
+    "author": "未署名",
+    "entryCount": 64,
+    "imagedCount": 64,
+    "hasOriginal": false,
+    "source": "构图风格.xlsx",
+    "contributors": [
+      {
+        "name": "未署名",
+        "role": "词条整理 / 配图数据提供"
+      }
+    ],
+    "selectorTitle": "构图风格(场景串)"
+  },
+  {
     "id": "jiegou_yuandian",
     "type": "codex",
     "title": "解构原典",

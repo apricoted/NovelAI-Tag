@@ -1,6 +1,6 @@
-import { state } from './state.js?v=20260701-cache4';
-import { toast } from './feedback.js?v=20260701-cache4';
-import { recordRecentEntry, saveBrowseStateNow } from './history.js?v=20260701-cache4';
+import { state } from './state.js?v=20260701-cache5';
+import { toast } from './feedback.js?v=20260701-cache5';
+import { recordRecentEntry, saveBrowseStateNow } from './history.js?v=20260701-cache5';
 
 export async function copyEntry(e, node) {
   recordRecentEntry(e);
@@ -122,4 +122,3 @@ export async function copyText(text, message, node) {
 export function combinedPrompt(e) {
   return e.negative ? `${e.tags}\n\nNegative:\n${e.negative}` : e.tags;
 }
-

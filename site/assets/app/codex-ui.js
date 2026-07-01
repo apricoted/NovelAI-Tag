@@ -1,9 +1,9 @@
-import { state, RANDOM_RECENT_LIMIT, NSFW_LOCKED_MESSAGE } from './state.js?v=20260701-cache4';
-import { $, esc, samePath, pathStartsWith, updateSearchClear } from './utils.js?v=20260701-cache4';
-import { isCodexLocked, showNsfwLockedHint, isEntryAccessBlocked, isEntryNsfw, isNsfwPathSegment, isR18gEntry, isR18gName } from './access.js?v=20260701-cache4';
-import { codexStatusLabel, codexStatusClass, codexStatusTitle } from './data.js?v=20260701-cache4';
-import { hasEntryImage, thumbUrl } from './media.js?v=20260701-cache4';
-import { toast } from './feedback.js?v=20260701-cache4';
+import { state, RANDOM_RECENT_LIMIT, NSFW_LOCKED_MESSAGE } from './state.js?v=20260701-cache5';
+import { $, esc, samePath, pathStartsWith, updateSearchClear } from './utils.js?v=20260701-cache5';
+import { isCodexLocked, showNsfwLockedHint, isEntryAccessBlocked, isEntryNsfw, isNsfwPathSegment, isR18gEntry, isR18gName } from './access.js?v=20260701-cache5';
+import { codexStatusLabel, codexStatusClass, codexStatusTitle } from './data.js?v=20260701-cache5';
+import { hasEntryImage, thumbUrl } from './media.js?v=20260701-cache5';
+import { toast } from './feedback.js?v=20260701-cache5';
 
 /* 选择器类型图标（描边 SVG，跟随 currentColor） */
 const TYPE_ICONS = {
@@ -25,6 +25,7 @@ const CODEX_TYPES = [
 ];
 
 const codexType = c => (c && c.type) || 'codex';
+const codexPickerTitle = c => c?.selectorTitle || c?.title || '';
 const realCodexesOfType = typeId => state.codexes.filter(c => codexType(c) === typeId);
 
 const codexUiActions = {
@@ -104,7 +105,7 @@ export function setupCodexPicker() {
     item.innerHTML =
       `<span class="ci-mark">${String(n).padStart(2, '0')}</span>` +
       `<span class="ci-main">` +
-      `<span class="ci-name">${esc(c.title)}</span>` +
+      `<span class="ci-name">${esc(codexPickerTitle(c))}</span>` +
       `<span class="ci-meta">${esc(c.author || '未知作者')} · ${Number(c.entryCount || 0)} 条 · ${pct}% 配图</span>` +
       `<span class="ci-bar"><i style="width:${pct}%"></i></span>` +
       `<span class="ci-lock"${locked ? '' : ' hidden'}>开启设置解锁</span>` +
