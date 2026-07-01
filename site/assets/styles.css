@@ -8,7 +8,15 @@
   --popover-glass:rgba(255,255,255,.93);
   --popover-line:rgba(226,229,240,.92);
   --popover-shadow:0 18px 48px rgba(28,32,58,.16),0 4px 14px rgba(28,32,58,.08);
+  --font-ui:"Outfit","PingFang SC","Microsoft YaHei",-apple-system,"Segoe UI",Roboto,sans-serif;
+  --font-prompt:"IBM Plex Mono","PingFang SC","Microsoft YaHei",Menlo,"SFMono-Regular",Consolas,"Liberation Mono",monospace;
+  --font-display:"Outfit","Noto Serif SC","PingFang SC","Microsoft YaHei",serif;
+  --font-directory:"Outfit","Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;
 }
+/* PDF 风格展示字：品牌 / 法典标题用宋体（拉丁走 Outfit，中文 Noto Serif SC；webfont 未到时落系统，不影响正文/prompt） */
+.brand,.codex-title,.banner-title,.ci-name,.cg-name{font-family:var(--font-display)}
+/* 目录分类树改用黑体：宋体在小字号偏细，列表可读性优先（Noto Sans SC，近苹方） */
+.tw-name{font-family:var(--font-directory)}
 body.dark{
   --bg:#0b0d13; --panel:#12141d; --card:#161a26; --text:#e8eaf3; --muted:#8a91a6;
   --line:#242a3a; --accent:#8b7cf8; --accent-soft:#262050; --tagbg:#1b202e; --tagbg-hover:#222840;
@@ -37,7 +45,7 @@ body.tb-hidden{--topbar-h:12px}
 [hidden]{display:none!important}
 body{
   background:var(--bg);color:var(--text);
-  font-family:"PingFang SC","Microsoft YaHei",-apple-system,"Segoe UI",Roboto,sans-serif;
+  font-family:var(--font-ui);
   font-size:14px;line-height:1.5;
 }
 button{font-family:inherit;cursor:pointer}
@@ -617,6 +625,7 @@ body.dark .badge-neg-chip{
 .card.no-img .card-title{font-size:14.5px}
 .card-tags{
   font-size:12.5px;color:var(--muted);background:var(--tagbg);border-radius:10px;padding:9px 10px;
+  font-family:var(--font-prompt);line-height:1.58;
   white-space:pre-wrap;word-break:break-word;overflow:hidden;
   transition:background .12s;
 }
@@ -792,7 +801,7 @@ body.dark .settings-panel{border-color:rgba(255,255,255,.12)}
   background:var(--accent);border-radius:999px;padding:1px 7px;margin-left:6px;vertical-align:middle;
 }
 .set-desc code{
-  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;
+  font-family:var(--font-prompt);font-size:11px;
   background:var(--tagbg);border:1px solid var(--line);border-radius:4px;padding:0 4px;
 }
 .nsfw-panel{max-width:520px}
@@ -889,7 +898,7 @@ body.dark .nsfw-note{color:#ffb4ab;background:rgba(217,45,32,.18)}
 .feedback-context b,.feedback-fallback b{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
 .feedback-context pre{
   margin:0;max-height:72px;overflow:auto;white-space:pre-wrap;word-break:break-word;
-  color:var(--muted);font:11px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;
+  color:var(--muted);font:11px/1.55 var(--font-prompt);
 }
 .feedback-fallback{
   border:1px solid rgba(239,77,126,.24);border-radius:13px;
@@ -1021,7 +1030,7 @@ body.dark .r18g-note{color:#ffb4ab;background:rgba(217,45,32,.2)}
   min-width:30px;height:28px;display:inline-grid;place-items:center;
   padding:0 8px;border-radius:8px;border:1px solid var(--line);
   background:var(--card);box-shadow:inset 0 -1px 0 rgba(0,0,0,.08);
-  color:var(--text);font:800 12px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  color:var(--text);font:800 12px/1 var(--font-prompt);
 }
 .history-panel{max-width:520px}
 .history-resume{
@@ -1234,7 +1243,7 @@ a.lightbox-credit:hover{text-decoration:underline}
 .lightbox-section pre{
   margin:0;max-height:170px;overflow:auto;white-space:pre-wrap;word-break:break-word;
   background:var(--tagbg);border:1px solid var(--line);border-radius:10px;padding:10px;
-  color:var(--text);font:12px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;
+  color:var(--text);font:12px/1.55 var(--font-prompt);
   scrollbar-width:thin;scrollbar-color:var(--line) transparent;
 }
 .lightbox-thumbs{
