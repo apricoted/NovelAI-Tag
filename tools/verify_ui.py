@@ -551,7 +551,16 @@ def run_suite(base_url: str, out_dir: Path, cdp: CDP) -> list[dict]:
         clear_errors(cdp)
         navigate(cdp, base + "?codex=suozhang")
         wait_for(cdp, "document.querySelector('#codexBtn') && document.querySelectorAll('.card').length >= 1", "codex picker ready")
-        cdp.eval("document.querySelector('#codexBtn').click(); document.querySelector('#codexOption-1').click();")
+        cdp.eval("""
+(() => {
+  document.querySelector('#codexBtn')?.click();
+  const target = document.querySelector('#codexMenu .codex-item[data-id="qianteng"]') ||
+    [...document.querySelectorAll('#codexMenu .codex-item')].find(node => node.textContent.includes('衣柜'));
+  if (!target) throw new Error('wardrobe codex item not found');
+  target.click();
+  return true;
+})()
+""")
         wait_for(cdp, "document.querySelector('#codexBtnText')?.textContent.includes('衣柜')", "wardrobe selected", timeout=10)
         wait_for(cdp, "document.querySelectorAll('.card').length >= 1", "wardrobe cards", timeout=10)
         settle(cdp, 350)
@@ -579,6 +588,8 @@ def run_suite(base_url: str, out_dir: Path, cdp: CDP) -> list[dict]:
         wait_for(cdp, "document.body.classList.contains('nsfw-unlocked')", "nsfw unlocked")
         cdp.eval("document.querySelector('#nsfwToggle').click()")
         wait_for(cdp, "!document.body.classList.contains('nsfw-unlocked')", "nsfw locked")
+        cdp.eval("document.querySelector('#settingsClose')?.click(); document.querySelector('#codexBtn')?.click();")
+        wait_for(cdp, "document.querySelectorAll('#codexMenu .codex-item').length >= 1", "codex menu rebuilt")
         data = cdp.eval("({checked: document.querySelector('#nsfwToggle')?.checked, lockedItems: document.querySelectorAll('#codexMenu .codex-item.locked').length, toast: document.querySelector('#toast')?.textContent || ''})")
         if data["lockedItems"] < 2:
             raise CheckFailed("NSFW codex items were not locked again")
