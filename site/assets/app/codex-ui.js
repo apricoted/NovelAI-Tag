@@ -18,7 +18,7 @@ const TYPE_ICONS = {
    将来给某本加 type:"string"/"pack" 即自动变为可加载、该类占位被忽略。 */
 const CODEX_TYPES = [
   { id: 'codex', name: '法典', sub: '按分类查词条', icon: 'book' },
-  { id: 'string', name: '画风串', sub: '复制整串画风', icon: 'palette' },
+  { id: 'string', name: '画风串', sub: '画风与画师串', icon: 'palette' },
   { id: 'pack', name: '精选图包', sub: '社区收集原图包', icon: 'image', placeholders: [
     { title: '精选构图图包', meta: '原图直出 · 含 NAI 生成参数' },
   ] },
@@ -727,7 +727,7 @@ export function renderCodexArchive() {
       return name ? `<span>${esc(name)}${role ? `<small>${esc(role)}</small>` : ''}</span>` : '';
     }).join('')}</div></div>` : '') +
     (links.length ? `<div class="archive-section"><h3>相关链接</h3>${links.map(l => `<a class="archive-link" href="${esc(l.url)}" target="_blank" rel="noopener">${EXT_ICON}<span>${esc(l.label || l.url)}</span></a>`).join('')}</div>` : '') +
-    `<div class="archive-section"><h3>说明</h3><p>本站保留原法典结构，优先服务看图选词和一键复制。外部源法典会优先读取线上数据，失败时使用本地快照。</p></div>`;
+    `<div class="archive-section"><h3>说明</h3><p>例图与法典内容版权归各自作者所有，本站仅作可视化整理与索引，感谢所有法典作者的无私分享。</p></div>`;
 }
 
 /* 关于本站（设置框）+ 侧栏小贴士轮播 */
