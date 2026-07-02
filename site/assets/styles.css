@@ -80,6 +80,7 @@ body.tb-hidden .topbar{transform:translateY(-150%)}
 .nav-link:hover{background:var(--tagbg);color:var(--text)}
 .github-mark{width:20px;height:20px}
 .theme-btn svg{width:21px;height:21px;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;fill:none}
+.settings-top-btn svg{width:19px;height:19px;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;fill:none}
 .more-wrap{position:relative;flex:none}
 .more-btn svg{width:21px;height:21px;fill:currentColor}
 .more-btn.open{background:var(--accent-soft);color:var(--accent)}

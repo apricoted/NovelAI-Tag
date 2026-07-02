@@ -1,17 +1,17 @@
-import { state, DENSITY_PRESETS, DENSITY_STORAGE_KEY, THEME_STORAGE_KEY, THEMES, NSFW_STORAGE_KEY, R18G_STORAGE_KEY } from './state.js?v=20260702-cache2';
-import { normalizeDensity, densityConfig } from './state.js?v=20260702-cache2';
-import { $, updateSearchClear, updateScrollProgress, prefersReducedMotion } from './utils.js?v=20260702-cache2';
-import { toast } from './feedback.js?v=20260702-cache2';
-import { firstUnlockedCodex, isNsfwCodex, isNsfwPathSegment, isR18gName } from './access.js?v=20260702-cache2';
-import { closeBannerAbout, renderCodexArchive, renderTree, renderCodexHeader, randomExplore, updateCodexPickerState } from './codex-ui.js?v=20260702-cache2';
-import { syncUrlState } from './router.js?v=20260702-cache2';
-import { renderHistoryPanel, resumeLastBrowse, openRecentEntry, saveRecentEntries, scheduleBrowseStateSave } from './history.js?v=20260702-cache2';
-import { captureMasonryAnchor, restoreMasonryAnchor, relayoutVisible, updateVirtualCards, scheduleVirtualUpdate, scheduleRelayout } from './masonry.js?v=20260702-cache2';
-import { bindLightboxControls } from './lightbox.js?v=20260702-cache2';
-import { openMask, closeMask, trapFocus } from './modal.js?v=20260702-cache2';
-import { setupAnnouncements } from './announcements.js?v=20260702-cache2';
-import { setupReport, openReportDialog } from './report.js?v=20260702-cache2';
-import { setupOnboarding } from './onboarding.js?v=20260702-cache2';
+import { state, DENSITY_PRESETS, DENSITY_STORAGE_KEY, THEME_STORAGE_KEY, THEMES, NSFW_STORAGE_KEY, R18G_STORAGE_KEY } from './state.js?v=20260702-cache4';
+import { normalizeDensity, densityConfig } from './state.js?v=20260702-cache4';
+import { $, updateSearchClear, updateScrollProgress, prefersReducedMotion } from './utils.js?v=20260702-cache4';
+import { toast } from './feedback.js?v=20260702-cache4';
+import { firstUnlockedCodex, isNsfwCodex, isNsfwPathSegment, isR18gName } from './access.js?v=20260702-cache4';
+import { closeBannerAbout, renderCodexArchive, renderTree, renderCodexHeader, randomExplore, updateCodexPickerState } from './codex-ui.js?v=20260702-cache4';
+import { syncUrlState } from './router.js?v=20260702-cache4';
+import { renderHistoryPanel, resumeLastBrowse, openRecentEntry, saveRecentEntries, scheduleBrowseStateSave } from './history.js?v=20260702-cache4';
+import { captureMasonryAnchor, restoreMasonryAnchor, relayoutVisible, updateVirtualCards, scheduleVirtualUpdate, scheduleRelayout } from './masonry.js?v=20260702-cache4';
+import { bindLightboxControls } from './lightbox.js?v=20260702-cache4';
+import { openMask, closeMask, trapFocus } from './modal.js?v=20260702-cache4';
+import { setupAnnouncements } from './announcements.js?v=20260702-cache4';
+import { setupReport, openReportDialog } from './report.js?v=20260702-cache4';
+import { setupOnboarding } from './onboarding.js?v=20260702-cache4';
 
 const THEME_ICONS = {
   moon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.5 6.5 0 0 0 9.8 9.8Z"/></svg>',
@@ -386,7 +386,8 @@ export function bindUI() {
     closeMask(historyMask);
     await openRecentEntry(ev.detail);
   });
-  $('#settingsBtn').onclick = () => { closeMore(); openMask(settingsMask, moreBtn); };
+  const settingsBtn = $('#settingsBtn');
+  if (settingsBtn) settingsBtn.onclick = () => { closeMore(); openMask(settingsMask, settingsBtn); };
   $('#settingsClose').onclick = () => closeMask(settingsMask);
   settingsMask.onclick = ev => { if (ev.target === settingsMask) closeMask(settingsMask); };
   settingsMask.onkeydown = ev => trapFocus(ev, settingsMask);
