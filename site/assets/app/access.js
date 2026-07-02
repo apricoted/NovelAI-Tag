@@ -1,5 +1,5 @@
-import { state, NSFW_LOCKED_MESSAGE, R18G_LOCKED_MESSAGE } from './state.js?v=20260702-cache4';
-import { toast } from './feedback.js?v=20260702-cache4';
+import { state, NSFW_LOCKED_MESSAGE, R18G_LOCKED_MESSAGE } from './state.js?v=20260702-cache5';
+import { toast } from './feedback.js?v=20260702-cache5';
 
 export function isNsfwCodex(c) {
   return Boolean(c?.nsfw);

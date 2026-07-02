@@ -1,9 +1,9 @@
-import { state, RANDOM_RECENT_LIMIT, NSFW_LOCKED_MESSAGE } from './state.js?v=20260702-cache4';
-import { $, esc, samePath, pathStartsWith, updateSearchClear } from './utils.js?v=20260702-cache4';
-import { isCodexLocked, showNsfwLockedHint, isEntryAccessBlocked, isEntryNsfw, isNsfwPathSegment, isR18gEntry, isR18gName } from './access.js?v=20260702-cache4';
-import { codexStatusLabel, codexStatusClass, codexStatusTitle } from './data.js?v=20260702-cache4';
-import { hasEntryImage, thumbUrl } from './media.js?v=20260702-cache4';
-import { toast } from './feedback.js?v=20260702-cache4';
+import { state, RANDOM_RECENT_LIMIT, NSFW_LOCKED_MESSAGE } from './state.js?v=20260702-cache5';
+import { $, esc, samePath, pathStartsWith, updateSearchClear } from './utils.js?v=20260702-cache5';
+import { isCodexLocked, showNsfwLockedHint, isEntryAccessBlocked, isEntryNsfw, isNsfwPathSegment, isR18gEntry, isR18gName } from './access.js?v=20260702-cache5';
+import { codexStatusLabel, codexStatusClass, codexStatusTitle } from './data.js?v=20260702-cache5';
+import { hasEntryImage, thumbUrl } from './media.js?v=20260702-cache5';
+import { toast } from './feedback.js?v=20260702-cache5';
 
 /* 选择器类型图标（描边 SVG，跟随 currentColor） */
 const TYPE_ICONS = {

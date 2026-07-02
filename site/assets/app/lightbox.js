@@ -1,14 +1,14 @@
-import { state } from './state.js?v=20260702-cache4';
-import { $, clamp, esc, prefersReducedMotion } from './utils.js?v=20260702-cache4';
-import { notifyImageLoadError } from './masonry.js?v=20260702-cache4';
-import { renderHighlightedText, currentHighlightTerms } from './search.js?v=20260702-cache4';
-import { copyText, combinedPrompt } from './copy.js?v=20260702-cache4';
-import { toast } from './feedback.js?v=20260702-cache4';
-import { recordRecentEntry } from './history.js?v=20260702-cache4';
-import { syncUrlState } from './router.js?v=20260702-cache4';
-import { entryImages, imageItemUrl } from './media.js?v=20260702-cache4';
-import { isEntryAccessBlocked, isR18gBlocked, needsR18gReveal, showNsfwLockedHint, showR18gLockedHint } from './access.js?v=20260702-cache4';
-import { openReportDialog } from './report.js?v=20260702-cache4';
+import { state } from './state.js?v=20260702-cache5';
+import { $, clamp, esc, prefersReducedMotion } from './utils.js?v=20260702-cache5';
+import { notifyImageLoadError } from './masonry.js?v=20260702-cache5';
+import { renderHighlightedText, currentHighlightTerms } from './search.js?v=20260702-cache5';
+import { copyText, combinedPrompt } from './copy.js?v=20260702-cache5';
+import { toast } from './feedback.js?v=20260702-cache5';
+import { recordRecentEntry } from './history.js?v=20260702-cache5';
+import { syncUrlState } from './router.js?v=20260702-cache5';
+import { entryImages, imageItemUrl } from './media.js?v=20260702-cache5';
+import { isEntryAccessBlocked, isR18gBlocked, needsR18gReveal, showNsfwLockedHint, showR18gLockedHint } from './access.js?v=20260702-cache5';
+import { openReportDialog } from './report.js?v=20260702-cache5';
 
 /* ---------------- 灯箱（沉浸浮影 + 原位展开） ---------------- */
 let lbSeq = 0;
@@ -80,7 +80,9 @@ export function flyIn(sourceEl) {
   const from = sourceEl.getBoundingClientRect();
   if (!from.width || !from.height) return;
   const ratio = sourceEl.naturalWidth / sourceEl.naturalHeight;
-  const target = fitStageRect(ratio);
+  const targetEl = $('#lightboxImg');
+  const renderedTarget = targetEl?.getBoundingClientRect();
+  const target = renderedTarget?.width && renderedTarget?.height ? renderedTarget : fitStageRect(ratio);
   if (!target.width) return;
   lb.classList.add('flying');
   const clone = makeFlyClone(sourceEl.currentSrc || sourceEl.src, from);

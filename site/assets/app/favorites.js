@@ -1,5 +1,5 @@
-import { state } from './state.js?v=20260702-cache4';
-import { toast } from './feedback.js?v=20260702-cache4';
+import { state } from './state.js?v=20260702-cache5';
+import { toast } from './feedback.js?v=20260702-cache5';
 
 const favoriteActions = { applyFilter: () => {} };
 
