@@ -1,17 +1,17 @@
-import { state, DENSITY_PRESETS, DENSITY_STORAGE_KEY, THEME_STORAGE_KEY, THEMES, NSFW_STORAGE_KEY, R18G_STORAGE_KEY } from './state.js?v=20260702-cache5';
-import { normalizeDensity, densityConfig } from './state.js?v=20260702-cache5';
-import { $, updateSearchClear, updateScrollProgress, prefersReducedMotion } from './utils.js?v=20260702-cache5';
-import { toast } from './feedback.js?v=20260702-cache5';
-import { firstUnlockedCodex, isNsfwCodex, isNsfwPathSegment, isR18gName } from './access.js?v=20260702-cache5';
-import { closeBannerAbout, renderCodexArchive, renderTree, renderCodexHeader, randomExplore, updateCodexPickerState } from './codex-ui.js?v=20260702-cache5';
-import { syncUrlState } from './router.js?v=20260702-cache5';
-import { renderHistoryPanel, resumeLastBrowse, openRecentEntry, saveRecentEntries, scheduleBrowseStateSave } from './history.js?v=20260702-cache5';
-import { captureMasonryAnchor, restoreMasonryAnchor, relayoutVisible, updateVirtualCards, scheduleVirtualUpdate, scheduleRelayout } from './masonry.js?v=20260702-cache5';
-import { bindLightboxControls } from './lightbox.js?v=20260702-cache5';
-import { openMask, closeMask, trapFocus } from './modal.js?v=20260702-cache5';
-import { setupAnnouncements } from './announcements.js?v=20260702-cache5';
-import { setupReport, openReportDialog } from './report.js?v=20260702-cache5';
-import { setupOnboarding } from './onboarding.js?v=20260702-cache5';
+import { state, DENSITY_PRESETS, DENSITY_STORAGE_KEY, THEME_STORAGE_KEY, THEMES, NSFW_STORAGE_KEY, R18G_STORAGE_KEY } from './state.js?v=20260702-cache6';
+import { normalizeDensity, densityConfig } from './state.js?v=20260702-cache6';
+import { $, updateSearchClear, updateScrollProgress, prefersReducedMotion } from './utils.js?v=20260702-cache6';
+import { toast } from './feedback.js?v=20260702-cache6';
+import { firstUnlockedCodex, isNsfwCodex, isNsfwPathSegment, isR18gName } from './access.js?v=20260702-cache6';
+import { closeBannerAbout, renderCodexArchive, renderTree, renderCodexHeader, randomExplore, updateCodexPickerState } from './codex-ui.js?v=20260702-cache6';
+import { syncUrlState } from './router.js?v=20260702-cache6';
+import { renderHistoryPanel, resumeLastBrowse, openRecentEntry, saveRecentEntries, scheduleBrowseStateSave } from './history.js?v=20260702-cache6';
+import { captureMasonryAnchor, restoreMasonryAnchor, relayoutVisible, updateVirtualCards, scheduleVirtualUpdate, scheduleRelayout } from './masonry.js?v=20260702-cache6';
+import { bindLightboxControls } from './lightbox.js?v=20260702-cache6';
+import { openMask, closeMask, trapFocus } from './modal.js?v=20260702-cache6';
+import { setupAnnouncements } from './announcements.js?v=20260702-cache6';
+import { setupReport, openReportDialog } from './report.js?v=20260702-cache6';
+import { setupOnboarding } from './onboarding.js?v=20260702-cache6';
 
 const THEME_ICONS = {
   moon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.5 6.5 0 0 0 9.8 9.8Z"/></svg>',
