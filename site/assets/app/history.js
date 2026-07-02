@@ -1,10 +1,10 @@
-import { state, RECENT_ENTRY_LIMIT, RECENT_STORAGE_KEY, LAST_BROWSE_STORAGE_KEY } from './state.js?v=20260702-cache13';
-import { $, esc, updateSearchClear, updateScrollProgress } from './utils.js?v=20260702-cache13';
-import { hasEntryImage, thumbUrl } from './media.js?v=20260702-cache13';
-import { syncUrlState } from './router.js?v=20260702-cache13';
-import { isCodexLocked, isR18gPath, showNsfwLockedHint, showR18gLockedHint } from './access.js?v=20260702-cache13';
-import { toast } from './feedback.js?v=20260702-cache13';
-import { findCodexMeta } from './data.js?v=20260702-cache13';
+import { state, RECENT_ENTRY_LIMIT, RECENT_STORAGE_KEY, LAST_BROWSE_STORAGE_KEY } from './state.js?v=20260702-cache14';
+import { $, esc, updateSearchClear, updateScrollProgress } from './utils.js?v=20260702-cache14';
+import { hasEntryImage, thumbUrl } from './media.js?v=20260702-cache14';
+import { syncUrlState } from './router.js?v=20260702-cache14';
+import { isCodexLocked, isR18gPath, showNsfwLockedHint, showR18gLockedHint } from './access.js?v=20260702-cache14';
+import { toast } from './feedback.js?v=20260702-cache14';
+import { findCodexMeta } from './data.js?v=20260702-cache14';
 
 const historyActions = {
   loadCodex: async () => {},

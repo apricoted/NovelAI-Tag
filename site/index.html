@@ -7,33 +7,37 @@
 <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
 <script>/* 跨页 View Transition 抵达打标：vt-arrived 永久关掉入场编排避免叠影；
    vt-live 只活到过渡结束，专供跨页专属的上滑动画选择器（站内同文档过渡不带它） */
-addEventListener('pagereveal',e=>{if(e.viewTransition){const h=document.documentElement;h.classList.add('vt-arrived','vt-live');e.viewTransition.finished.finally(()=>h.classList.remove('vt-live'))}},{once:true});</script>
+addEventListener('pagereveal',e=>{if(e.viewTransition){const h=document.documentElement;h.classList.add('vt-arrived','vt-live');e.viewTransition.finished.finally(()=>h.classList.remove('vt-live'))}},{once:true});
+/* 滚动恢复自管：浏览器在骨架屏阶段恢复上次滚动会把横幅顶进顶栏底下，
+   随后 loadCodex 的 resetScroll 又拉回顶部（"占位贴顶栏→加载完甩下去"的元凶）。
+   本站有自己的「继续上次浏览」恢复与深链定位，浏览器的恢复只会捣乱 */
+if('scrollRestoration' in history)history.scrollRestoration='manual';</script>
 <!-- Static cold-start hints; keep this origin in sync with data/media.json baseUrl. -->
 <link rel="preconnect" href="https://assets.quicktagcloud.com">
 <link rel="dns-prefetch" href="https://assets.quicktagcloud.com">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@400;500;700&family=Outfit:wght@300;400;500;600;700;800;900&display=swap">
-<link rel="stylesheet" href="assets/styles.css?v=20260702-cache13">
-<link rel="modulepreload" href="assets/app/state.js?v=20260702-cache13">
-<link rel="modulepreload" href="assets/app/utils.js?v=20260702-cache13">
-<link rel="modulepreload" href="assets/app/modal.js?v=20260702-cache13">
-<link rel="modulepreload" href="assets/app/feedback.js?v=20260702-cache13">
-<link rel="modulepreload" href="assets/app/access.js?v=20260702-cache13">
-<link rel="modulepreload" href="assets/app/data.js?v=20260702-cache13">
-<link rel="modulepreload" href="assets/app/search.js?v=20260702-cache13">
-<link rel="modulepreload" href="assets/app/router.js?v=20260702-cache13">
-<link rel="modulepreload" href="assets/app/media.js?v=20260702-cache13">
-<link rel="modulepreload" href="assets/app/copy.js?v=20260702-cache13">
-<link rel="modulepreload" href="assets/app/favorites.js?v=20260702-cache13">
-<link rel="modulepreload" href="assets/app/codex-ui.js?v=20260702-cache13">
-<link rel="modulepreload" href="assets/app/masonry.js?v=20260702-cache13">
-<link rel="modulepreload" href="assets/app/lightbox.js?v=20260702-cache13">
-<link rel="modulepreload" href="assets/app/history.js?v=20260702-cache13">
-<link rel="modulepreload" href="assets/app/report.js?v=20260702-cache13">
-<link rel="modulepreload" href="assets/app/announcements.js?v=20260702-cache13">
-<link rel="modulepreload" href="assets/app/onboarding.js?v=20260702-cache13">
-<link rel="modulepreload" href="assets/app/ui.js?v=20260702-cache13">
+<link rel="stylesheet" href="assets/styles.css?v=20260702-cache14">
+<link rel="modulepreload" href="assets/app/state.js?v=20260702-cache14">
+<link rel="modulepreload" href="assets/app/utils.js?v=20260702-cache14">
+<link rel="modulepreload" href="assets/app/modal.js?v=20260702-cache14">
+<link rel="modulepreload" href="assets/app/feedback.js?v=20260702-cache14">
+<link rel="modulepreload" href="assets/app/access.js?v=20260702-cache14">
+<link rel="modulepreload" href="assets/app/data.js?v=20260702-cache14">
+<link rel="modulepreload" href="assets/app/search.js?v=20260702-cache14">
+<link rel="modulepreload" href="assets/app/router.js?v=20260702-cache14">
+<link rel="modulepreload" href="assets/app/media.js?v=20260702-cache14">
+<link rel="modulepreload" href="assets/app/copy.js?v=20260702-cache14">
+<link rel="modulepreload" href="assets/app/favorites.js?v=20260702-cache14">
+<link rel="modulepreload" href="assets/app/codex-ui.js?v=20260702-cache14">
+<link rel="modulepreload" href="assets/app/masonry.js?v=20260702-cache14">
+<link rel="modulepreload" href="assets/app/lightbox.js?v=20260702-cache14">
+<link rel="modulepreload" href="assets/app/history.js?v=20260702-cache14">
+<link rel="modulepreload" href="assets/app/report.js?v=20260702-cache14">
+<link rel="modulepreload" href="assets/app/announcements.js?v=20260702-cache14">
+<link rel="modulepreload" href="assets/app/onboarding.js?v=20260702-cache14">
+<link rel="modulepreload" href="assets/app/ui.js?v=20260702-cache14">
 </head>
 <body>
 <div id="scrollProgress" class="scroll-progress" aria-hidden="true"></div>
@@ -476,6 +480,6 @@ addEventListener('pagereveal',e=>{if(e.viewTransition){const h=document.document
   </article>
 </template>
 
-<script type="module" src="assets/app.js?v=20260702-cache13"></script>
+<script type="module" src="assets/app.js?v=20260702-cache14"></script>
 </body>
 </html>
