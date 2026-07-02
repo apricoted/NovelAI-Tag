@@ -20,26 +20,6 @@ export const RECENT_ENTRY_LIMIT = 18;
 export const DENSITY_PRESETS = {
   comfort: {
     label: '舒适',
-    minWidth: 340,
-    gap: 18,
-    bodyPadX: 14,
-    bodyPadTop: 13,
-    bodyPadBottom: 12,
-    titleCharWidth: 14,
-    titleLineHeight: 21,
-    titleGap: 9,
-    tagCharWidth: 7.2,
-    tagLineHeight: 20,
-    tagPaddingY: 20,
-    minTagHeight: 40,
-    maxTagHeight: 136,
-    maxTagLines: 7,
-    footGap: 10,
-    footHeight: 18,
-    footHeightNegative: 21,
-  },
-  standard: {
-    label: '标准',
     minWidth: 290,
     gap: 16,
     bodyPadX: 13,
@@ -58,8 +38,8 @@ export const DENSITY_PRESETS = {
     footHeight: 18,
     footHeightNegative: 21,
   },
-  compact: {
-    label: '紧凑',
+  standard: {
+    label: '标准',
     minWidth: 236,
     gap: 12,
     bodyPadX: 11,
@@ -77,6 +57,26 @@ export const DENSITY_PRESETS = {
     footGap: 7,
     footHeight: 17,
     footHeightNegative: 20,
+  },
+  compact: {
+    label: '紧凑',
+    minWidth: 176,
+    gap: 8,
+    bodyPadX: 7,
+    bodyPadTop: 7,
+    bodyPadBottom: 7,
+    titleCharWidth: 12.2,
+    titleLineHeight: 16,
+    titleGap: 5,
+    tagCharWidth: 6.2,
+    tagLineHeight: 14.4,
+    tagPaddingY: 10,
+    minTagHeight: 22,
+    maxTagHeight: 42,
+    maxTagLines: 2,
+    footGap: 5,
+    footHeight: 15,
+    footHeightNegative: 18,
   },
 };
 export const NSFW_STORAGE_KEY = 'fadian-nsfw-ok';
@@ -133,4 +133,3 @@ export function normalizeDensity(value) {
 export function densityConfig() {
   return DENSITY_PRESETS[state.density] || DENSITY_PRESETS[DEFAULT_DENSITY];
 }
-

@@ -598,10 +598,10 @@ body.dark .badge-neg{
   backdrop-filter:blur(8px);
 }
 .badge-count svg{width:12px;height:12px}
-.card-body{padding:12px 13px 11px}
-.card-title-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.card-body{padding:10px 11px 10px}
+.card-title-row{display:flex;align-items:center;gap:7px;margin-bottom:7px}
 .card-title{
-  margin:0;font-size:15px;font-weight:700;line-height:1.3;word-break:break-word;
+  margin:0;font-size:14px;font-weight:700;line-height:1.35;word-break:break-word;
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
 }
 .badge-new{
@@ -622,10 +622,10 @@ body.dark .badge-neg-chip{
 }
 .fav-btn:hover{background:var(--tagbg);color:#f5b301}
 .fav-btn.on{color:#f5b301}
-.card.no-img .card-title{font-size:14.5px}
+.card.no-img .card-title{font-size:13.8px}
 .card-tags{
-  font-size:12.5px;color:var(--muted);background:var(--tagbg);border-radius:10px;padding:9px 10px;
-  font-family:var(--font-prompt);line-height:1.58;
+  font-size:12px;color:var(--muted);background:var(--tagbg);border-radius:9px;padding:8px 9px;
+  font-family:var(--font-prompt);line-height:1.45;
   white-space:pre-wrap;word-break:break-word;overflow:hidden;
   transition:background .12s;
 }
@@ -636,12 +636,12 @@ body.dark .badge-neg-chip{
 body.dark .card-tags mark,body.dark .lightbox-section pre mark{background:rgba(255,213,92,.22)}
 .card-tags.is-clipped{-webkit-mask-image:linear-gradient(180deg,#000 70%,transparent);mask-image:linear-gradient(180deg,#000 70%,transparent)}
 .card:hover .card-tags{background:var(--tagbg-hover)}
-.card-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:9px;min-height:21px}
-.card-path{flex:1;min-width:0;color:var(--muted);font-size:11px;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.card-actions{display:flex;align-items:center;gap:5px;flex:none}
+.card-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:7px;min-height:20px}
+.card-path{flex:1;min-width:0;color:var(--muted);font-size:10.5px;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card-actions{display:flex;align-items:center;gap:4px;flex:none}
 .mini-copy{
   border:1px solid var(--line);background:transparent;color:var(--muted);
-  border-radius:999px;padding:2px 7px;font-size:11px;line-height:1.4;
+  border-radius:999px;padding:2px 6px;font-size:10.5px;line-height:1.4;
 }
 .mini-copy:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
 .report-card-btn{
@@ -658,24 +658,42 @@ body.dark .card-tags mark,body.dark .lightbox-section pre mark{background:rgba(2
   .report-card-btn{opacity:.7;pointer-events:auto}
 }
 
-body.density-comfort .card-body{padding:13px 14px 12px}
-body.density-comfort .card-title-row{margin-bottom:9px}
-body.density-comfort .card-title{font-size:15.5px;line-height:1.35}
+body.density-comfort .card-body{padding:12px 13px 11px}
+body.density-comfort .card-title-row{gap:8px;margin-bottom:8px}
+body.density-comfort .card-title{font-size:15px;line-height:1.3}
+body.density-comfort .card.no-img .card-title{font-size:14.5px}
 body.density-comfort .card-tags{
-  font-size:13px;line-height:1.54;padding:10px 11px;border-radius:11px;
+  font-size:12.5px;line-height:1.58;padding:9px 10px;border-radius:10px;
 }
-body.density-comfort .card-foot{margin-top:10px}
-body.density-compact .card-body{padding:10px 11px 10px}
-body.density-compact .card-title-row{gap:7px;margin-bottom:7px}
-body.density-compact .card-title{font-size:14px;line-height:1.35}
-body.density-compact .card.no-img .card-title{font-size:13.8px}
-body.density-compact .card-tags{
+body.density-comfort .card-foot{margin-top:9px;min-height:21px}
+body.density-comfort .card-path{font-size:11px}
+body.density-comfort .card-actions{gap:5px}
+body.density-comfort .mini-copy{padding:2px 7px;font-size:11px}
+body.density-standard .card-body{padding:10px 11px 10px}
+body.density-standard .card-title-row{gap:7px;margin-bottom:7px}
+body.density-standard .card-title{font-size:14px;line-height:1.35}
+body.density-standard .card.no-img .card-title{font-size:13.8px}
+body.density-standard .card-tags{
   font-size:12px;line-height:1.45;padding:8px 9px;border-radius:9px;
 }
-body.density-compact .card-foot{margin-top:7px;min-height:20px}
-body.density-compact .card-path{font-size:10.5px}
-body.density-compact .card-actions{gap:4px}
-body.density-compact .mini-copy{padding:2px 6px;font-size:10.5px}
+body.density-standard .card-foot{margin-top:7px;min-height:20px}
+body.density-standard .card-path{font-size:10.5px}
+body.density-standard .card-actions{gap:4px}
+body.density-standard .mini-copy{padding:2px 6px;font-size:10.5px}
+body.density-compact .card-body{padding:7px}
+body.density-compact .card-title-row{gap:5px;margin-bottom:5px}
+body.density-compact .card-title{font-size:12.8px;line-height:1.28}
+body.density-compact .card.no-img .card-title{font-size:12.6px}
+body.density-compact .fav-btn{font-size:14px;padding:1px 3px;border-radius:6px}
+body.density-compact .card-tags{
+  font-size:10.8px;line-height:1.32;padding:5px 6px;border-radius:7px;
+}
+body.density-compact .card-foot{margin-top:5px;min-height:18px}
+body.density-compact .card-path{font-size:9.6px}
+body.density-compact .card-actions{gap:2px}
+body.density-compact .mini-copy{padding:1px 4px;font-size:9.6px;line-height:1.3}
+body.density-compact .report-card-btn{width:20px;height:20px;font-size:11px}
+body.density-compact .copy-hint{display:none}
 
 /* ---------- 待配图小卡 ---------- */
 .card.no-img .card-img-wrap{display:none}
