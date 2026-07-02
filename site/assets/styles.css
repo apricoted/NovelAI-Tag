@@ -403,6 +403,13 @@ body.dark .ci-soon-chip{color:#e3b463;border-color:rgba(227,180,99,.3)}
 .tw-count{color:var(--muted);font-size:11px}
 .tree-children{margin-left:12px;border-left:1px solid var(--line);padding-left:4px}
 .tree-item.collapsed>.tree-children{display:none}
+/* 浏览进度指示条（scroll spy）：随卡片浏览在目录行间平滑滑动；与 .active（用户选中）视觉区分 */
+.tree{position:relative}
+.tree-spy{
+  position:absolute;left:0;right:4px;top:0;z-index:0;pointer-events:none;
+  border-radius:8px;background:var(--accent-soft);opacity:.6;
+  transition:translate .34s cubic-bezier(.22,1,.36,1),height .34s cubic-bezier(.22,1,.36,1);
+}
 .tree.tree-entering .tree-row>span{
   animation:treeTextIn .34s cubic-bezier(.22,1,.36,1) both;
   animation-delay:calc(var(--tree-i,0) * 18ms);
@@ -1540,7 +1547,7 @@ html.vt-codex::view-transition-new(codex-banner){animation-duration:.3s}
   .codex-banner,.chip-rail,.result-bar,
   .banner-cover,.banner-info,.banner-about-btn,.banner-cover img,
   .tree.tree-entering .tree-row>span,
-  .rail-chip,.card-img{
+  .rail-chip,.card-img,.tree-spy{
     animation:none!important;
     transition:none!important;
   }

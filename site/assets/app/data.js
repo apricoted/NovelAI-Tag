@@ -1,7 +1,7 @@
-import { state } from './state.js?v=20260702-cache15';
-import { stripTrailingSlash } from './utils.js?v=20260702-cache15';
-import { hasEntryImage } from './media.js?v=20260702-cache15';
-import { toast } from './feedback.js?v=20260702-cache15';
+import { state } from './state.js?v=20260702-cache16';
+import { stripTrailingSlash } from './utils.js?v=20260702-cache16';
+import { hasEntryImage } from './media.js?v=20260702-cache16';
+import { toast } from './feedback.js?v=20260702-cache16';
 
 export async function loadMedia() {
   try {

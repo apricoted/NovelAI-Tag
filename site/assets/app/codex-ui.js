@@ -1,9 +1,9 @@
-import { state, RANDOM_RECENT_LIMIT, NSFW_LOCKED_MESSAGE } from './state.js?v=20260702-cache15';
-import { $, esc, samePath, pathStartsWith, updateSearchClear } from './utils.js?v=20260702-cache15';
-import { isCodexLocked, showNsfwLockedHint, isEntryAccessBlocked, isEntryNsfw, isNsfwPathSegment, isR18gEntry, isR18gName } from './access.js?v=20260702-cache15';
-import { codexStatusLabel, codexStatusClass, codexStatusTitle } from './data.js?v=20260702-cache15';
-import { hasEntryImage, thumbUrl } from './media.js?v=20260702-cache15';
-import { toast } from './feedback.js?v=20260702-cache15';
+import { state, RANDOM_RECENT_LIMIT, NSFW_LOCKED_MESSAGE } from './state.js?v=20260702-cache16';
+import { $, esc, samePath, pathStartsWith, updateSearchClear, prefersReducedMotion } from './utils.js?v=20260702-cache16';
+import { isCodexLocked, showNsfwLockedHint, isEntryAccessBlocked, isEntryNsfw, isNsfwPathSegment, isR18gEntry, isR18gName } from './access.js?v=20260702-cache16';
+import { codexStatusLabel, codexStatusClass, codexStatusTitle } from './data.js?v=20260702-cache16';
+import { hasEntryImage, thumbUrl } from './media.js?v=20260702-cache16';
+import { toast } from './feedback.js?v=20260702-cache16';
 
 /* 选择器类型图标（描边 SVG，跟随 currentColor） */
 const TYPE_ICONS = {
@@ -300,7 +300,8 @@ export function renderTree() {
   const shouldAnimate = nav.dataset.codexId !== (state.codex?.id || '');
   clearTimeout(treeEnterTimer);
   nav.classList.remove('tree-entering');
-  nav.innerHTML = '';
+  nav.innerHTML = '';   // 同时清掉了 .tree-spy 指示条，下面 reset 后由下次滚动更新重建
+  resetTreeSpy();
   nav.dataset.codexId = state.codex?.id || '';
   const searching = state.query.trim();
   const all = document.createElement('div');
@@ -318,6 +319,99 @@ export function renderTree() {
     nav.classList.add('tree-entering');
     /* 错峰播完即摘类：之后展开折叠分类时不再带着陈旧延迟补播入场动画 */
     treeEnterTimer = window.setTimeout(() => nav.classList.remove('tree-entering'), 720);
+  }
+}
+
+/* ---------------- 浏览进度 ↔ 目录联动（scroll spy） ---------------- */
+let spyLastPathKey = '';
+let spyLastRowKey = '';
+let spyLastIndex = 0;
+let spyPointerIn = false;
+
+export function setupTreeSpy() {
+  const sidebar = $('#sidebar');
+  if (!sidebar) return;
+  /* 指针悬在侧栏上=用户在自己翻目录：指示条照常滑，但目录不自动滚，避免打架 */
+  sidebar.addEventListener('pointerenter', () => { spyPointerIn = true; });
+  sidebar.addEventListener('pointerleave', () => { spyPointerIn = false; });
+}
+
+export function resetTreeSpy() {
+  spyLastPathKey = '';
+  spyLastRowKey = '';
+  spyLastIndex = 0;
+}
+
+/* 折叠开合后行的可见性变了：清缓存强制重解析一次 */
+function refreshTreeSpy() {
+  spyLastPathKey = '';
+  spyLastRowKey = '';
+  updateReadingSpy();
+}
+
+/* 阅读线（视口上沿下约 1/3，与 captureMasonryAnchor 同口径）落在哪张卡上，
+   指示条就滑到目录里对应的分类行；由 masonry 的 rAF 虚拟滚动更新顺带驱动。
+   命中折叠的子分类时不强行展开，退而指到其最深的可见祖先 */
+export function updateReadingSpy() {
+  const nav = $('#tree');
+  const m = $('#masonry');
+  if (!nav || !m) return;
+  const spy = nav.querySelector('.tree-spy');
+  if (!state.codex || !state.placements.length) {
+    if (spy) spy.hidden = true;
+    resetTreeSpy();
+    return;
+  }
+  const mTop = m.getBoundingClientRect().top + window.scrollY;
+  const anchorY = Math.max(0, window.scrollY + Math.min(window.innerHeight * 0.32, 240) - mTop);
+  const P = state.placements;
+  let i = Math.min(Math.max(spyLastIndex, 0), P.length - 1);
+  const below = p => anchorY < p.top + p.height;
+  if (below(P[i])) { while (i > 0 && below(P[i - 1])) i--; }
+  else { while (i < P.length - 1 && !below(P[i])) i++; }
+  spyLastIndex = i;
+  const path = P[i].entry.path || [];
+  const pathKey = path.join('\u0001');
+  if (pathKey === spyLastPathKey && spy && !spy.hidden) return;
+  spyLastPathKey = pathKey;
+  let row = null;
+  for (let d = path.length; d >= 1; d--) {
+    const cand = nav.querySelector(`.tree-row[data-path="${CSS.escape(path.slice(0, d).join('\u0001'))}"]`);
+    if (cand && cand.offsetParent !== null) { row = cand; break; }
+  }
+  if (!row) {
+    if (spy) spy.hidden = true;
+    spyLastRowKey = '';
+    return;
+  }
+  if (row.dataset.path === spyLastRowKey && spy && !spy.hidden) return;
+  spyLastRowKey = row.dataset.path;
+  let el = spy;
+  if (!el) {
+    el = document.createElement('div');
+    el.className = 'tree-spy';
+    el.hidden = true;
+    nav.prepend(el);
+  }
+  const navRect = nav.getBoundingClientRect();
+  const r = row.getBoundingClientRect();
+  const top = Math.round(r.top - navRect.top + nav.scrollTop);
+  if (el.hidden) {   // 新建/重建后的首次定位直接瞬移，别从旧书的位置飞过来
+    el.style.transition = 'none';
+    el.hidden = false;
+  }
+  el.style.height = `${Math.round(r.height)}px`;
+  el.style.translate = `0 ${top}px`;
+  if (el.style.transition) {
+    void el.offsetWidth;
+    el.style.removeProperty('transition');
+  }
+  /* 目录滚动跟随：指示条快出目录视野时平滑带过去 */
+  if (!spyPointerIn) {
+    const pad = 44;
+    if (top < nav.scrollTop + pad || top + r.height > nav.scrollTop + nav.clientHeight - pad) {
+      nav.scrollTo({ top: Math.max(0, top - nav.clientHeight * 0.38), behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+    }
   }
 }
 
@@ -375,7 +469,7 @@ export function buildNodes(nodes, parent, prefix, depth) {
       `<span class="tw-arrow">${hasKids ? '▾' : ''}</span>` +
       `<span class="tw-name">${esc(nd.name)}</span>` +
       `<span class="tw-count">${nd.count}</span>`;
-    row.querySelector('.tw-arrow').onclick = e => { e.stopPropagation(); item.classList.toggle('collapsed'); };
+    row.querySelector('.tw-arrow').onclick = e => { e.stopPropagation(); item.classList.toggle('collapsed'); refreshTreeSpy(); };
     row.onclick = () => {
       if (locked) {
         showNsfwLockedHint();
@@ -384,6 +478,7 @@ export function buildNodes(nodes, parent, prefix, depth) {
       }
       selectPath(path, row);
       if (hasKids) item.classList.remove('collapsed');
+      refreshTreeSpy();   // 展开后行可见性变了，指示条重解析
     };
     item.appendChild(row);
     if (hasKids) {

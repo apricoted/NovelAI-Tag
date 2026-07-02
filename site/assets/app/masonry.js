@@ -1,13 +1,13 @@
-import { state, VIRTUAL_BUFFER_UP, VIRTUAL_BUFFER_DOWN, IMAGE_LOAD_DELAY, RELAYOUT_INTERVAL, RELAYOUT_ANIM_MS, DEFAULT_IMAGE_RATIO } from './state.js?v=20260702-cache15';
-import { densityConfig } from './state.js?v=20260702-cache15';
-import { $, clamp, prefersReducedMotion, updateScrollProgress } from './utils.js?v=20260702-cache15';
-import { toast } from './feedback.js?v=20260702-cache15';
-import { currentHighlightTerms, renderHighlightedText } from './search.js?v=20260702-cache15';
-import { hasEntryImage, entryImages, thumbUrl, localAssetUrl, cacheBustUrl } from './media.js?v=20260702-cache15';
-import { copyText, combinedPrompt } from './copy.js?v=20260702-cache15';
-import { isFav } from './favorites.js?v=20260702-cache15';
-import { needsR18gReveal, revealR18gEntry } from './access.js?v=20260702-cache15';
-import { updateResultBar, updateEmptyState } from './codex-ui.js?v=20260702-cache15';
+import { state, VIRTUAL_BUFFER_UP, VIRTUAL_BUFFER_DOWN, IMAGE_LOAD_DELAY, RELAYOUT_INTERVAL, RELAYOUT_ANIM_MS, DEFAULT_IMAGE_RATIO } from './state.js?v=20260702-cache16';
+import { densityConfig } from './state.js?v=20260702-cache16';
+import { $, clamp, prefersReducedMotion, updateScrollProgress } from './utils.js?v=20260702-cache16';
+import { toast } from './feedback.js?v=20260702-cache16';
+import { currentHighlightTerms, renderHighlightedText } from './search.js?v=20260702-cache16';
+import { hasEntryImage, entryImages, thumbUrl, localAssetUrl, cacheBustUrl } from './media.js?v=20260702-cache16';
+import { copyText, combinedPrompt } from './copy.js?v=20260702-cache16';
+import { isFav } from './favorites.js?v=20260702-cache16';
+import { needsR18gReveal, revealR18gEntry } from './access.js?v=20260702-cache16';
+import { updateResultBar, updateEmptyState, updateReadingSpy } from './codex-ui.js?v=20260702-cache16';
 
 const masonryActions = {
   openLightbox: () => {},
@@ -279,6 +279,7 @@ export function updateVirtualCards(force = false) {
   const m = $('#masonry');
   if (!m || !state.placements.length) {
     state.rendered = 0;
+    updateReadingSpy();   // 无内容时收起目录浏览指示条
     return;
   }
 
@@ -316,6 +317,7 @@ export function updateVirtualCards(force = false) {
     state.nodes.delete(index);
   }
   state.rendered = next.size;
+  updateReadingSpy();   // 借这里现成的 rAF 滚动节流驱动目录浏览指示条
 }
 
 export function makeCard(placement) {
