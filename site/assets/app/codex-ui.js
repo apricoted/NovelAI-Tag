@@ -1,9 +1,9 @@
-import { state, RANDOM_RECENT_LIMIT, NSFW_LOCKED_MESSAGE } from './state.js?v=20260702-cache16';
-import { $, esc, samePath, pathStartsWith, updateSearchClear, prefersReducedMotion } from './utils.js?v=20260702-cache16';
-import { isCodexLocked, showNsfwLockedHint, isEntryAccessBlocked, isEntryNsfw, isNsfwPathSegment, isR18gEntry, isR18gName } from './access.js?v=20260702-cache16';
-import { codexStatusLabel, codexStatusClass, codexStatusTitle } from './data.js?v=20260702-cache16';
-import { hasEntryImage, thumbUrl } from './media.js?v=20260702-cache16';
-import { toast } from './feedback.js?v=20260702-cache16';
+import { state, RANDOM_RECENT_LIMIT, NSFW_LOCKED_MESSAGE } from './state.js?v=20260702-cache17';
+import { $, esc, samePath, pathStartsWith, updateSearchClear, prefersReducedMotion } from './utils.js?v=20260702-cache17';
+import { isCodexLocked, showNsfwLockedHint, isEntryAccessBlocked, isEntryNsfw, isNsfwPathSegment, isR18gEntry, isR18gName } from './access.js?v=20260702-cache17';
+import { codexStatusLabel, codexStatusClass, codexStatusTitle } from './data.js?v=20260702-cache17';
+import { hasEntryImage, thumbUrl } from './media.js?v=20260702-cache17';
+import { toast } from './feedback.js?v=20260702-cache17';
 
 /* 选择器类型图标（描边 SVG，跟随 currentColor） */
 const TYPE_ICONS = {
@@ -396,12 +396,14 @@ export function updateReadingSpy() {
   const navRect = nav.getBoundingClientRect();
   const r = row.getBoundingClientRect();
   const top = Math.round(r.top - navRect.top + nav.scrollTop);
+  const left = Math.round(r.left - navRect.left);   // 跟随行自身缩进：层级越深条越短越靠右
   if (el.hidden) {   // 新建/重建后的首次定位直接瞬移，别从旧书的位置飞过来
     el.style.transition = 'none';
     el.hidden = false;
   }
+  el.style.width = `${Math.round(r.width)}px`;
   el.style.height = `${Math.round(r.height)}px`;
-  el.style.translate = `0 ${top}px`;
+  el.style.translate = `${left}px ${top}px`;
   if (el.style.transition) {
     void el.offsetWidth;
     el.style.removeProperty('transition');

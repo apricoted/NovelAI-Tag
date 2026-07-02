@@ -1,14 +1,14 @@
-import { state } from './state.js?v=20260702-cache16';
-import { $, clamp, esc, prefersReducedMotion } from './utils.js?v=20260702-cache16';
-import { notifyImageLoadError } from './masonry.js?v=20260702-cache16';
-import { renderHighlightedText, currentHighlightTerms } from './search.js?v=20260702-cache16';
-import { copyText, combinedPrompt } from './copy.js?v=20260702-cache16';
-import { toast } from './feedback.js?v=20260702-cache16';
-import { recordRecentEntry } from './history.js?v=20260702-cache16';
-import { syncUrlState } from './router.js?v=20260702-cache16';
-import { entryImages, imageItemUrl } from './media.js?v=20260702-cache16';
-import { isEntryAccessBlocked, isR18gBlocked, needsR18gReveal, showNsfwLockedHint, showR18gLockedHint } from './access.js?v=20260702-cache16';
-import { openReportDialog } from './report.js?v=20260702-cache16';
+import { state } from './state.js?v=20260702-cache17';
+import { $, clamp, esc, prefersReducedMotion } from './utils.js?v=20260702-cache17';
+import { notifyImageLoadError } from './masonry.js?v=20260702-cache17';
+import { renderHighlightedText, currentHighlightTerms } from './search.js?v=20260702-cache17';
+import { copyText, combinedPrompt } from './copy.js?v=20260702-cache17';
+import { toast } from './feedback.js?v=20260702-cache17';
+import { recordRecentEntry } from './history.js?v=20260702-cache17';
+import { syncUrlState } from './router.js?v=20260702-cache17';
+import { entryImages, imageItemUrl } from './media.js?v=20260702-cache17';
+import { isEntryAccessBlocked, isR18gBlocked, needsR18gReveal, showNsfwLockedHint, showR18gLockedHint } from './access.js?v=20260702-cache17';
+import { openReportDialog } from './report.js?v=20260702-cache17';
 
 /* ---------------- 灯箱（沉浸浮影 + 原位展开） ---------------- */
 let lbSeq = 0;

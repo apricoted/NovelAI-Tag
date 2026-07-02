@@ -406,9 +406,10 @@ body.dark .ci-soon-chip{color:#e3b463;border-color:rgba(227,180,99,.3)}
 /* 浏览进度指示条（scroll spy）：随卡片浏览在目录行间平滑滑动；与 .active（用户选中）视觉区分 */
 .tree{position:relative}
 .tree-spy{
-  position:absolute;left:0;right:4px;top:0;z-index:0;pointer-events:none;
+  position:absolute;left:0;top:0;z-index:0;pointer-events:none;
   border-radius:8px;background:var(--accent-soft);opacity:.6;
-  transition:translate .34s cubic-bezier(.22,1,.36,1),height .34s cubic-bezier(.22,1,.36,1);
+  /* 宽度/横向位置由 JS 按命中行实际矩形设置：层级越深条越短越靠右，与选中高亮同观感 */
+  transition:translate .34s cubic-bezier(.22,1,.36,1),height .34s cubic-bezier(.22,1,.36,1),width .34s cubic-bezier(.22,1,.36,1);
 }
 .tree.tree-entering .tree-row>span{
   animation:treeTextIn .34s cubic-bezier(.22,1,.36,1) both;
