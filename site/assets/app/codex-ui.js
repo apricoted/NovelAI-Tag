@@ -1,9 +1,9 @@
-import { state, RANDOM_RECENT_LIMIT, NSFW_LOCKED_MESSAGE } from './state.js?v=20260702-cache7';
-import { $, esc, samePath, pathStartsWith, updateSearchClear } from './utils.js?v=20260702-cache7';
-import { isCodexLocked, showNsfwLockedHint, isEntryAccessBlocked, isEntryNsfw, isNsfwPathSegment, isR18gEntry, isR18gName } from './access.js?v=20260702-cache7';
-import { codexStatusLabel, codexStatusClass, codexStatusTitle } from './data.js?v=20260702-cache7';
-import { hasEntryImage, thumbUrl } from './media.js?v=20260702-cache7';
-import { toast } from './feedback.js?v=20260702-cache7';
+import { state, RANDOM_RECENT_LIMIT, NSFW_LOCKED_MESSAGE } from './state.js?v=20260702-cache8';
+import { $, esc, samePath, pathStartsWith, updateSearchClear } from './utils.js?v=20260702-cache8';
+import { isCodexLocked, showNsfwLockedHint, isEntryAccessBlocked, isEntryNsfw, isNsfwPathSegment, isR18gEntry, isR18gName } from './access.js?v=20260702-cache8';
+import { codexStatusLabel, codexStatusClass, codexStatusTitle } from './data.js?v=20260702-cache8';
+import { hasEntryImage, thumbUrl } from './media.js?v=20260702-cache8';
+import { toast } from './feedback.js?v=20260702-cache8';
 
 /* 选择器类型图标（描边 SVG，跟随 currentColor） */
 const TYPE_ICONS = {
@@ -598,6 +598,13 @@ export function renderCodexHeader() {
     `<div class="banner-progress"><div class="bp-track"><div class="bp-fill" style="width:${pct}%"></div></div>` +
     `<span class="bp-text">${c.imagedCount} / ${c.entryCount} 已配图</span></div>` +
     `</div>`;
+  /* 封面图 onload 渐显（同卡片图 is-loaded 模式）；缓存命中时 complete 已为真，直接显示 */
+  const coverImg = banner.querySelector('.banner-cover img');
+  if (coverImg) {
+    const reveal = () => coverImg.classList.add('is-loaded');
+    if (coverImg.complete && coverImg.naturalWidth) reveal();
+    else { coverImg.onload = reveal; coverImg.onerror = reveal; }
+  }
   renderBannerAbout(c, banner);
   const rail = $('#chipRail');
   if (!rail) return;

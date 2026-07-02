@@ -1,20 +1,20 @@
-import { state, RECENT_STORAGE_KEY, LAST_BROWSE_STORAGE_KEY, NSFW_STORAGE_KEY, R18G_STORAGE_KEY, DENSITY_STORAGE_KEY } from './app/state.js?v=20260702-cache7';
-import { $, esc, safeJsonParse, updateSearchClear, prefersReducedMotion } from './app/utils.js?v=20260702-cache7';
-import { setLoading, showSkeleton, hideSkeleton } from './app/feedback.js?v=20260702-cache7';
-import { isCodexLocked, firstUnlockedCodex, showNsfwLockedHint, isEntryAccessBlocked, isR18gPath } from './app/access.js?v=20260702-cache7';
-import { loadMedia, loadAbout, fetchCodex, findCodexMeta, notifyCodexDataStatus } from './app/data.js?v=20260702-cache7';
-import { parseSearchQuery, matchSearchPlan } from './app/search.js?v=20260702-cache7';
-import { hasEntryImage, primeResourceHints } from './app/media.js?v=20260702-cache7';
-import { isFav, setFavoritesActions, toggleFav } from './app/favorites.js?v=20260702-cache7';
-import { renderList, clearMasonry, updateVirtualCards, setMasonryActions } from './app/masonry.js?v=20260702-cache7';
-import { openLightbox } from './app/lightbox.js?v=20260702-cache7';
-import { copyEntry } from './app/copy.js?v=20260702-cache7';
-import { openReportDialog } from './app/report.js?v=20260702-cache7';
-import { readUrlState, syncUrlState, openEntryDeepLink, setRouterActions } from './app/router.js?v=20260702-cache7';
-import { setupCodexPicker, setupAbout, updateCodexPickerState, renderTree, renderCodexHeader, updateRailActive, updateResultBar, updateEmptyState, setCodexUiActions } from './app/codex-ui.js?v=20260702-cache7';
-import { normalizeRecentEntries, normalizeLastBrowse, scheduleBrowseStateSave, suppressBrowseStateSave, setHistoryActions } from './app/history.js?v=20260702-cache7';
-import { bindUI, applyDensity, setUiActions } from './app/ui.js?v=20260702-cache7';
-import { maybeShowOnboarding } from './app/onboarding.js?v=20260702-cache7';
+import { state, RECENT_STORAGE_KEY, LAST_BROWSE_STORAGE_KEY, NSFW_STORAGE_KEY, R18G_STORAGE_KEY, DENSITY_STORAGE_KEY } from './app/state.js?v=20260702-cache8';
+import { $, esc, safeJsonParse, updateSearchClear, prefersReducedMotion } from './app/utils.js?v=20260702-cache8';
+import { setLoading, showSkeleton, hideSkeleton } from './app/feedback.js?v=20260702-cache8';
+import { isCodexLocked, firstUnlockedCodex, showNsfwLockedHint, isEntryAccessBlocked, isR18gPath } from './app/access.js?v=20260702-cache8';
+import { loadMedia, loadAbout, fetchCodex, findCodexMeta, notifyCodexDataStatus } from './app/data.js?v=20260702-cache8';
+import { parseSearchQuery, matchSearchPlan } from './app/search.js?v=20260702-cache8';
+import { hasEntryImage, primeResourceHints } from './app/media.js?v=20260702-cache8';
+import { isFav, setFavoritesActions, toggleFav } from './app/favorites.js?v=20260702-cache8';
+import { renderList, clearMasonry, updateVirtualCards, setMasonryActions } from './app/masonry.js?v=20260702-cache8';
+import { openLightbox } from './app/lightbox.js?v=20260702-cache8';
+import { copyEntry } from './app/copy.js?v=20260702-cache8';
+import { openReportDialog } from './app/report.js?v=20260702-cache8';
+import { readUrlState, syncUrlState, openEntryDeepLink, setRouterActions } from './app/router.js?v=20260702-cache8';
+import { setupCodexPicker, setupAbout, updateCodexPickerState, renderTree, renderCodexHeader, updateRailActive, updateResultBar, updateEmptyState, setCodexUiActions } from './app/codex-ui.js?v=20260702-cache8';
+import { normalizeRecentEntries, normalizeLastBrowse, scheduleBrowseStateSave, suppressBrowseStateSave, setHistoryActions } from './app/history.js?v=20260702-cache8';
+import { bindUI, applyDensity, setUiActions } from './app/ui.js?v=20260702-cache8';
+import { maybeShowOnboarding } from './app/onboarding.js?v=20260702-cache8';
 
 let codexLoadSeq = 0;
 const codexPickerTitle = c => c?.selectorTitle || c?.title || '';
@@ -124,7 +124,15 @@ export async function loadCodex(id, options = {}) {
     /* 换法典用同文档 View Transition 做整页交叉淡化（数据已就绪，回调内纯同步渲染，不冻结页面）；
        首次进站没有旧画面、减少动效、老浏览器 → 直接渲染 */
     if (wasSwitching && !prefersReducedMotion() && typeof document.startViewTransition === 'function') {
-      await document.startViewTransition(render).updateCallbackDone;
+      /* 先等选择菜单/面板退场（~180ms）再开始变形——切换动效别被浮层挡住白播一场 */
+      await new Promise(r => setTimeout(r, 170));
+      if (seq !== codexLoadSeq) return;
+      /* vt-codex 只存活于本次过渡：横幅独立变形等换法典专属动画全挂它名下 */
+      const h = document.documentElement;
+      h.classList.add('vt-codex');
+      const vt = document.startViewTransition(render);
+      vt.finished.catch(() => {}).finally(() => h.classList.remove('vt-codex'));
+      await vt.updateCallbackDone;
     } else {
       render();
     }

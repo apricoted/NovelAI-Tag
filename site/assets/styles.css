@@ -351,7 +351,7 @@ body.dark .ci-soon-chip{color:#e3b463;border-color:rgba(227,180,99,.3)}
   opacity:.72;
 }
 .main.skeleton-visible .codex-banner:empty{
-  display:flex;min-height:88px;
+  display:flex;   /* 高度交给 .codex-banner 的 min-height 地板，与成品恒等 */
 }
 .main.skeleton-visible .codex-banner:empty::before,
 .main.skeleton-visible .codex-banner:empty::after,
@@ -410,6 +410,7 @@ body.dark .ci-soon-chip{color:#e3b463;border-color:rgba(227,180,99,.3)}
   display:flex;align-items:center;gap:14px;background:var(--panel);
   border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);
   padding:12px 16px;margin-bottom:12px;
+  min-height:100px;   /* 地板高度略高于自然高度(实测99px)：占位与成品都贴到地板，两态像素级同高不跳动 */
 }
 .codex-banner:empty{display:none}
 .banner-about-btn{
@@ -707,7 +708,8 @@ body.density-compact .copy-hint{display:none}
   .topbar,.sidebar,
   .lightbox,.lightbox-stage,.lightbox-info,.lb-fold,.lb-circle,.lb-fly,#lightboxImg,.lightbox-thumbs,
   .settings-mask,.settings-panel,.sd-badge,.card,.card-img,.toast,.scroll-progress,
-  .more-menu,.codex-menu,.banner-pop{
+  .more-menu,.codex-menu,.banner-pop,
+  .codex-banner,.chip-rail,.result-bar,.banner-cover img{
     transition:none;
   }
   .more-menu,.codex-menu,.banner-pop,.card-img-wrap.is-loading::before,.card.copied::after,
@@ -715,7 +717,8 @@ body.density-compact .copy-hint{display:none}
   .main.skeleton-visible .codex-banner:empty::before,
   .main.skeleton-visible .codex-banner:empty::after,
   .main.skeleton-visible .chip-rail:empty::before,
-  .topbar,.sidebar,.main,.float-actions{animation:none}
+  .topbar,.sidebar,.main,.float-actions,
+  .banner-cover,.banner-info,.banner-about-btn{animation:none}
   ::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none!important}
 }
 
@@ -1372,8 +1375,11 @@ body.dark .lb-circle{border-color:rgba(255,255,255,.14)}
   .skeleton-thumb{height:154px;margin:-10px -11px 10px;border-radius:12px 12px 0 0}
   .skeleton-card:nth-child(3n+1) .skeleton-thumb{height:128px}
   .skeleton-card:nth-child(3n+2) .skeleton-thumb{height:178px}
-  .codex-banner{padding:8px 10px;gap:9px;margin-bottom:8px;border-radius:14px}
-  .main.skeleton-visible .codex-banner:empty{min-height:60px}
+  .codex-banner{padding:8px 10px;gap:9px;margin-bottom:8px;border-radius:14px;min-height:86px}
+  /* meta 锁单行：作者名长短不一时也不换行，保证全法典横幅同高 */
+  .banner-meta{flex-wrap:nowrap;overflow:hidden}
+  .banner-meta>span:first-child{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .banner-meta .data-pill{flex:none}
   .main.skeleton-visible .codex-banner:empty::before{width:52px;height:42px;border-radius:9px}
   .main.skeleton-visible .codex-banner:empty::after{
     height:38px;
@@ -1489,3 +1495,22 @@ html.vt-arrived .float-actions{animation:none}
 .more-menu[hidden],.codex-menu[hidden],.banner-pop[hidden]{
   opacity:0;translate:0 -6px;scale:.97;pointer-events:none;
 }
+
+/* 横幅内容二段浮现：外壳（占位）先随 .main 上浮，数据到位后封面 → 文字 → 角标依次浮现在壳上。
+   子元素每次都是 innerHTML 新建节点，插入即播一次，无 display 重启隐患 */
+@keyframes bannerContentIn{from{opacity:0;translate:0 7px}}
+.banner-cover{animation:bannerContentIn .34s ease backwards}
+.banner-info{animation:bannerContentIn .34s ease .07s backwards}
+.banner-about-btn{animation:bannerContentIn .3s ease .14s backwards}
+.banner-cover img{opacity:0;transition:opacity .25s ease}   /* 同卡片图：onload 加 is-loaded 渐显 */
+.banner-cover img.is-loaded{opacity:1}
+/* skeleton-visible 的 0.72 变暗恢复时平滑过渡，不再瞬跳 */
+.codex-banner,.chip-rail,.result-bar{transition:opacity .25s ease}
+
+/* 换法典（同文档过渡）：横幅几何全法典恒定 → 独立成组原地交叉变形；
+   vt-codex 只存活于切换过渡期间，由 app.js loadCodex 打标 */
+.codex-banner{view-transition-name:codex-banner}
+html.vt-codex::view-transition-old(root){animation-duration:.16s}
+html.vt-codex::view-transition-new(root){animation-duration:.3s}
+html.vt-codex::view-transition-old(codex-banner),
+html.vt-codex::view-transition-new(codex-banner){animation-duration:.3s}
