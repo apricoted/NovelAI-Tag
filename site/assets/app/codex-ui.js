@@ -1,9 +1,9 @@
-import { state, RANDOM_RECENT_LIMIT, NSFW_LOCKED_MESSAGE } from './state.js?v=20260702-cache14';
-import { $, esc, samePath, pathStartsWith, updateSearchClear } from './utils.js?v=20260702-cache14';
-import { isCodexLocked, showNsfwLockedHint, isEntryAccessBlocked, isEntryNsfw, isNsfwPathSegment, isR18gEntry, isR18gName } from './access.js?v=20260702-cache14';
-import { codexStatusLabel, codexStatusClass, codexStatusTitle } from './data.js?v=20260702-cache14';
-import { hasEntryImage, thumbUrl } from './media.js?v=20260702-cache14';
-import { toast } from './feedback.js?v=20260702-cache14';
+import { state, RANDOM_RECENT_LIMIT, NSFW_LOCKED_MESSAGE } from './state.js?v=20260702-cache15';
+import { $, esc, samePath, pathStartsWith, updateSearchClear } from './utils.js?v=20260702-cache15';
+import { isCodexLocked, showNsfwLockedHint, isEntryAccessBlocked, isEntryNsfw, isNsfwPathSegment, isR18gEntry, isR18gName } from './access.js?v=20260702-cache15';
+import { codexStatusLabel, codexStatusClass, codexStatusTitle } from './data.js?v=20260702-cache15';
+import { hasEntryImage, thumbUrl } from './media.js?v=20260702-cache15';
+import { toast } from './feedback.js?v=20260702-cache15';
 
 /* 选择器类型图标（描边 SVG，跟随 currentColor） */
 const TYPE_ICONS = {
@@ -293,6 +293,7 @@ export function visibleEntryCount() {
 
 /* ---------------- ??? ---------------- */
 let treeEnterTimer = 0;
+let resultEnterTimer = 0;
 
 export function renderTree() {
   const nav = $('#tree');
@@ -635,6 +636,7 @@ export function renderCodexHeader() {
     if (locked) chip.title = NSFW_LOCKED_MESSAGE;
     chip.innerHTML = `<span class="rc-dot" style="background:${hue}"></span>${esc(label)}<span class="rc-n">${count}</span>`;
     chip.onclick = () => locked ? showNsfwLockedHint() : selectPathByPath(path);
+    chip.style.setProperty('--chip-i', String(Math.min(rail.childElementCount, 12)));   // 错峰序号=插入位置，封顶防长尾
     rail.appendChild(chip);
   };
   mkChip('全部', [], visibleEntryCount(), 'var(--accent)');
@@ -643,6 +645,15 @@ export function renderCodexHeader() {
     let h = 0;
     for (const ch of nd.name) h = (h * 31 + ch.codePointAt(0)) % 360;
     mkChip(nd.name, [nd.name], nd.count, `hsl(${h},58%,52%)`, { locked: Boolean(nd.locked && !state.allowNsfw) });
+  }
+  /* 结果栏只在换书时一次性淡入（本函数只在 loadCodex 渲染时被调）；搜索/筛选的高频更新保持瞬时 */
+  const resultBar = document.querySelector('.result-bar');
+  if (resultBar) {
+    clearTimeout(resultEnterTimer);
+    resultBar.classList.remove('result-entering');
+    void resultBar.offsetWidth;
+    resultBar.classList.add('result-entering');
+    resultEnterTimer = window.setTimeout(() => resultBar.classList.remove('result-entering'), 420);
   }
   updateRailActive();
 }

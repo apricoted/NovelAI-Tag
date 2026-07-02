@@ -1,4 +1,4 @@
-import { prefersReducedMotion } from './utils.js?v=20260702-cache14';
+import { prefersReducedMotion } from './utils.js?v=20260702-cache15';
 
 const maskTimers = new WeakMap();
 const maskOpeners = new WeakMap();

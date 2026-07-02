@@ -1,17 +1,17 @@
-import { state, DENSITY_PRESETS, DENSITY_STORAGE_KEY, THEME_STORAGE_KEY, THEMES, NSFW_STORAGE_KEY, R18G_STORAGE_KEY } from './state.js?v=20260702-cache14';
-import { normalizeDensity, densityConfig } from './state.js?v=20260702-cache14';
-import { $, updateSearchClear, updateScrollProgress, prefersReducedMotion } from './utils.js?v=20260702-cache14';
-import { toast } from './feedback.js?v=20260702-cache14';
-import { firstUnlockedCodex, isNsfwCodex, isNsfwPathSegment, isR18gName } from './access.js?v=20260702-cache14';
-import { closeBannerAbout, renderCodexArchive, renderTree, renderCodexHeader, randomExplore, updateCodexPickerState } from './codex-ui.js?v=20260702-cache14';
-import { syncUrlState } from './router.js?v=20260702-cache14';
-import { renderHistoryPanel, resumeLastBrowse, openRecentEntry, saveRecentEntries, scheduleBrowseStateSave } from './history.js?v=20260702-cache14';
-import { captureMasonryAnchor, restoreMasonryAnchor, relayoutVisible, updateVirtualCards, scheduleVirtualUpdate, scheduleRelayout } from './masonry.js?v=20260702-cache14';
-import { bindLightboxControls } from './lightbox.js?v=20260702-cache14';
-import { openMask, closeMask, trapFocus } from './modal.js?v=20260702-cache14';
-import { setupAnnouncements } from './announcements.js?v=20260702-cache14';
-import { setupReport, openReportDialog } from './report.js?v=20260702-cache14';
-import { setupOnboarding } from './onboarding.js?v=20260702-cache14';
+import { state, DENSITY_PRESETS, DENSITY_STORAGE_KEY, THEME_STORAGE_KEY, THEMES, NSFW_STORAGE_KEY, R18G_STORAGE_KEY } from './state.js?v=20260702-cache15';
+import { normalizeDensity, densityConfig } from './state.js?v=20260702-cache15';
+import { $, updateSearchClear, updateScrollProgress, prefersReducedMotion } from './utils.js?v=20260702-cache15';
+import { toast } from './feedback.js?v=20260702-cache15';
+import { firstUnlockedCodex, isNsfwCodex, isNsfwPathSegment, isR18gName } from './access.js?v=20260702-cache15';
+import { closeBannerAbout, renderCodexArchive, renderTree, renderCodexHeader, randomExplore, updateCodexPickerState } from './codex-ui.js?v=20260702-cache15';
+import { syncUrlState } from './router.js?v=20260702-cache15';
+import { renderHistoryPanel, resumeLastBrowse, openRecentEntry, saveRecentEntries, scheduleBrowseStateSave } from './history.js?v=20260702-cache15';
+import { captureMasonryAnchor, restoreMasonryAnchor, relayoutVisible, updateVirtualCards, scheduleVirtualUpdate, scheduleRelayout } from './masonry.js?v=20260702-cache15';
+import { bindLightboxControls } from './lightbox.js?v=20260702-cache15';
+import { openMask, closeMask, trapFocus } from './modal.js?v=20260702-cache15';
+import { setupAnnouncements } from './announcements.js?v=20260702-cache15';
+import { setupReport, openReportDialog } from './report.js?v=20260702-cache15';
+import { setupOnboarding } from './onboarding.js?v=20260702-cache15';
 
 const THEME_ICONS = {
   moon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.5 6.5 0 0 0 9.8 9.8Z"/></svg>',
@@ -110,6 +110,7 @@ export function bindUI() {
 
   const applyTheme = d => {
     document.body.classList.toggle('dark', d);
+    document.documentElement.style.colorScheme = d ? 'dark' : 'light';   // 滚动条等原生控件跟随深浅色
     $('#themeBtn').innerHTML = d ? THEME_ICONS.sun : THEME_ICONS.moon;
     $('#themeBtn').setAttribute('aria-label', d ? '切换浅色模式' : '切换深色模式');
     localStorage.setItem('fadian-dark', d ? '1' : '0');

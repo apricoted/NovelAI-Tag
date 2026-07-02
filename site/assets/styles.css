@@ -564,8 +564,9 @@ body.dark .card.copied::after{background:linear-gradient(100deg,transparent 28%,
 .card-img-wrap.is-loading::before{opacity:1;animation:shimmer 1.3s ease-in-out infinite}
 .card-img-wrap.is-loading::after{content:"图片加载中";opacity:.8}
 .card-img-wrap.is-error::after{content:"图片加载失败";opacity:.8}
-.card-img{width:100%;height:100%;display:block;object-fit:cover;opacity:0;transition:opacity .18s ease,transform .4s cubic-bezier(.22,1,.36,1)}
-.card-img.is-loaded{opacity:1}
+/* 图片"落定"感：加载完成渐显 + 独立 scale 1.02→1（与 hover 的 transform 缩放不同属性、互不干扰；禁 blur——批量图层动画性能红线） */
+.card-img{width:100%;height:100%;display:block;object-fit:cover;opacity:0;scale:1.02;transition:opacity .3s ease,scale .45s cubic-bezier(.22,1,.36,1),transform .4s cubic-bezier(.22,1,.36,1)}
+.card-img.is-loaded{opacity:1;scale:1}
 .img-retry{
   position:absolute;left:50%;top:calc(50% + 24px);z-index:5;transform:translateX(-50%);
   border:1px solid var(--line);background:var(--panel);color:var(--text);
@@ -1516,6 +1517,14 @@ html.vt-arrived .float-actions{animation:none}
 /* skeleton-visible 的 0.72 变暗恢复时平滑过渡，不再瞬跳 */
 .codex-banner,.chip-rail,.result-bar{transition:opacity .25s ease}
 
+/* 分类胶囊错峰荡入：胶囊每次换法典都是 innerHTML 重建的新节点，插入即播（同横幅子元素模式，免疫 display 重启）；
+   平时点选分类只改 active 类不重建，不会误触发 */
+@keyframes chipIn{from{opacity:0;translate:0 8px}}
+.rail-chip{animation:chipIn .3s cubic-bezier(.22,1,.36,1) backwards;animation-delay:calc(var(--chip-i,0) * 24ms)}
+/* 结果栏只在换法典时一次性淡入（renderCodexHeader 挂 result-entering）；高频的搜索/筛选更新保持瞬时 */
+@keyframes resultIn{from{opacity:0;translate:0 5px}}
+.result-bar.result-entering{animation:resultIn .3s ease backwards}
+
 /* 换法典（同文档过渡）：横幅几何全法典恒定 → 独立成组原地交叉变形；
    vt-codex 只存活于切换过渡期间，由 app.js loadCodex 打标 */
 .codex-banner{view-transition-name:codex-banner}
@@ -1530,7 +1539,8 @@ html.vt-codex::view-transition-new(codex-banner){animation-duration:.3s}
   .more-menu,.codex-menu,.banner-pop,
   .codex-banner,.chip-rail,.result-bar,
   .banner-cover,.banner-info,.banner-about-btn,.banner-cover img,
-  .tree.tree-entering .tree-row>span{
+  .tree.tree-entering .tree-row>span,
+  .rail-chip,.card-img{
     animation:none!important;
     transition:none!important;
   }

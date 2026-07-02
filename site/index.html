@@ -18,28 +18,38 @@ if('scrollRestoration' in history)history.scrollRestoration='manual';</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@400;500;700&family=Outfit:wght@300;400;500;600;700;800;900&display=swap">
-<link rel="stylesheet" href="assets/styles.css?v=20260702-cache14">
-<link rel="modulepreload" href="assets/app/state.js?v=20260702-cache14">
-<link rel="modulepreload" href="assets/app/utils.js?v=20260702-cache14">
-<link rel="modulepreload" href="assets/app/modal.js?v=20260702-cache14">
-<link rel="modulepreload" href="assets/app/feedback.js?v=20260702-cache14">
-<link rel="modulepreload" href="assets/app/access.js?v=20260702-cache14">
-<link rel="modulepreload" href="assets/app/data.js?v=20260702-cache14">
-<link rel="modulepreload" href="assets/app/search.js?v=20260702-cache14">
-<link rel="modulepreload" href="assets/app/router.js?v=20260702-cache14">
-<link rel="modulepreload" href="assets/app/media.js?v=20260702-cache14">
-<link rel="modulepreload" href="assets/app/copy.js?v=20260702-cache14">
-<link rel="modulepreload" href="assets/app/favorites.js?v=20260702-cache14">
-<link rel="modulepreload" href="assets/app/codex-ui.js?v=20260702-cache14">
-<link rel="modulepreload" href="assets/app/masonry.js?v=20260702-cache14">
-<link rel="modulepreload" href="assets/app/lightbox.js?v=20260702-cache14">
-<link rel="modulepreload" href="assets/app/history.js?v=20260702-cache14">
-<link rel="modulepreload" href="assets/app/report.js?v=20260702-cache14">
-<link rel="modulepreload" href="assets/app/announcements.js?v=20260702-cache14">
-<link rel="modulepreload" href="assets/app/onboarding.js?v=20260702-cache14">
-<link rel="modulepreload" href="assets/app/ui.js?v=20260702-cache14">
+<link rel="stylesheet" href="assets/styles.css?v=20260702-cache15">
+<link rel="modulepreload" href="assets/app/state.js?v=20260702-cache15">
+<link rel="modulepreload" href="assets/app/utils.js?v=20260702-cache15">
+<link rel="modulepreload" href="assets/app/modal.js?v=20260702-cache15">
+<link rel="modulepreload" href="assets/app/feedback.js?v=20260702-cache15">
+<link rel="modulepreload" href="assets/app/access.js?v=20260702-cache15">
+<link rel="modulepreload" href="assets/app/data.js?v=20260702-cache15">
+<link rel="modulepreload" href="assets/app/search.js?v=20260702-cache15">
+<link rel="modulepreload" href="assets/app/router.js?v=20260702-cache15">
+<link rel="modulepreload" href="assets/app/media.js?v=20260702-cache15">
+<link rel="modulepreload" href="assets/app/copy.js?v=20260702-cache15">
+<link rel="modulepreload" href="assets/app/favorites.js?v=20260702-cache15">
+<link rel="modulepreload" href="assets/app/codex-ui.js?v=20260702-cache15">
+<link rel="modulepreload" href="assets/app/masonry.js?v=20260702-cache15">
+<link rel="modulepreload" href="assets/app/lightbox.js?v=20260702-cache15">
+<link rel="modulepreload" href="assets/app/history.js?v=20260702-cache15">
+<link rel="modulepreload" href="assets/app/report.js?v=20260702-cache15">
+<link rel="modulepreload" href="assets/app/announcements.js?v=20260702-cache15">
+<link rel="modulepreload" href="assets/app/onboarding.js?v=20260702-cache15">
+<link rel="modulepreload" href="assets/app/ui.js?v=20260702-cache15">
 </head>
 <body>
+<script>/* 主题早应用：正式主题在 bindUI（等完网络请求后）才挂，这里先按本地偏好上类，消除深色/换肤用户的首帧闪色 */
+(()=>{try{
+  const c=document.body.classList;
+  if(localStorage.getItem('fadian-dark')==='1'){c.add('dark');document.documentElement.style.colorScheme='dark';}
+  const t=localStorage.getItem('fadian-theme');
+  if(t==='teal'||t==='sakura'||t==='amber')c.add('theme-'+t);
+  const d=localStorage.getItem('fadian-density');
+  if(d==='comfort'||d==='standard'||d==='compact')c.add('density-'+d);
+}catch(e){}})();
+</script>
 <div id="scrollProgress" class="scroll-progress" aria-hidden="true"></div>
 <header class="topbar">
   <button id="menuBtn" class="icon-btn" title="目录">☰</button>
@@ -480,6 +490,6 @@ if('scrollRestoration' in history)history.scrollRestoration='manual';</script>
   </article>
 </template>
 
-<script type="module" src="assets/app.js?v=20260702-cache14"></script>
+<script type="module" src="assets/app.js?v=20260702-cache15"></script>
 </body>
 </html>
