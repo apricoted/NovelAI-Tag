@@ -403,6 +403,10 @@ body.dark .ci-soon-chip{color:#e3b463;border-color:rgba(227,180,99,.3)}
 .tw-count{color:var(--muted);font-size:11px}
 .tree-children{margin-left:12px;border-left:1px solid var(--line);padding-left:4px}
 .tree-item.collapsed>.tree-children{display:none}
+.tree.tree-entering .tree-row>span{
+  animation:treeTextIn .34s cubic-bezier(.22,1,.36,1) both;
+  animation-delay:calc(var(--tree-i,0) * 18ms);
+}
 
 /* ---------- 法典横幅 / 分类轨道 ---------- */
 .codex-banner{
@@ -1499,6 +1503,11 @@ html.vt-arrived .float-actions{animation:none}
 /* 横幅内容二段浮现：外壳（占位）先随 .main 上浮，数据到位后封面 → 文字 → 角标依次浮现在壳上。
    子元素每次都是 innerHTML 新建节点，插入即播一次，无 display 重启隐患 */
 @keyframes bannerContentIn{from{opacity:0;translate:0 7px}}
+@keyframes bannerShellIn{from{opacity:0;translate:0 14px;filter:blur(3px)}}
+@keyframes treeTextIn{from{opacity:0;translate:0 6px;filter:blur(2px)}}
+/* 外壳入场挂基础规则：占位(:empty 骨架)首次显示（display 从 none 恢复）时浏览器自动播一次；
+   数据填充/换法典都不翻转 display → 天然不会重播，重播交给子元素 bannerContentIn 二段浮现 */
+.codex-banner{animation:bannerShellIn .5s cubic-bezier(.22,1,.36,1) backwards}
 .banner-cover{animation:bannerContentIn .34s ease backwards}
 .banner-info{animation:bannerContentIn .34s ease .07s backwards}
 .banner-about-btn{animation:bannerContentIn .3s ease .14s backwards}
@@ -1520,7 +1529,8 @@ html.vt-codex::view-transition-new(codex-banner){animation-duration:.3s}
   .topbar,.sidebar,.main,.float-actions,
   .more-menu,.codex-menu,.banner-pop,
   .codex-banner,.chip-rail,.result-bar,
-  .banner-cover,.banner-info,.banner-about-btn,.banner-cover img{
+  .banner-cover,.banner-info,.banner-about-btn,.banner-cover img,
+  .tree.tree-entering .tree-row>span{
     animation:none!important;
     transition:none!important;
   }

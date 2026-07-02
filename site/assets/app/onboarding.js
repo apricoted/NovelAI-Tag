@@ -1,5 +1,5 @@
-import { $ } from './utils.js?v=20260702-cache11';
-import { openMask, closeMask, trapFocus } from './modal.js?v=20260702-cache11';
+import { $ } from './utils.js?v=20260702-cache13';
+import { openMask, closeMask, trapFocus } from './modal.js?v=20260702-cache13';
 
 export const ONBOARDING_STORAGE_KEY = 'fadian-onboarding-v1-done';
 

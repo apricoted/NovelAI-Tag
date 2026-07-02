@@ -1,9 +1,9 @@
-import { state, RANDOM_RECENT_LIMIT, NSFW_LOCKED_MESSAGE } from './state.js?v=20260702-cache11';
-import { $, esc, samePath, pathStartsWith, updateSearchClear } from './utils.js?v=20260702-cache11';
-import { isCodexLocked, showNsfwLockedHint, isEntryAccessBlocked, isEntryNsfw, isNsfwPathSegment, isR18gEntry, isR18gName } from './access.js?v=20260702-cache11';
-import { codexStatusLabel, codexStatusClass, codexStatusTitle } from './data.js?v=20260702-cache11';
-import { hasEntryImage, thumbUrl } from './media.js?v=20260702-cache11';
-import { toast } from './feedback.js?v=20260702-cache11';
+import { state, RANDOM_RECENT_LIMIT, NSFW_LOCKED_MESSAGE } from './state.js?v=20260702-cache13';
+import { $, esc, samePath, pathStartsWith, updateSearchClear } from './utils.js?v=20260702-cache13';
+import { isCodexLocked, showNsfwLockedHint, isEntryAccessBlocked, isEntryNsfw, isNsfwPathSegment, isR18gEntry, isR18gName } from './access.js?v=20260702-cache13';
+import { codexStatusLabel, codexStatusClass, codexStatusTitle } from './data.js?v=20260702-cache13';
+import { hasEntryImage, thumbUrl } from './media.js?v=20260702-cache13';
+import { toast } from './feedback.js?v=20260702-cache13';
 
 /* 选择器类型图标（描边 SVG，跟随 currentColor） */
 const TYPE_ICONS = {
@@ -292,9 +292,15 @@ export function visibleEntryCount() {
 }
 
 /* ---------------- ??? ---------------- */
+let treeEnterTimer = 0;
+
 export function renderTree() {
   const nav = $('#tree');
+  const shouldAnimate = nav.dataset.codexId !== (state.codex?.id || '');
+  clearTimeout(treeEnterTimer);
+  nav.classList.remove('tree-entering');
   nav.innerHTML = '';
+  nav.dataset.codexId = state.codex?.id || '';
   const searching = state.query.trim();
   const all = document.createElement('div');
   all.className = 'tree-row' + (!searching && !state.activePath.length ? ' active' : '');
@@ -303,6 +309,15 @@ export function renderTree() {
   all.onclick = () => selectPath([], all);
   nav.appendChild(all);
   buildNodes(visibleTree(), nav, [], 0);
+  if (shouldAnimate) {
+    /* 只给可见行编错峰序号——折叠子树里的行不占号，否则可见行延迟带空洞、节奏乱掉 */
+    const visibleRows = [...nav.querySelectorAll('.tree-row')].filter(row => row.offsetParent !== null);
+    visibleRows.forEach((row, i) => row.style.setProperty('--tree-i', String(Math.min(i, 18))));
+    void nav.offsetWidth;
+    nav.classList.add('tree-entering');
+    /* 错峰播完即摘类：之后展开折叠分类时不再带着陈旧延迟补播入场动画 */
+    treeEnterTimer = window.setTimeout(() => nav.classList.remove('tree-entering'), 720);
+  }
 }
 
 export function visibleTree() {

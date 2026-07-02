@@ -1,13 +1,13 @@
-import { state, VIRTUAL_BUFFER_UP, VIRTUAL_BUFFER_DOWN, IMAGE_LOAD_DELAY, RELAYOUT_INTERVAL, RELAYOUT_ANIM_MS, DEFAULT_IMAGE_RATIO } from './state.js?v=20260702-cache11';
-import { densityConfig } from './state.js?v=20260702-cache11';
-import { $, clamp, prefersReducedMotion, updateScrollProgress } from './utils.js?v=20260702-cache11';
-import { toast } from './feedback.js?v=20260702-cache11';
-import { currentHighlightTerms, renderHighlightedText } from './search.js?v=20260702-cache11';
-import { hasEntryImage, entryImages, thumbUrl, localAssetUrl, cacheBustUrl } from './media.js?v=20260702-cache11';
-import { copyText, combinedPrompt } from './copy.js?v=20260702-cache11';
-import { isFav } from './favorites.js?v=20260702-cache11';
-import { needsR18gReveal, revealR18gEntry } from './access.js?v=20260702-cache11';
-import { updateResultBar, updateEmptyState } from './codex-ui.js?v=20260702-cache11';
+import { state, VIRTUAL_BUFFER_UP, VIRTUAL_BUFFER_DOWN, IMAGE_LOAD_DELAY, RELAYOUT_INTERVAL, RELAYOUT_ANIM_MS, DEFAULT_IMAGE_RATIO } from './state.js?v=20260702-cache13';
+import { densityConfig } from './state.js?v=20260702-cache13';
+import { $, clamp, prefersReducedMotion, updateScrollProgress } from './utils.js?v=20260702-cache13';
+import { toast } from './feedback.js?v=20260702-cache13';
+import { currentHighlightTerms, renderHighlightedText } from './search.js?v=20260702-cache13';
+import { hasEntryImage, entryImages, thumbUrl, localAssetUrl, cacheBustUrl } from './media.js?v=20260702-cache13';
+import { copyText, combinedPrompt } from './copy.js?v=20260702-cache13';
+import { isFav } from './favorites.js?v=20260702-cache13';
+import { needsR18gReveal, revealR18gEntry } from './access.js?v=20260702-cache13';
+import { updateResultBar, updateEmptyState } from './codex-ui.js?v=20260702-cache13';
 
 const masonryActions = {
   openLightbox: () => {},
