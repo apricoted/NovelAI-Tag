@@ -422,7 +422,7 @@ body.dark .ci-soon-chip{color:#e3b463;border-color:rgba(227,180,99,.3)}
 .banner-about-btn:hover,.banner-about-btn.open{color:var(--accent);border-color:var(--accent)}
 .banner-about-btn svg{display:block;width:17px;height:17px;stroke:currentColor;fill:none;transform:translateY(-.25px)}
 .banner-pop{
-  position:absolute;right:12px;top:46px;z-index:20;width:min(280px,calc(100% - 24px));
+  position:fixed;left:0;right:auto;top:0;z-index:44;width:min(280px,calc(100vw - 24px));
   background:var(--glass);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
   border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow-hover);
   padding:13px 15px;animation:settingsIn .16s ease;
@@ -1395,7 +1395,7 @@ body.dark .lb-circle{border-color:rgba(255,255,255,.14)}
   .bp-track{height:6px}
   .bp-text{font-size:11px}
   .banner-about-btn{right:8px;top:8px;width:26px;height:26px}
-  .banner-pop{right:8px;top:40px;width:min(280px,calc(100% - 16px))}
+  .banner-pop{width:min(280px,calc(100vw - 16px))}
   .chip-rail{
     position:sticky;top:calc(var(--topbar-h) + 2px);z-index:18;
     margin:0 -8px 8px;padding:6px 10px 7px;
@@ -1514,3 +1514,15 @@ html.vt-codex::view-transition-old(root){animation-duration:.16s}
 html.vt-codex::view-transition-new(root){animation-duration:.3s}
 html.vt-codex::view-transition-old(codex-banner),
 html.vt-codex::view-transition-new(codex-banner){animation-duration:.3s}
+
+/* 页面动效段在全局 reduced-motion 规则之后追加，需在末尾再兜一次，避免后写规则覆盖系统偏好 */
+@media (prefers-reduced-motion: reduce){
+  .topbar,.sidebar,.main,.float-actions,
+  .more-menu,.codex-menu,.banner-pop,
+  .codex-banner,.chip-rail,.result-bar,
+  .banner-cover,.banner-info,.banner-about-btn,.banner-cover img{
+    animation:none!important;
+    transition:none!important;
+  }
+  ::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none!important}
+}

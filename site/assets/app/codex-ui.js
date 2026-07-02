@@ -1,9 +1,9 @@
-import { state, RANDOM_RECENT_LIMIT, NSFW_LOCKED_MESSAGE } from './state.js?v=20260702-cache8';
-import { $, esc, samePath, pathStartsWith, updateSearchClear } from './utils.js?v=20260702-cache8';
-import { isCodexLocked, showNsfwLockedHint, isEntryAccessBlocked, isEntryNsfw, isNsfwPathSegment, isR18gEntry, isR18gName } from './access.js?v=20260702-cache8';
-import { codexStatusLabel, codexStatusClass, codexStatusTitle } from './data.js?v=20260702-cache8';
-import { hasEntryImage, thumbUrl } from './media.js?v=20260702-cache8';
-import { toast } from './feedback.js?v=20260702-cache8';
+import { state, RANDOM_RECENT_LIMIT, NSFW_LOCKED_MESSAGE } from './state.js?v=20260702-cache11';
+import { $, esc, samePath, pathStartsWith, updateSearchClear } from './utils.js?v=20260702-cache11';
+import { isCodexLocked, showNsfwLockedHint, isEntryAccessBlocked, isEntryNsfw, isNsfwPathSegment, isR18gEntry, isR18gName } from './access.js?v=20260702-cache11';
+import { codexStatusLabel, codexStatusClass, codexStatusTitle } from './data.js?v=20260702-cache11';
+import { hasEntryImage, thumbUrl } from './media.js?v=20260702-cache11';
+import { toast } from './feedback.js?v=20260702-cache11';
 
 /* 选择器类型图标（描边 SVG，跟随 currentColor） */
 const TYPE_ICONS = {
@@ -587,6 +587,8 @@ export function renderCodexHeader() {
   const c = state.codex;
   const banner = $('#codexBanner');
   if (!banner) return;
+  closeBannerAbout();
+  document.querySelectorAll('.banner-pop').forEach(pop => pop.remove());
   const cover = c.entries.find(hasEntryImage);
   const pct = c.entryCount ? Math.round((c.imagedCount / c.entryCount) * 100) : 0;
   const metaText = [c.author, c.version].filter(Boolean).join(' · ');
@@ -642,12 +644,30 @@ export function updateRailActive() {
 /* 法典「关于」气泡：来源 / 贡献者 / 相关链接 */
 const EXT_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/></svg>';
 
+function positionBannerPop(pop, banner) {
+  const r = banner.getBoundingClientRect();
+  const isMobile = window.matchMedia('(max-width: 600px)').matches;
+  const gap = isMobile ? 8 : 12;
+  const topOffset = isMobile ? 40 : 46;
+  const width = Math.min(280, Math.max(0, r.width - gap * 2));
+  const left = Math.min(window.innerWidth - gap - width, Math.max(gap, r.right - gap - width));
+  pop.style.width = `${Math.round(width)}px`;
+  pop.style.left = `${Math.round(left)}px`;
+  pop.style.top = `${Math.round(Math.max(gap, r.top + topOffset))}px`;
+}
+
+function positionOpenBannerPop() {
+  const openBtn = document.querySelector('.banner-about-btn.open');
+  const openPop = document.querySelector('.banner-pop:not([hidden])');
+  const banner = openBtn?.closest('.codex-banner');
+  if (openPop && banner) positionBannerPop(openPop, banner);
+}
+
 export function closeBannerAbout() {
   const openBtn = document.querySelector('.banner-about-btn.open');
   const openPop = document.querySelector('.banner-pop:not([hidden])');
-  if (!openBtn || !openPop) return;
-  openPop.hidden = true;
-  openBtn.classList.remove('open');
+  if (openPop) openPop.hidden = true;
+  if (openBtn) openBtn.classList.remove('open');
 }
 
 export function renderBannerAbout(c, banner) {
@@ -696,13 +716,19 @@ export function renderBannerAbout(c, banner) {
     ev.stopPropagation();
     const show = pop.hidden;
     closeBannerAbout();
-    pop.hidden = !show;
-    btn.classList.toggle('open', show);
+    if (show) {
+      positionBannerPop(pop, banner);
+      pop.hidden = false;
+      btn.classList.add('open');
+    }
   };
 
   banner.appendChild(btn);
-  banner.appendChild(pop);
+  document.body.appendChild(pop);
 }
+
+window.addEventListener('resize', positionOpenBannerPop, { passive: true });
+window.addEventListener('scroll', positionOpenBannerPop, { passive: true });
 
 export function renderCodexArchive() {
   const c = state.codex;

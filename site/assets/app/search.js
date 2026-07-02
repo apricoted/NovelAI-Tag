@@ -1,7 +1,7 @@
-import { state } from './state.js?v=20260702-cache8';
-import { esc } from './utils.js?v=20260702-cache8';
-import { entryImages, hasEntryImage } from './media.js?v=20260702-cache8';
-import { isFav } from './favorites.js?v=20260702-cache8';
+import { state } from './state.js?v=20260702-cache11';
+import { esc } from './utils.js?v=20260702-cache11';
+import { entryImages, hasEntryImage } from './media.js?v=20260702-cache11';
+import { isFav } from './favorites.js?v=20260702-cache11';
 
 export function searchableText(e) {
   return [e.title, e.tags, e.negative, e.note, e.rawTags, ...(e.path || [])]
