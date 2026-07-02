@@ -1,20 +1,20 @@
-import { state, RECENT_STORAGE_KEY, LAST_BROWSE_STORAGE_KEY, NSFW_STORAGE_KEY, R18G_STORAGE_KEY, DENSITY_STORAGE_KEY } from './app/state.js?v=20260702-cache6';
-import { $, esc, safeJsonParse, updateSearchClear } from './app/utils.js?v=20260702-cache6';
-import { setLoading, showSkeleton, hideSkeleton } from './app/feedback.js?v=20260702-cache6';
-import { isCodexLocked, firstUnlockedCodex, showNsfwLockedHint, isEntryAccessBlocked, isR18gPath } from './app/access.js?v=20260702-cache6';
-import { loadMedia, loadAbout, fetchCodex, findCodexMeta, notifyCodexDataStatus } from './app/data.js?v=20260702-cache6';
-import { parseSearchQuery, matchSearchPlan } from './app/search.js?v=20260702-cache6';
-import { hasEntryImage, primeResourceHints } from './app/media.js?v=20260702-cache6';
-import { isFav, setFavoritesActions, toggleFav } from './app/favorites.js?v=20260702-cache6';
-import { renderList, clearMasonry, updateVirtualCards, setMasonryActions } from './app/masonry.js?v=20260702-cache6';
-import { openLightbox } from './app/lightbox.js?v=20260702-cache6';
-import { copyEntry } from './app/copy.js?v=20260702-cache6';
-import { openReportDialog } from './app/report.js?v=20260702-cache6';
-import { readUrlState, syncUrlState, openEntryDeepLink, setRouterActions } from './app/router.js?v=20260702-cache6';
-import { setupCodexPicker, setupAbout, updateCodexPickerState, renderTree, renderCodexHeader, updateRailActive, updateResultBar, updateEmptyState, setCodexUiActions } from './app/codex-ui.js?v=20260702-cache6';
-import { normalizeRecentEntries, normalizeLastBrowse, scheduleBrowseStateSave, suppressBrowseStateSave, setHistoryActions } from './app/history.js?v=20260702-cache6';
-import { bindUI, applyDensity, setUiActions } from './app/ui.js?v=20260702-cache6';
-import { maybeShowOnboarding } from './app/onboarding.js?v=20260702-cache6';
+import { state, RECENT_STORAGE_KEY, LAST_BROWSE_STORAGE_KEY, NSFW_STORAGE_KEY, R18G_STORAGE_KEY, DENSITY_STORAGE_KEY } from './app/state.js?v=20260702-cache7';
+import { $, esc, safeJsonParse, updateSearchClear, prefersReducedMotion } from './app/utils.js?v=20260702-cache7';
+import { setLoading, showSkeleton, hideSkeleton } from './app/feedback.js?v=20260702-cache7';
+import { isCodexLocked, firstUnlockedCodex, showNsfwLockedHint, isEntryAccessBlocked, isR18gPath } from './app/access.js?v=20260702-cache7';
+import { loadMedia, loadAbout, fetchCodex, findCodexMeta, notifyCodexDataStatus } from './app/data.js?v=20260702-cache7';
+import { parseSearchQuery, matchSearchPlan } from './app/search.js?v=20260702-cache7';
+import { hasEntryImage, primeResourceHints } from './app/media.js?v=20260702-cache7';
+import { isFav, setFavoritesActions, toggleFav } from './app/favorites.js?v=20260702-cache7';
+import { renderList, clearMasonry, updateVirtualCards, setMasonryActions } from './app/masonry.js?v=20260702-cache7';
+import { openLightbox } from './app/lightbox.js?v=20260702-cache7';
+import { copyEntry } from './app/copy.js?v=20260702-cache7';
+import { openReportDialog } from './app/report.js?v=20260702-cache7';
+import { readUrlState, syncUrlState, openEntryDeepLink, setRouterActions } from './app/router.js?v=20260702-cache7';
+import { setupCodexPicker, setupAbout, updateCodexPickerState, renderTree, renderCodexHeader, updateRailActive, updateResultBar, updateEmptyState, setCodexUiActions } from './app/codex-ui.js?v=20260702-cache7';
+import { normalizeRecentEntries, normalizeLastBrowse, scheduleBrowseStateSave, suppressBrowseStateSave, setHistoryActions } from './app/history.js?v=20260702-cache7';
+import { bindUI, applyDensity, setUiActions } from './app/ui.js?v=20260702-cache7';
+import { maybeShowOnboarding } from './app/onboarding.js?v=20260702-cache7';
 
 let codexLoadSeq = 0;
 const codexPickerTitle = c => c?.selectorTitle || c?.title || '';
@@ -87,36 +87,47 @@ export async function loadCodex(id, options = {}) {
   try {
     const codex = await fetchCodex(meta);
     if (seq !== codexLoadSeq) return;
-    primeResourceHints({ codexes: [codex] });
-    state.codex = codex;
-    const c = state.codex;
-    const codexSelect = $('#codexSelect');
-    if (codexSelect) codexSelect.value = c.id;
-    $('#codexTitle').textContent = c.title;
-    $('#codexMeta').textContent = `${c.author ? c.author + ' · ' : ''}${c.version} · ${c.entryCount} 条`;
-    const codexBtnText = $('#codexBtnText');
-    if (codexBtnText) codexBtnText.textContent = codexPickerTitle(findCodexMeta(c.id)) || c.title;
-    updateCodexPickerState();
-    const urlState = options.urlState && (!options.urlState.codex || options.urlState.codex === c.id || (c.aliases || []).includes(options.urlState.codex))
-      ? options.urlState
-      : null;
-    const nextPath = normalizeRoutePath(c.tree, urlState?.path || []);
-    state.activePath = !state.allowR18g && isR18gPath(nextPath) ? [] : nextPath;
-    state.query = urlState?.q || '';
-    state.seenAnimated.clear();
-    state.recentRandomIds = [];
-    $('#search').value = state.query;
-    updateSearchClear();
-    renderTree();
-    renderCodexHeader();
-    if (options.saveBrowse === false) suppressBrowseStateSave(2000);
-    applyFilter({ resetScroll: true });
-    syncUrlState({ replace: options.replaceUrl !== false, entry: urlState?.entry || '', saveBrowse: options.saveBrowse !== false });
-    if (urlState?.entry) {
-      window.setTimeout(() => openEntryDeepLink(urlState.entry), 180);
+    const wasSwitching = Boolean(state.codex);
+    const render = () => {
+      if (seq !== codexLoadSeq) return;
+      primeResourceHints({ codexes: [codex] });
+      state.codex = codex;
+      const c = state.codex;
+      const codexSelect = $('#codexSelect');
+      if (codexSelect) codexSelect.value = c.id;
+      $('#codexTitle').textContent = c.title;
+      $('#codexMeta').textContent = `${c.author ? c.author + ' · ' : ''}${c.version} · ${c.entryCount} 条`;
+      const codexBtnText = $('#codexBtnText');
+      if (codexBtnText) codexBtnText.textContent = codexPickerTitle(findCodexMeta(c.id)) || c.title;
+      updateCodexPickerState();
+      const urlState = options.urlState && (!options.urlState.codex || options.urlState.codex === c.id || (c.aliases || []).includes(options.urlState.codex))
+        ? options.urlState
+        : null;
+      const nextPath = normalizeRoutePath(c.tree, urlState?.path || []);
+      state.activePath = !state.allowR18g && isR18gPath(nextPath) ? [] : nextPath;
+      state.query = urlState?.q || '';
+      state.seenAnimated.clear();
+      state.recentRandomIds = [];
+      $('#search').value = state.query;
+      updateSearchClear();
+      renderTree();
+      renderCodexHeader();
+      if (options.saveBrowse === false) suppressBrowseStateSave(2000);
+      applyFilter({ resetScroll: true });
+      syncUrlState({ replace: options.replaceUrl !== false, entry: urlState?.entry || '', saveBrowse: options.saveBrowse !== false });
+      if (urlState?.entry) {
+        window.setTimeout(() => openEntryDeepLink(urlState.entry), 180);
+      }
+      setLoading('');
+      notifyCodexDataStatus(c);
+    };
+    /* 换法典用同文档 View Transition 做整页交叉淡化（数据已就绪，回调内纯同步渲染，不冻结页面）；
+       首次进站没有旧画面、减少动效、老浏览器 → 直接渲染 */
+    if (wasSwitching && !prefersReducedMotion() && typeof document.startViewTransition === 'function') {
+      await document.startViewTransition(render).updateCallbackDone;
+    } else {
+      render();
     }
-    setLoading('');
-    notifyCodexDataStatus(c);
   } catch (ex) {
     if (seq === codexLoadSeq) {
       console.error(ex);

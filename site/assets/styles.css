@@ -715,7 +715,7 @@ body.density-compact .copy-hint{display:none}
   .main.skeleton-visible .codex-banner:empty::before,
   .main.skeleton-visible .codex-banner:empty::after,
   .main.skeleton-visible .chip-rail:empty::before,
-  .topbar,.sidebar,.codex-banner,.chip-rail,.result-bar,.float-actions{animation:none}
+  .topbar,.sidebar,.main,.float-actions{animation:none}
   ::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none!important}
 }
 
@@ -1458,26 +1458,28 @@ body.dark .lb-circle{border-color:rgba(255,255,255,.14)}
 .topbar{view-transition-name:site-topbar}
 @keyframes vtRootOut{to{opacity:0}}
 @keyframes vtRootIn{from{opacity:0;transform:translateY(14px)}}
-::view-transition-old(root){animation:vtRootOut .18s ease both}
-::view-transition-new(root){animation:vtRootIn .3s cubic-bezier(.22,1,.36,1) both}
+/* 上滑入场只给跨页过渡（vt-live 仅在 pagereveal→finished 之间存在）；
+   站内换法典的同文档 View Transition 走浏览器默认交叉淡化，原地切换不该有整页位移感 */
+html.vt-live::view-transition-old(root){animation:vtRootOut .18s ease both}
+html.vt-live::view-transition-new(root){animation:vtRootIn .3s cubic-bezier(.22,1,.36,1) both}
 ::view-transition-group(site-topbar){animation-duration:.38s;animation-timing-function:cubic-bezier(.22,1,.36,1)}
 
-/* 首屏入场编排：顶栏落下 → 侧栏滑入 → 横幅/分类轨/结果栏依次上浮（卡片自带错峰入场，不在此列）。
-   fill 用 backwards：动画结束后交还常规样式，避免锁死 skeleton-visible 等状态的 opacity */
+/* 首屏入场编排：顶栏落下 → 侧栏滑入 → 内容区整体上浮（卡片自带错峰入场，不在此列）。
+   fill 用 backwards：动画结束后交还常规样式，避免锁死 skeleton-visible 等状态的 opacity。
+   ⚠ 入场动画只能挂在不会切 display 的容器（.main）上——横幅/分类轨/结果栏在加载过程中
+   会经历 :empty↔有内容 的 display 切换，display 从 none 恢复时 CSS 动画会整个重启（跳回起点闪一下） */
 @keyframes pageEnterDown{from{opacity:0;translate:0 -18px}}
 @keyframes pageEnterUp{from{opacity:0;translate:0 16px}}
 @keyframes pageEnterLeft{from{opacity:0;translate:-16px 0}}
 .topbar{animation:pageEnterDown .55s cubic-bezier(.22,1,.36,1) backwards}
-.codex-banner{animation:pageEnterUp .5s cubic-bezier(.22,1,.36,1) .1s backwards}
-.chip-rail{animation:pageEnterUp .5s cubic-bezier(.22,1,.36,1) .16s backwards}
-.result-bar{animation:pageEnterUp .5s cubic-bezier(.22,1,.36,1) .22s backwards}
+.main{animation:pageEnterUp .55s cubic-bezier(.22,1,.36,1) .12s backwards}
 .float-actions{animation:pageEnterUp .55s cubic-bezier(.22,1,.36,1) .34s backwards}
 @media (min-width:601px){
   .sidebar{animation:pageEnterLeft .5s cubic-bezier(.22,1,.36,1) .08s backwards}
 }
 /* 经跨页过渡抵达（pagereveal 打标）时让位给 View Transition，避免双重动画 */
-html.vt-arrived .topbar,html.vt-arrived .sidebar,html.vt-arrived .codex-banner,
-html.vt-arrived .chip-rail,html.vt-arrived .result-bar,html.vt-arrived .float-actions{animation:none}
+html.vt-arrived .topbar,html.vt-arrived .sidebar,html.vt-arrived .main,
+html.vt-arrived .float-actions{animation:none}
 
 /* 悬浮层退场：display 参与过渡（allow-discrete），关闭时淡出上收；
    入场仍走 settingsIn 动画。不支持的浏览器整条 transition 无效 = 维持瞬时关闭 */

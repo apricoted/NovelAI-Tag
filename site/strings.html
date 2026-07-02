@@ -297,8 +297,8 @@ body.dark .prompt-box{background:#0b0f17;color:#c4c9d4;border-color:rgba(255,255
 .topbar{view-transition-name:site-topbar}
 @keyframes vtRootOut{to{opacity:0}}
 @keyframes vtRootIn{from{opacity:0;transform:translateY(14px)}}
-::view-transition-old(root){animation:vtRootOut .18s ease both}
-::view-transition-new(root){animation:vtRootIn .3s cubic-bezier(.22,1,.36,1) both}
+html.vt-live::view-transition-old(root){animation:vtRootOut .18s ease both}
+html.vt-live::view-transition-new(root){animation:vtRootIn .3s cubic-bezier(.22,1,.36,1) both}
 ::view-transition-group(site-topbar){animation-duration:.38s;animation-timing-function:cubic-bezier(.22,1,.36,1)}
 @keyframes pageEnterDown{from{opacity:0;translate:0 -14px}}
 @keyframes pageEnterUp{from{opacity:0;translate:0 14px}}
@@ -332,8 +332,8 @@ html.vt-arrived .topbar,html.vt-arrived .main{animation:none}
 }
 </style>
 <script>if(localStorage.getItem('strings-dark')==='true')document.body.classList.add('dark')</script>
-<script>/* 跨页 View Transition 抵达打标：入场动画让位给过渡动画，避免叠影 */
-addEventListener('pagereveal',e=>{if(e.viewTransition)document.documentElement.classList.add('vt-arrived')},{once:true});</script>
+<script>/* 跨页 View Transition 抵达打标：vt-arrived 永久关掉入场动画避免叠影；vt-live 只活到过渡结束，专供跨页上滑选择器 */
+addEventListener('pagereveal',e=>{if(e.viewTransition){const h=document.documentElement;h.classList.add('vt-arrived','vt-live');e.viewTransition.finished.finally(()=>h.classList.remove('vt-live'))}},{once:true});</script>
 </head>
 <body>
 

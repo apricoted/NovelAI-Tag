@@ -5,34 +5,35 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>法典图鉴 · NovelAI 提示词</title>
 <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
-<script>/* 跨页 View Transition 抵达打标：入场编排让位给过渡动画，避免叠影 */
-addEventListener('pagereveal',e=>{if(e.viewTransition)document.documentElement.classList.add('vt-arrived')},{once:true});</script>
+<script>/* 跨页 View Transition 抵达打标：vt-arrived 永久关掉入场编排避免叠影；
+   vt-live 只活到过渡结束，专供跨页专属的上滑动画选择器（站内同文档过渡不带它） */
+addEventListener('pagereveal',e=>{if(e.viewTransition){const h=document.documentElement;h.classList.add('vt-arrived','vt-live');e.viewTransition.finished.finally(()=>h.classList.remove('vt-live'))}},{once:true});</script>
 <!-- Static cold-start hints; keep this origin in sync with data/media.json baseUrl. -->
 <link rel="preconnect" href="https://assets.quicktagcloud.com">
 <link rel="dns-prefetch" href="https://assets.quicktagcloud.com">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@400;500;700&family=Outfit:wght@300;400;500;600;700;800;900&display=swap">
-<link rel="stylesheet" href="assets/styles.css?v=20260702-cache6">
-<link rel="modulepreload" href="assets/app/state.js?v=20260702-cache6">
-<link rel="modulepreload" href="assets/app/utils.js?v=20260702-cache6">
-<link rel="modulepreload" href="assets/app/modal.js?v=20260702-cache6">
-<link rel="modulepreload" href="assets/app/feedback.js?v=20260702-cache6">
-<link rel="modulepreload" href="assets/app/access.js?v=20260702-cache6">
-<link rel="modulepreload" href="assets/app/data.js?v=20260702-cache6">
-<link rel="modulepreload" href="assets/app/search.js?v=20260702-cache6">
-<link rel="modulepreload" href="assets/app/router.js?v=20260702-cache6">
-<link rel="modulepreload" href="assets/app/media.js?v=20260702-cache6">
-<link rel="modulepreload" href="assets/app/copy.js?v=20260702-cache6">
-<link rel="modulepreload" href="assets/app/favorites.js?v=20260702-cache6">
-<link rel="modulepreload" href="assets/app/codex-ui.js?v=20260702-cache6">
-<link rel="modulepreload" href="assets/app/masonry.js?v=20260702-cache6">
-<link rel="modulepreload" href="assets/app/lightbox.js?v=20260702-cache6">
-<link rel="modulepreload" href="assets/app/history.js?v=20260702-cache6">
-<link rel="modulepreload" href="assets/app/report.js?v=20260702-cache6">
-<link rel="modulepreload" href="assets/app/announcements.js?v=20260702-cache6">
-<link rel="modulepreload" href="assets/app/onboarding.js?v=20260702-cache6">
-<link rel="modulepreload" href="assets/app/ui.js?v=20260702-cache6">
+<link rel="stylesheet" href="assets/styles.css?v=20260702-cache7">
+<link rel="modulepreload" href="assets/app/state.js?v=20260702-cache7">
+<link rel="modulepreload" href="assets/app/utils.js?v=20260702-cache7">
+<link rel="modulepreload" href="assets/app/modal.js?v=20260702-cache7">
+<link rel="modulepreload" href="assets/app/feedback.js?v=20260702-cache7">
+<link rel="modulepreload" href="assets/app/access.js?v=20260702-cache7">
+<link rel="modulepreload" href="assets/app/data.js?v=20260702-cache7">
+<link rel="modulepreload" href="assets/app/search.js?v=20260702-cache7">
+<link rel="modulepreload" href="assets/app/router.js?v=20260702-cache7">
+<link rel="modulepreload" href="assets/app/media.js?v=20260702-cache7">
+<link rel="modulepreload" href="assets/app/copy.js?v=20260702-cache7">
+<link rel="modulepreload" href="assets/app/favorites.js?v=20260702-cache7">
+<link rel="modulepreload" href="assets/app/codex-ui.js?v=20260702-cache7">
+<link rel="modulepreload" href="assets/app/masonry.js?v=20260702-cache7">
+<link rel="modulepreload" href="assets/app/lightbox.js?v=20260702-cache7">
+<link rel="modulepreload" href="assets/app/history.js?v=20260702-cache7">
+<link rel="modulepreload" href="assets/app/report.js?v=20260702-cache7">
+<link rel="modulepreload" href="assets/app/announcements.js?v=20260702-cache7">
+<link rel="modulepreload" href="assets/app/onboarding.js?v=20260702-cache7">
+<link rel="modulepreload" href="assets/app/ui.js?v=20260702-cache7">
 </head>
 <body>
 <div id="scrollProgress" class="scroll-progress" aria-hidden="true"></div>
@@ -475,6 +476,6 @@ addEventListener('pagereveal',e=>{if(e.viewTransition)document.documentElement.c
   </article>
 </template>
 
-<script type="module" src="assets/app.js?v=20260702-cache6"></script>
+<script type="module" src="assets/app.js?v=20260702-cache7"></script>
 </body>
 </html>
