@@ -1,5 +1,5 @@
-# Keep the handwritten ES module graph fresh. Without a build step that hashes
-# child module filenames, stale browser caches can mix new and old modules.
+# JS/CSS freshness is controlled only by no-store below.
+# Version query strings (?v=YYYYMMDD-cacheN) were intentionally removed; do not add them back.
 /assets/app.js
   Cache-Control: no-store
 

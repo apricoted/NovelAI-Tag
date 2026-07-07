@@ -1,6 +1,6 @@
-import { state } from './state.js?v=20260708-cache25';
-import { toast } from './feedback.js?v=20260708-cache25';
-import { findCodexMeta } from './data.js?v=20260708-cache25';
+import { state } from './state.js';
+import { toast } from './feedback.js';
+import { findCodexMeta } from './data.js';
 
 const favoriteActions = { applyFilter: () => {}, refreshFavoritesView: () => {} };
 

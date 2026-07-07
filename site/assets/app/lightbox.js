@@ -1,13 +1,13 @@
-import { state } from './state.js?v=20260708-cache25';
-import { $, clamp, esc, prefersReducedMotion } from './utils.js?v=20260708-cache25';
-import { notifyImageLoadError } from './masonry.js?v=20260708-cache25';
-import { renderHighlightedText, currentHighlightTerms } from './search.js?v=20260708-cache25';
-import { copyText, combinedPrompt } from './copy.js?v=20260708-cache25';
-import { recordRecentEntry } from './history.js?v=20260708-cache25';
-import { syncUrlState } from './router.js?v=20260708-cache25';
-import { entryImages, imageItemUrl } from './media.js?v=20260708-cache25';
-import { isEntryAccessBlocked, isR18gBlocked, showNsfwLockedHint, showR18gLockedHint } from './access.js?v=20260708-cache25';
-import { openReportDialog } from './report.js?v=20260708-cache25';
+import { state } from './state.js';
+import { $, clamp, esc, prefersReducedMotion } from './utils.js';
+import { notifyImageLoadError } from './masonry.js';
+import { renderHighlightedText, currentHighlightTerms } from './search.js';
+import { copyText, combinedPrompt } from './copy.js';
+import { recordRecentEntry } from './history.js';
+import { syncUrlState } from './router.js';
+import { entryImages, imageItemUrl } from './media.js';
+import { isEntryAccessBlocked, isR18gBlocked, showNsfwLockedHint, showR18gLockedHint } from './access.js';
+import { openReportDialog } from './report.js';
 
 /* ---------------- 灯箱（沉浸浮影 + 原位展开） ---------------- */
 let lbSeq = 0;

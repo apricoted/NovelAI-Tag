@@ -1,4 +1,4 @@
-import { state } from './state.js?v=20260708-cache25';
+import { state } from './state.js';
 
 export function hasEntryImage(e) {
   return Boolean((e.images && e.images.length) || e.image);

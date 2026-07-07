@@ -1,8 +1,8 @@
-import { state } from './state.js?v=20260708-cache25';
-import { $ } from './utils.js?v=20260708-cache25';
-import { hasEntryImage } from './media.js?v=20260708-cache25';
-import { toast } from './feedback.js?v=20260708-cache25';
-import { isEntryAccessBlocked, isR18gBlocked, showNsfwLockedHint, showR18gLockedHint } from './access.js?v=20260708-cache25';
+import { state } from './state.js';
+import { $ } from './utils.js';
+import { hasEntryImage } from './media.js';
+import { toast } from './feedback.js';
+import { isEntryAccessBlocked, isR18gBlocked, showNsfwLockedHint, showR18gLockedHint } from './access.js';
 
 const routerActions = {
   onUrlSync: () => {},
