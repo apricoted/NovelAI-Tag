@@ -1,8 +1,8 @@
-import { state } from './state.js?v=20260702-cache17';
-import { $, clamp } from './utils.js?v=20260702-cache17';
-import { toast } from './feedback.js?v=20260702-cache17';
-import { openMask, closeMask, trapFocus } from './modal.js?v=20260702-cache17';
-import { entryImages, imageItemUrl, thumbUrl, originalUrl, hasEntryImage } from './media.js?v=20260702-cache17';
+import { state } from './state.js?v=20260707-cache20';
+import { $, clamp } from './utils.js?v=20260707-cache20';
+import { toast } from './feedback.js?v=20260707-cache20';
+import { openMask, closeMask, trapFocus } from './modal.js?v=20260707-cache20';
+import { entryImages, imageItemUrl, thumbUrl, originalUrl, hasEntryImage } from './media.js?v=20260707-cache20';
 
 const REPORT_TYPES = {
   site_bug: '站点 Bug / 使用问题',
@@ -55,7 +55,7 @@ export function openReportDialog({ source = 'global', entry = null, imageIndex =
 export function buildFeedbackContext({ source = 'global', entry = null, imageIndex = 0, imageError = false } = {}) {
   const params = new URLSearchParams(location.search);
   const hash = new URLSearchParams(String(location.hash || '').replace(/^#/, ''));
-  const codex = state.codex || {};
+  const codex = state.favoritesView ? (state.browseCodex || state.codex || {}) : (state.codex || {});
   const images = entry ? entryImages(entry) : [];
   const index = clamp(Number(imageIndex) || 0, 0, Math.max(0, images.length - 1));
   const image = images[index] || null;
@@ -74,6 +74,7 @@ export function buildFeedbackContext({ source = 'global', entry = null, imageInd
       entry: params.get('entry') || hash.get('entry') || state.lightbox?.entry?.id || '',
       onlyImaged: Boolean(state.onlyImaged),
       onlyFav: Boolean(state.onlyFav),
+      favoritesView: Boolean(state.favoritesView),
     },
     codex: {
       id: codex.id || '',
@@ -87,7 +88,9 @@ export function buildFeedbackContext({ source = 'global', entry = null, imageInd
     entry: entry ? {
       id: entry.id || '',
       title: entry.title || '',
-      path: Array.isArray(entry.path) ? entry.path : [],
+      /* 收藏墙里的词条回报真实来源，站长按 sourceCodexId 定位原书 */
+      sourceCodexId: entry._srcCodexId || '',
+      path: Array.isArray(entry._srcPath || entry.path) ? (entry._srcPath || entry.path) : [],
       hasImage: hasEntryImage(entry),
       imageCount: images.length,
       selectedImageIndex: image ? index : -1,

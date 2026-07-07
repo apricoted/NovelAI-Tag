@@ -1,17 +1,17 @@
-import { state, DENSITY_PRESETS, DENSITY_STORAGE_KEY, THEME_STORAGE_KEY, THEMES, NSFW_STORAGE_KEY, R18G_STORAGE_KEY } from './state.js?v=20260702-cache17';
-import { normalizeDensity, densityConfig } from './state.js?v=20260702-cache17';
-import { $, updateSearchClear, updateScrollProgress, prefersReducedMotion } from './utils.js?v=20260702-cache17';
-import { toast } from './feedback.js?v=20260702-cache17';
-import { firstUnlockedCodex, isNsfwCodex, isNsfwPathSegment, isR18gName } from './access.js?v=20260702-cache17';
-import { closeBannerAbout, renderCodexArchive, renderTree, renderCodexHeader, randomExplore, updateCodexPickerState } from './codex-ui.js?v=20260702-cache17';
-import { syncUrlState } from './router.js?v=20260702-cache17';
-import { renderHistoryPanel, resumeLastBrowse, openRecentEntry, saveRecentEntries, scheduleBrowseStateSave } from './history.js?v=20260702-cache17';
-import { captureMasonryAnchor, restoreMasonryAnchor, relayoutVisible, updateVirtualCards, scheduleVirtualUpdate, scheduleRelayout } from './masonry.js?v=20260702-cache17';
-import { bindLightboxControls } from './lightbox.js?v=20260702-cache17';
-import { openMask, closeMask, trapFocus } from './modal.js?v=20260702-cache17';
-import { setupAnnouncements } from './announcements.js?v=20260702-cache17';
-import { setupReport, openReportDialog } from './report.js?v=20260702-cache17';
-import { setupOnboarding } from './onboarding.js?v=20260702-cache17';
+import { state, DENSITY_PRESETS, DENSITY_STORAGE_KEY, THEME_STORAGE_KEY, THEMES, NSFW_STORAGE_KEY, R18G_STORAGE_KEY } from './state.js?v=20260707-cache20';
+import { normalizeDensity, densityConfig } from './state.js?v=20260707-cache20';
+import { $, updateSearchClear, updateScrollProgress, prefersReducedMotion } from './utils.js?v=20260707-cache20';
+import { toast } from './feedback.js?v=20260707-cache20';
+import { firstUnlockedCodex, isNsfwCodex, isNsfwPathSegment, isR18gName } from './access.js?v=20260707-cache20';
+import { closeBannerAbout, renderCodexArchive, renderTree, renderCodexHeader, randomExplore, updateCodexPickerState } from './codex-ui.js?v=20260707-cache20';
+import { syncUrlState } from './router.js?v=20260707-cache20';
+import { renderHistoryPanel, resumeLastBrowse, openRecentEntry, saveRecentEntries, scheduleBrowseStateSave } from './history.js?v=20260707-cache20';
+import { captureMasonryAnchor, restoreMasonryAnchor, relayoutVisible, updateVirtualCards, scheduleVirtualUpdate, scheduleRelayout } from './masonry.js?v=20260707-cache20';
+import { bindLightboxControls } from './lightbox.js?v=20260707-cache20';
+import { openMask, closeMask, trapFocus } from './modal.js?v=20260707-cache20';
+import { setupAnnouncements } from './announcements.js?v=20260707-cache20';
+import { setupReport, openReportDialog } from './report.js?v=20260707-cache20';
+import { setupOnboarding } from './onboarding.js?v=20260707-cache20';
 
 const THEME_ICONS = {
   moon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.5 6.5 0 0 0 9.8 9.8Z"/></svg>',
@@ -20,6 +20,7 @@ const THEME_ICONS = {
 
 const uiActions = {
   loadCodex: async () => {},
+  openFavoritesView: async () => {},
   applyFilter: () => {},
 };
 
@@ -106,7 +107,14 @@ export function bindUI() {
   }
 
   $('#onlyImaged').onchange = e => { state.onlyImaged = e.target.checked; uiActions.applyFilter({ resetScroll: true, transition: 'filter' }); };
-  $('#onlyFav').onchange = e => { state.onlyFav = e.target.checked; uiActions.applyFilter({ resetScroll: true, transition: 'filter' }); };
+  $('#onlyFav').onchange = e => {
+    if (e.target.checked) {
+      uiActions.openFavoritesView();
+    } else {
+      const target = state.browseCodex?.id || firstUnlockedCodex()?.id || state.codex?.id;
+      if (target) uiActions.loadCodex(target, { replaceUrl: true });
+    }
+  };
 
   const applyTheme = d => {
     document.body.classList.toggle('dark', d);
@@ -254,6 +262,8 @@ export function bindUI() {
     if (!state.allowNsfw && isNsfwCodex(state.codex)) {
       const fallback = firstUnlockedCodex();
       if (fallback) uiActions.loadCodex(fallback.id, { replaceUrl: true });
+    } else if (state.favoritesView) {
+      uiActions.openFavoritesView({ replaceUrl: true });   // 收藏视图按锁态构建：开关 NSFW 后重建，让 NSFW 法典的收藏浮现/隐藏
     } else if (state.codex) {
       renderTree();
       renderCodexHeader();

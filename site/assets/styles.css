@@ -1101,6 +1101,7 @@ body.dark .r18g-note{color:#ffb4ab;background:rgba(217,45,32,.2)}
   margin-top:14px;color:var(--text);font-size:13px;font-weight:800;
 }
 .recent-list{display:flex;flex-direction:column;gap:8px;margin-top:9px;max-height:280px;overflow-y:auto;overflow-x:hidden;padding-right:2px}
+.recent-list>*{flex:none}   /* 列表超高时滚动而不是把条目压扁（flex 子项默认可收缩） */
 .recent-item{
   display:flex;align-items:center;gap:10px;width:100%;text-align:left;
   border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--text);

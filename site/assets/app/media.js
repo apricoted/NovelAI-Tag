@@ -1,4 +1,4 @@
-import { state } from './state.js?v=20260702-cache17';
+import { state } from './state.js?v=20260707-cache20';
 
 export function hasEntryImage(e) {
   return Boolean((e.images && e.images.length) || e.image);
@@ -93,15 +93,16 @@ export function primeResourceHints({ media = state.media, codexes = state.codexe
   }
 }
 
-export function mediaPath(kind, e) {
+/* codex 参数：词条默认属于当前法典；收藏总览等跨法典场景传入词条自己的法典 */
+export function mediaPath(kind, e, codex = state.codex) {
   const file = kind === 'original' ? e.original : e.image;
   if (!file) return '';
   if (isAbsoluteUrl(file)) return file;
-  if (state.codex.assetPathMode === 'relative') {
+  if (codex.assetPathMode === 'relative') {
     return encodeAssetPath(file);
   }
   const prefix = kind === 'original' ? state.media.originalPrefix : state.media.imagePrefix;
-  const assetCodexId = e.assetCodexId || state.codex.id;
+  const assetCodexId = e.assetCodexId || codex.id;
   return [prefix || (kind === 'original' ? 'originals' : 'images'), assetCodexId, file]
     .map(part => encodeURIComponent(part).replace(/%2F/g, '/'))
     .join('/');
@@ -139,12 +140,12 @@ export function localAssetUrl(kind, e) {
   return withRev(mediaPath(kind, e), e);
 }
 
-export function assetUrl(kind, e) {
-  const path = mediaPath(kind, e);
+export function assetUrl(kind, e, codex = state.codex) {
+  const path = mediaPath(kind, e, codex);
   if (!path) return '';
   if (isAbsoluteUrl(path)) return withRev(path, e);
-  if (state.codex.assetPathMode === 'relative') {
-    const base = state.codex.assetBaseUrl;
+  if (codex.assetPathMode === 'relative') {
+    const base = codex.assetBaseUrl;
     return withRev(base ? `${base}/${path}` : path, e);
   }
   if (isLocalOrigin() && state.media.localFallback !== false) return withRev(path, e);
@@ -163,8 +164,8 @@ export function imageItemUrl(kind, e, item) {
   return assetUrl(kind, { ...e, image: item.path, original: item.original || item.path });
 }
 
-export function thumbUrl(e) {
-  return assetUrl('image', e);
+export function thumbUrl(e, codex = state.codex) {
+  return assetUrl('image', e, codex);
 }
 
 export function originalUrl(e) {

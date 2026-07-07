@@ -1,13 +1,13 @@
-import { state, VIRTUAL_BUFFER_UP, VIRTUAL_BUFFER_DOWN, IMAGE_LOAD_DELAY, RELAYOUT_INTERVAL, RELAYOUT_ANIM_MS, DEFAULT_IMAGE_RATIO } from './state.js?v=20260702-cache17';
-import { densityConfig } from './state.js?v=20260702-cache17';
-import { $, clamp, prefersReducedMotion, updateScrollProgress } from './utils.js?v=20260702-cache17';
-import { toast } from './feedback.js?v=20260702-cache17';
-import { currentHighlightTerms, renderHighlightedText } from './search.js?v=20260702-cache17';
-import { hasEntryImage, entryImages, thumbUrl, localAssetUrl, cacheBustUrl } from './media.js?v=20260702-cache17';
-import { copyText, combinedPrompt } from './copy.js?v=20260702-cache17';
-import { isFav } from './favorites.js?v=20260702-cache17';
-import { needsR18gReveal, revealR18gEntry } from './access.js?v=20260702-cache17';
-import { updateResultBar, updateEmptyState, updateReadingSpy } from './codex-ui.js?v=20260702-cache17';
+import { state, VIRTUAL_BUFFER_UP, VIRTUAL_BUFFER_DOWN, IMAGE_LOAD_DELAY, RELAYOUT_INTERVAL, RELAYOUT_ANIM_MS, DEFAULT_IMAGE_RATIO } from './state.js?v=20260707-cache20';
+import { densityConfig } from './state.js?v=20260707-cache20';
+import { $, clamp, prefersReducedMotion, updateScrollProgress } from './utils.js?v=20260707-cache20';
+import { toast } from './feedback.js?v=20260707-cache20';
+import { currentHighlightTerms, renderHighlightedText } from './search.js?v=20260707-cache20';
+import { hasEntryImage, entryImages, thumbUrl, localAssetUrl, cacheBustUrl } from './media.js?v=20260707-cache20';
+import { copyText, combinedPrompt } from './copy.js?v=20260707-cache20';
+import { isFav } from './favorites.js?v=20260707-cache20';
+import { needsR18gReveal, revealR18gEntry } from './access.js?v=20260707-cache20';
+import { updateResultBar, updateEmptyState, updateReadingSpy } from './codex-ui.js?v=20260707-cache20';
 
 const masonryActions = {
   openLightbox: () => {},
@@ -387,7 +387,7 @@ export function makeCard(placement) {
 
   applyR18gCensor(node, e, hasImage);
 
-  const packMode = state.codex?.type === 'pack';
+  const packMode = state.codex?.type === 'pack' || e._srcType === 'pack';   // 收藏墙里的图包词条保持「点卡看图」行为
   const copyHint = node.querySelector('.copy-hint');
   if (copyHint && packMode) copyHint.textContent = hasImage ? '🔍 点击查看' : '暂无图片';
   node.onclick = () => {

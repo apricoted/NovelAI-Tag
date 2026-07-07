@@ -1,9 +1,9 @@
-import { state, RANDOM_RECENT_LIMIT, NSFW_LOCKED_MESSAGE } from './state.js?v=20260702-cache17';
-import { $, esc, samePath, pathStartsWith, updateSearchClear, prefersReducedMotion } from './utils.js?v=20260702-cache17';
-import { isCodexLocked, showNsfwLockedHint, isEntryAccessBlocked, isEntryNsfw, isNsfwPathSegment, isR18gEntry, isR18gName } from './access.js?v=20260702-cache17';
-import { codexStatusLabel, codexStatusClass, codexStatusTitle } from './data.js?v=20260702-cache17';
-import { hasEntryImage, thumbUrl } from './media.js?v=20260702-cache17';
-import { toast } from './feedback.js?v=20260702-cache17';
+import { state, RANDOM_RECENT_LIMIT, NSFW_LOCKED_MESSAGE } from './state.js?v=20260707-cache20';
+import { $, esc, samePath, pathStartsWith, updateSearchClear, prefersReducedMotion } from './utils.js?v=20260707-cache20';
+import { isCodexLocked, showNsfwLockedHint, isEntryAccessBlocked, isEntryNsfw, isNsfwPathSegment, isR18gEntry, isR18gName } from './access.js?v=20260707-cache20';
+import { codexStatusLabel, codexStatusClass, codexStatusTitle } from './data.js?v=20260707-cache20';
+import { hasEntryImage, thumbUrl } from './media.js?v=20260707-cache20';
+import { toast } from './feedback.js?v=20260707-cache20';
 
 /* 选择器类型图标（描边 SVG，跟随 currentColor） */
 const TYPE_ICONS = {
@@ -27,6 +27,8 @@ const CODEX_TYPES = [
 const codexType = c => (c && c.type) || 'codex';
 const codexPickerTitle = c => c?.selectorTitle || c?.title || '';
 const realCodexesOfType = typeId => state.codexes.filter(c => codexType(c) === typeId);
+const pickerActiveCodex = () => state.favoritesView ? state.browseCodex : state.codex;
+const pickerActiveCodexId = () => pickerActiveCodex()?.id || '';
 
 const codexUiActions = {
   loadCodex: async () => {},
@@ -79,7 +81,7 @@ export function setupCodexPicker() {
     if (!c) return;
     if (isCodexLocked(c)) { showNsfwLockedHint(); return; }
     close({ focusButton: true });
-    if (sel.value !== c.id) {
+    if (state.favoritesView || sel.value !== c.id) {
       sel.value = c.id;
       codexUiActions.loadCodex(c.id);
     }
@@ -93,7 +95,7 @@ export function setupCodexPicker() {
 
   const makeRealItem = (c, n) => {
     const locked = isCodexLocked(c);
-    const active = state.codex?.id === c.id;
+    const active = pickerActiveCodexId() === c.id;
     const pct = c.entryCount ? Math.round((Number(c.imagedCount || 0) / Number(c.entryCount || 1)) * 100) : 0;
     const item = document.createElement('button');
     item.type = 'button';
@@ -152,7 +154,8 @@ export function setupCodexPicker() {
     menu.classList.remove('grouped');
     menu.innerHTML = '';
     if (!activeType || !types.some(t => t.id === activeType)) {
-      activeType = codexType(state.codex) || types[0].id;
+      const preferred = codexType(pickerActiveCodex());
+      activeType = types.some(t => t.id === preferred) ? preferred : types[0].id;
     }
     const rail = document.createElement('div');
     rail.className = 'codex-rail';
@@ -269,7 +272,7 @@ export function updateCodexPickerState() {
     if (!it.dataset.id) return;  // 跳过占位条目
     const c = state.codexes.find(item => item.id === it.dataset.id);
     const locked = isCodexLocked(c);
-    const active = state.codex?.id === c?.id;
+    const active = pickerActiveCodexId() === c?.id;
     it.classList.toggle('locked', locked);
     it.classList.toggle('active', active);
     it.setAttribute('aria-disabled', locked ? 'true' : 'false');
@@ -564,7 +567,7 @@ export function updateResultBar() {
   const count = document.createElement('span');
   let t;
   if (q) t = `${state.searchPlan?.isSyntax ? '筛选' : '搜索'} “${esc(q)}”：<b>${n}</b> 条结果`;
-  else if (state.onlyFav) t = `⭐ 我的收藏：<b>${n}</b> 条`;
+  else if (state.favoritesView) t = `收藏：<b>${n}</b> 条`;
   else if (state.activePath.length) t = `<b>${n}</b> 条`;
   else t = `共 <b>${n}</b> 条词条 · ${state.list.filter(hasEntryImage).length} 条已配图`;
   count.innerHTML = t;
@@ -592,9 +595,12 @@ export function updateEmptyState(n) {
       ? '删掉一两个筛选条件，或加一个普通关键词继续缩小范围。'
       : '试试换个关键词，或清空搜索回到当前法典。';
     actions.push({ label: '清空搜索', action: 'clear-search' });
+  } else if (state.favoritesView && !state.onlyImaged && !state.activePath.length) {
+    title = '收藏夹还是空的';
+    desc = '逛任意法典时点卡片右上角的星标，收藏就会集中到这里。';
   } else if (state.onlyFav) {
     title = '收藏夹还是空的';
-    desc = '先在卡片右上角点星标收藏，之后就能在这里集中查看。';
+    desc = '先在卡片右上角点星标收藏。';
     actions.push({ label: '查看全部词条', action: 'show-all' });
   } else if (state.onlyImaged) {
     title = '这个范围里暂时没有配图';
@@ -705,11 +711,13 @@ export function renderCodexHeader() {
   const cover = c.entries.find(hasEntryImage);
   const pct = c.entryCount ? Math.round((c.imagedCount / c.entryCount) * 100) : 0;
   const metaText = [c.author, c.version].filter(Boolean).join(' · ');
+  const originalPill = state.favoritesView ? '' :
+    `<span class="data-pill ${c.hasOriginal ? 'has-orig' : 'no-orig'}" title="${esc(c.hasOriginal ? '本法典保留原图：放大后可拖入 NovelAI 读取生成参数' : '本法典为压缩缩略图，拖入 NovelAI 读不出参数')}">${c.hasOriginal ? '含原图' : '无原图'}</span>`;
   banner.innerHTML =
     `<div class="banner-cover">${cover ? `<img src="${esc(thumbUrl(cover))}" alt="">` : ''}</div>` +
     `<div class="banner-info">` +
     `<div class="banner-title">${esc(c.title)}</div>` +
-    `<div class="banner-meta"><span>${esc(metaText)}</span><span class="data-pill ${c.hasOriginal ? 'has-orig' : 'no-orig'}" title="${esc(c.hasOriginal ? '本法典保留原图：放大后可拖入 NovelAI 读取生成参数' : '本法典为压缩缩略图，拖入 NovelAI 读不出参数')}">${c.hasOriginal ? '含原图' : '无原图'}</span></div>` +
+    `<div class="banner-meta"><span>${esc(metaText)}</span>${originalPill}</div>` +
     `<div class="banner-progress"><div class="bp-track"><div class="bp-fill" style="width:${pct}%"></div></div>` +
     `<span class="bp-text">${c.imagedCount} / ${c.entryCount} 已配图</span></div>` +
     `</div>`;
@@ -720,7 +728,7 @@ export function renderCodexHeader() {
     if (coverImg.complete && coverImg.naturalWidth) reveal();
     else { coverImg.onload = reveal; coverImg.onerror = reveal; }
   }
-  renderBannerAbout(c, banner);
+  if (!state.favoritesView) renderBannerAbout(c, banner);
   const rail = $('#chipRail');
   if (!rail) return;
   rail.innerHTML = '';

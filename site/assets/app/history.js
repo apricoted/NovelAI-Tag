@@ -1,13 +1,15 @@
-import { state, RECENT_ENTRY_LIMIT, RECENT_STORAGE_KEY, LAST_BROWSE_STORAGE_KEY } from './state.js?v=20260702-cache17';
-import { $, esc, updateSearchClear, updateScrollProgress } from './utils.js?v=20260702-cache17';
-import { hasEntryImage, thumbUrl } from './media.js?v=20260702-cache17';
-import { syncUrlState } from './router.js?v=20260702-cache17';
-import { isCodexLocked, isR18gPath, showNsfwLockedHint, showR18gLockedHint } from './access.js?v=20260702-cache17';
-import { toast } from './feedback.js?v=20260702-cache17';
-import { findCodexMeta } from './data.js?v=20260702-cache17';
+import { state, RECENT_ENTRY_LIMIT, RECENT_STORAGE_KEY, LAST_BROWSE_STORAGE_KEY } from './state.js?v=20260707-cache20';
+import { $, esc, updateSearchClear, updateScrollProgress } from './utils.js?v=20260707-cache20';
+import { hasEntryImage, thumbUrl } from './media.js?v=20260707-cache20';
+import { syncUrlState } from './router.js?v=20260707-cache20';
+import { firstUnlockedCodex, isCodexLocked, isR18gPath, showNsfwLockedHint, showR18gLockedHint } from './access.js?v=20260707-cache20';
+import { toast } from './feedback.js?v=20260707-cache20';
+import { findCodexMeta } from './data.js?v=20260707-cache20';
+import { FAVORITES_CODEX_ID } from './fav-codex.js?v=20260707-cache20';
 
 const historyActions = {
   loadCodex: async () => {},
+  openFavoritesView: async () => {},
   openEntryDeepLink: () => {},
   renderTree: () => {},
   applyFilter: () => {},
@@ -43,6 +45,7 @@ export function normalizeLastBrowse(value) {
     q: String(value.q || ''),
     onlyImaged: Boolean(value.onlyImaged),
     onlyFav: Boolean(value.onlyFav),
+    favoritesView: Boolean(value.favoritesView || value.favMode || value.onlyFav || value.codexId === FAVORITES_CODEX_ID),
     entryId: String(value.entryId || ''),
     scrollY: Math.max(0, Number(value.scrollY) || 0),
     at: Number(value.at) || Date.now(),
@@ -56,13 +59,16 @@ export function saveRecentEntries() {
 
 export function recordRecentEntry(e) {
   if (!state.codex || !e) return;
-  const key = `${state.codex.id}:${e.id}`;
+  /* 全部收藏视图里的词条带 _src* 标记：记录归到真实法典，点开记录才能跳回原书原分类 */
+  const codexId = e._srcCodexId || state.codex.id;
+  const codexTitle = e._srcCodexTitle || state.codex.title;
+  const key = `${codexId}:${e.id}`;
   const item = {
-    codexId: state.codex.id,
-    codexTitle: state.codex.title,
+    codexId,
+    codexTitle,
     entryId: e.id,
     title: e.title,
-    path: e.path || [],
+    path: e._srcPath || e.path || [],
     thumb: hasEntryImage(e) ? thumbUrl(e) : '',
     at: Date.now(),
   };
@@ -81,13 +87,16 @@ let browseSaveTimer = 0;
 let browseSaveSuppressedUntil = 0;
 export function currentBrowseSnapshot(entryId = state.lightbox.entry?.id || '') {
   if (!state.codex) return null;
+  const favoritesView = Boolean(state.favoritesView);
+  const routeCodex = favoritesView ? (state.browseCodex || firstUnlockedCodex() || state.codex) : state.codex;
   return {
-    codexId: state.codex.id,
-    codexTitle: state.codex.title,
+    codexId: routeCodex.id,
+    codexTitle: favoritesView ? '全部收藏' : routeCodex.title,
+    favoritesView,
     path: state.activePath || [],
     q: state.query.trim(),
     onlyImaged: Boolean(state.onlyImaged),
-    onlyFav: Boolean(state.onlyFav),
+    onlyFav: favoritesView,
     entryId,
     scrollY: Math.max(0, Math.round(window.scrollY || 0)),
     at: Date.now(),
@@ -115,6 +124,11 @@ export function scheduleBrowseStateSave(entryId) {
 export function browseDesc(snapshot) {
   if (!snapshot) return '暂无可恢复的位置';
   if (isHiddenR18gHistoryItem(snapshot)) return '上次位置包含 R18G / 重口内容，已隐藏';
+  if (snapshot.favoritesView) {
+    if (snapshot.q) return `全部收藏 · 搜索 “${snapshot.q}”`;
+    if (snapshot.path?.length) return `全部收藏 · ${snapshot.path.join(' › ')}`;
+    return `全部收藏 · ${formatRecentTime(snapshot.at)}`;
+  }
   if (snapshot.q) return `${snapshot.codexTitle} · 搜索 “${snapshot.q}”`;
   if (snapshot.path?.length) return `${snapshot.codexTitle} · ${snapshot.path.join(' › ')}`;
   return `${snapshot.codexTitle} · ${formatRecentTime(snapshot.at)}`;
@@ -196,7 +210,7 @@ export function renderHistoryPanel() {
 
 export function applyBrowseControls(snapshot) {
   state.onlyImaged = Boolean(snapshot.onlyImaged);
-  state.onlyFav = Boolean(snapshot.onlyFav);
+  state.onlyFav = Boolean(snapshot.favoritesView || snapshot.onlyFav);
   const onlyImaged = $('#onlyImaged');
   const onlyFav = $('#onlyFav');
   if (onlyImaged) onlyImaged.checked = state.onlyImaged;
@@ -235,20 +249,35 @@ export async function resumeLastBrowse() {
     showR18gLockedHint();
     return;
   }
-  const meta = findCodexMeta(snapshot.codexId);
-  const targetId = meta?.id || snapshot.codexId;
+  const wantsFavorites = Boolean(snapshot.favoritesView || snapshot.onlyFav || snapshot.codexId === FAVORITES_CODEX_ID);
+  const requestedCodexId = snapshot.codexId === FAVORITES_CODEX_ID
+    ? (state.browseCodex?.id || firstUnlockedCodex()?.id || '')
+    : snapshot.codexId;
+  const meta = findCodexMeta(requestedCodexId);
+  const targetId = meta?.id || requestedCodexId || firstUnlockedCodex()?.id || snapshot.codexId;
   if (meta && isCodexLocked(meta)) {
     showNsfwLockedHint();
     return;
   }
-  applyBrowseControls(snapshot);
-  if (!state.codex || state.codex.id !== targetId) {
+  if (wantsFavorites) {
+    if (!state.codex || state.codex.id !== targetId || state.favoritesView) {
+      await historyActions.loadCodex(targetId, { replaceUrl: true, saveBrowse: false });
+    }
+    applyBrowseControls({ ...snapshot, favoritesView: true });
+    await historyActions.openFavoritesView({
+      urlState: { codex: targetId, path: snapshot.path || [], q: snapshot.q || '', entry: snapshot.entryId || '', favorites: true },
+      replaceUrl: true,
+      saveBrowse: false,
+    });
+  } else if (!state.codex || state.codex.id !== targetId || state.favoritesView) {
+    applyBrowseControls(snapshot);
     await historyActions.loadCodex(targetId, {
       urlState: { codex: targetId, path: snapshot.path || [], q: snapshot.q || '', entry: snapshot.entryId || '' },
       replaceUrl: true,
       saveBrowse: false,
     });
   } else {
+    applyBrowseControls(snapshot);
     applyBrowseState(snapshot);
     if (snapshot.entryId) window.setTimeout(() => historyActions.openEntryDeepLink(snapshot.entryId), 120);
   }

@@ -1,23 +1,29 @@
-import { state, RECENT_STORAGE_KEY, LAST_BROWSE_STORAGE_KEY, NSFW_STORAGE_KEY, R18G_STORAGE_KEY, DENSITY_STORAGE_KEY } from './app/state.js?v=20260702-cache17';
-import { $, esc, safeJsonParse, updateSearchClear, prefersReducedMotion } from './app/utils.js?v=20260702-cache17';
-import { setLoading, showSkeleton, hideSkeleton } from './app/feedback.js?v=20260702-cache17';
-import { isCodexLocked, firstUnlockedCodex, showNsfwLockedHint, isEntryAccessBlocked, isR18gPath } from './app/access.js?v=20260702-cache17';
-import { loadMedia, loadAbout, fetchCodex, findCodexMeta, notifyCodexDataStatus } from './app/data.js?v=20260702-cache17';
-import { parseSearchQuery, matchSearchPlan } from './app/search.js?v=20260702-cache17';
-import { hasEntryImage, primeResourceHints } from './app/media.js?v=20260702-cache17';
-import { isFav, setFavoritesActions, toggleFav } from './app/favorites.js?v=20260702-cache17';
-import { renderList, clearMasonry, updateVirtualCards, setMasonryActions } from './app/masonry.js?v=20260702-cache17';
-import { openLightbox } from './app/lightbox.js?v=20260702-cache17';
-import { copyEntry } from './app/copy.js?v=20260702-cache17';
-import { openReportDialog } from './app/report.js?v=20260702-cache17';
-import { readUrlState, syncUrlState, openEntryDeepLink, setRouterActions } from './app/router.js?v=20260702-cache17';
-import { setupCodexPicker, setupAbout, setupTreeSpy, updateCodexPickerState, renderTree, renderCodexHeader, updateRailActive, updateResultBar, updateEmptyState, setCodexUiActions } from './app/codex-ui.js?v=20260702-cache17';
-import { normalizeRecentEntries, normalizeLastBrowse, scheduleBrowseStateSave, suppressBrowseStateSave, setHistoryActions } from './app/history.js?v=20260702-cache17';
-import { bindUI, applyDensity, setUiActions } from './app/ui.js?v=20260702-cache17';
-import { maybeShowOnboarding } from './app/onboarding.js?v=20260702-cache17';
+import { state, RECENT_STORAGE_KEY, LAST_BROWSE_STORAGE_KEY, NSFW_STORAGE_KEY, R18G_STORAGE_KEY, DENSITY_STORAGE_KEY } from './app/state.js?v=20260707-cache20';
+import { $, esc, safeJsonParse, updateSearchClear, prefersReducedMotion } from './app/utils.js?v=20260707-cache20';
+import { setLoading, showSkeleton, hideSkeleton } from './app/feedback.js?v=20260707-cache20';
+import { isCodexLocked, firstUnlockedCodex, showNsfwLockedHint, isEntryAccessBlocked, isR18gPath } from './app/access.js?v=20260707-cache20';
+import { loadMedia, loadAbout, fetchCodex, findCodexMeta, notifyCodexDataStatus } from './app/data.js?v=20260707-cache20';
+import { parseSearchQuery, matchSearchPlan } from './app/search.js?v=20260707-cache20';
+import { hasEntryImage, primeResourceHints } from './app/media.js?v=20260707-cache20';
+import { isFav, setFavoritesActions, toggleFav } from './app/favorites.js?v=20260707-cache20';
+import { buildFavoritesCodex, FAVORITES_CODEX_ID } from './app/fav-codex.js?v=20260707-cache20';
+import { renderList, clearMasonry, updateVirtualCards, setMasonryActions } from './app/masonry.js?v=20260707-cache20';
+import { openLightbox } from './app/lightbox.js?v=20260707-cache20';
+import { copyEntry } from './app/copy.js?v=20260707-cache20';
+import { openReportDialog } from './app/report.js?v=20260707-cache20';
+import { readUrlState, syncUrlState, openEntryDeepLink, setRouterActions } from './app/router.js?v=20260707-cache20';
+import { setupCodexPicker, setupAbout, setupTreeSpy, updateCodexPickerState, renderTree, renderCodexHeader, updateRailActive, updateResultBar, updateEmptyState, setCodexUiActions } from './app/codex-ui.js?v=20260707-cache20';
+import { normalizeRecentEntries, normalizeLastBrowse, scheduleBrowseStateSave, suppressBrowseStateSave, setHistoryActions } from './app/history.js?v=20260707-cache20';
+import { bindUI, applyDensity, setUiActions } from './app/ui.js?v=20260707-cache20';
+import { maybeShowOnboarding } from './app/onboarding.js?v=20260707-cache20';
 
 let codexLoadSeq = 0;
 const codexPickerTitle = c => c?.selectorTitle || c?.title || '';
+const setOnlyFavControl = checked => {
+  state.onlyFav = Boolean(checked);
+  const onlyFav = $('#onlyFav');
+  if (onlyFav) onlyFav.checked = state.onlyFav;
+};
 
 export async function init() {
   const initSkeletonToken = 'init';
@@ -50,6 +56,7 @@ export async function init() {
     setupTreeSpy();
     bindUI();
     state.pendingUrlState = readUrlState();
+    const wantsFavorites = state.pendingUrlState.favorites || state.pendingUrlState.codex === FAVORITES_CODEX_ID;
     const initialMeta = findCodexMeta(state.pendingUrlState.codex);
     const initialId = initialMeta && !isCodexLocked(initialMeta)
       ? initialMeta.id
@@ -57,7 +64,10 @@ export async function init() {
     if (initialMeta && isCodexLocked(initialMeta)) showNsfwLockedHint();
     if (codexes.length) {
       hideSkeleton(initSkeletonToken);
-      await loadCodex(initialId, { urlState: state.pendingUrlState, replaceUrl: true, saveBrowse: false });
+      await loadCodex(initialId, { urlState: wantsFavorites ? null : state.pendingUrlState, replaceUrl: true, saveBrowse: false });
+      if (wantsFavorites) {
+        await openFavoritesView({ urlState: state.pendingUrlState, replaceUrl: true, saveBrowse: false });
+      }
       maybeShowOnboarding();
     } else {
       hideSkeleton(initSkeletonToken);
@@ -71,6 +81,7 @@ export async function init() {
 }
 
 export async function loadCodex(id, options = {}) {
+  if (id === FAVORITES_CODEX_ID) return openFavoritesView(options);
   const meta = findCodexMeta(id) || { id };
   if (isCodexLocked(meta)) {
     showNsfwLockedHint();
@@ -92,6 +103,9 @@ export async function loadCodex(id, options = {}) {
     const render = () => {
       if (seq !== codexLoadSeq) return;
       primeResourceHints({ codexes: [codex] });
+      state.favoritesView = false;
+      state.browseCodex = codex;
+      setOnlyFavControl(false);
       state.codex = codex;
       const c = state.codex;
       const codexSelect = $('#codexSelect');
@@ -147,6 +161,83 @@ export async function loadCodex(id, options = {}) {
   }
 }
 
+export async function openFavoritesView(options = {}) {
+  const baseCodex = state.codex && !state.favoritesView
+    ? state.codex
+    : state.browseCodex;
+  if (baseCodex) state.browseCodex = baseCodex;
+  else {
+    const fallback = firstUnlockedCodex();
+    if (fallback) {
+      await loadCodex(fallback.id, { replaceUrl: true, saveBrowse: false });
+    }
+  }
+
+  const seq = ++codexLoadSeq;
+  showSkeleton(seq);
+  setLoading('');
+  clearMasonry();
+  try {
+    const codex = await buildFavoritesCodex();
+    if (seq !== codexLoadSeq) return;
+    const wasSwitching = Boolean(state.codex);
+    const render = () => {
+      if (seq !== codexLoadSeq) return;
+      primeResourceHints({ codexes: [codex] });
+      state.favoritesView = true;
+      setOnlyFavControl(true);
+      state.codex = codex;
+      const c = state.codex;
+      const baseMeta = findCodexMeta(state.browseCodex?.id);
+      const codexSelect = $('#codexSelect');
+      if (codexSelect && state.browseCodex) codexSelect.value = state.browseCodex.id;
+      $('#codexTitle').textContent = c.title;
+      $('#codexMeta').textContent = `${c.version} · ${c.entryCount} 条`;
+      const codexBtnText = $('#codexBtnText');
+      if (codexBtnText) codexBtnText.textContent = codexPickerTitle(baseMeta || state.browseCodex) || '选择法典';
+      updateCodexPickerState();
+      const urlState = options.urlState && (options.urlState.favorites || options.urlState.codex === FAVORITES_CODEX_ID)
+        ? options.urlState
+        : null;
+      const nextPath = normalizeRoutePath(c.tree, urlState?.path || []);
+      state.activePath = !state.allowR18g && isR18gPath(nextPath) ? [] : nextPath;
+      state.query = urlState?.q || '';
+      state.seenAnimated.clear();
+      state.recentRandomIds = [];
+      $('#search').value = state.query;
+      updateSearchClear();
+      renderTree();
+      renderCodexHeader();
+      if (options.saveBrowse === false) suppressBrowseStateSave(2000);
+      applyFilter({ resetScroll: true });
+      syncUrlState({ replace: options.replaceUrl !== false, entry: urlState?.entry || '', saveBrowse: options.saveBrowse !== false });
+      if (urlState?.entry) {
+        window.setTimeout(() => openEntryDeepLink(urlState.entry), 180);
+      }
+      setLoading('');
+      notifyCodexDataStatus(c);
+    };
+    if (wasSwitching && !prefersReducedMotion() && typeof document.startViewTransition === 'function') {
+      await new Promise(r => setTimeout(r, 170));
+      if (seq !== codexLoadSeq) return;
+      const h = document.documentElement;
+      h.classList.add('vt-codex');
+      const vt = document.startViewTransition(render);
+      vt.finished.catch(() => {}).finally(() => h.classList.remove('vt-codex'));
+      await vt.updateCallbackDone;
+    } else {
+      render();
+    }
+  } catch (ex) {
+    if (seq === codexLoadSeq) {
+      console.error(ex);
+      setLoading('加载失败，请刷新页面重试');
+    }
+  } finally {
+    hideSkeleton(seq);
+  }
+}
+
 export function applyFilter(options = {}) {
   const plan = parseSearchQuery(state.query);
   state.searchPlan = plan;
@@ -158,7 +249,7 @@ export function applyFilter(options = {}) {
     list = list.filter(e => p.every((seg, i) => e.path[i] === seg));
   }
   if (state.onlyImaged) list = list.filter(hasEntryImage);
-  if (state.onlyFav) list = list.filter(isFav);
+  if (state.favoritesView) list = list.filter(isFav);   // 收藏视图里取消收藏即时消卡
   list = list.filter(e => !isEntryAccessBlocked(e));  // NSFW/R18G 条目级访问控制
   state.list = list;
   updateResultBar();
@@ -196,6 +287,7 @@ setCodexUiActions({
 
 setHistoryActions({
   loadCodex,
+  openFavoritesView,
   openEntryDeepLink,
   renderTree,
   applyFilter,
@@ -211,6 +303,6 @@ setMasonryActions({
   reportEntry: (entry, opts = {}) => openReportDialog({ entry, ...opts }),
 });
 
-setUiActions({ loadCodex, applyFilter });
+setUiActions({ loadCodex, openFavoritesView, applyFilter });
 
 init();

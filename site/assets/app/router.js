@@ -1,8 +1,8 @@
-import { state } from './state.js?v=20260702-cache17';
-import { $ } from './utils.js?v=20260702-cache17';
-import { hasEntryImage } from './media.js?v=20260702-cache17';
-import { toast } from './feedback.js?v=20260702-cache17';
-import { isEntryAccessBlocked, isR18gBlocked, showNsfwLockedHint, showR18gLockedHint } from './access.js?v=20260702-cache17';
+import { state } from './state.js?v=20260707-cache20';
+import { $ } from './utils.js?v=20260707-cache20';
+import { hasEntryImage } from './media.js?v=20260707-cache20';
+import { toast } from './feedback.js?v=20260707-cache20';
+import { isEntryAccessBlocked, isR18gBlocked, showNsfwLockedHint, showR18gLockedHint } from './access.js?v=20260707-cache20';
 
 const routerActions = {
   onUrlSync: () => {},
@@ -25,6 +25,7 @@ export function readUrlState() {
     : decodeLegacyPathParam(pathValues[0] || '');
   return {
     codex: params.get('codex') || '',
+    favorites: params.get('fav') === '1' || params.get('view') === 'favorites' || params.get('codex') === 'favorites',
     path,
     q: params.get('q') || '',
     entry: params.get('entry') || hash.get('entry') || '',
@@ -34,7 +35,9 @@ export function readUrlState() {
 export function syncUrlState({ replace = true, entry, saveBrowse = true } = {}) {
   if (state.suppressUrlSync || !state.codex) return;
   const params = new URLSearchParams();
-  params.set('codex', state.codex.id);
+  const routeCodex = state.favoritesView ? (state.browseCodex?.id || state.codex.id) : state.codex.id;
+  params.set('codex', routeCodex);
+  if (state.favoritesView) params.set('fav', '1');
   const q = state.query.trim();
   if (q) params.set('q', q);
   else if (state.activePath.length) {
