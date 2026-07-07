@@ -1,21 +1,21 @@
-import { state, RECENT_STORAGE_KEY, LAST_BROWSE_STORAGE_KEY, NSFW_STORAGE_KEY, R18G_STORAGE_KEY, DENSITY_STORAGE_KEY } from './app/state.js?v=20260707-cache20';
-import { $, esc, safeJsonParse, updateSearchClear, prefersReducedMotion } from './app/utils.js?v=20260707-cache20';
-import { setLoading, showSkeleton, hideSkeleton } from './app/feedback.js?v=20260707-cache20';
-import { isCodexLocked, firstUnlockedCodex, showNsfwLockedHint, isEntryAccessBlocked, isR18gPath } from './app/access.js?v=20260707-cache20';
-import { loadMedia, loadAbout, fetchCodex, findCodexMeta, notifyCodexDataStatus } from './app/data.js?v=20260707-cache20';
-import { parseSearchQuery, matchSearchPlan } from './app/search.js?v=20260707-cache20';
-import { hasEntryImage, primeResourceHints } from './app/media.js?v=20260707-cache20';
-import { isFav, setFavoritesActions, toggleFav } from './app/favorites.js?v=20260707-cache20';
-import { buildFavoritesCodex, FAVORITES_CODEX_ID } from './app/fav-codex.js?v=20260707-cache20';
-import { renderList, clearMasonry, updateVirtualCards, setMasonryActions } from './app/masonry.js?v=20260707-cache20';
-import { openLightbox } from './app/lightbox.js?v=20260707-cache20';
-import { copyEntry } from './app/copy.js?v=20260707-cache20';
-import { openReportDialog } from './app/report.js?v=20260707-cache20';
-import { readUrlState, syncUrlState, openEntryDeepLink, setRouterActions } from './app/router.js?v=20260707-cache20';
-import { setupCodexPicker, setupAbout, setupTreeSpy, updateCodexPickerState, renderTree, renderCodexHeader, updateRailActive, updateResultBar, updateEmptyState, setCodexUiActions } from './app/codex-ui.js?v=20260707-cache20';
-import { normalizeRecentEntries, normalizeLastBrowse, scheduleBrowseStateSave, suppressBrowseStateSave, setHistoryActions } from './app/history.js?v=20260707-cache20';
-import { bindUI, applyDensity, setUiActions } from './app/ui.js?v=20260707-cache20';
-import { maybeShowOnboarding } from './app/onboarding.js?v=20260707-cache20';
+import { state, RECENT_STORAGE_KEY, LAST_BROWSE_STORAGE_KEY, NSFW_STORAGE_KEY, R18G_STORAGE_KEY, DENSITY_STORAGE_KEY } from './app/state.js?v=20260707-cache21';
+import { $, esc, safeJsonParse, updateSearchClear, prefersReducedMotion } from './app/utils.js?v=20260707-cache21';
+import { setLoading, showSkeleton, hideSkeleton } from './app/feedback.js?v=20260707-cache21';
+import { isCodexLocked, firstUnlockedCodex, showNsfwLockedHint, isEntryAccessBlocked, isR18gPath } from './app/access.js?v=20260707-cache21';
+import { loadMedia, loadAbout, fetchCodex, findCodexMeta, notifyCodexDataStatus, buildTreeFromEntries } from './app/data.js?v=20260707-cache21';
+import { parseSearchQuery, matchSearchPlan } from './app/search.js?v=20260707-cache21';
+import { hasEntryImage, primeResourceHints } from './app/media.js?v=20260707-cache21';
+import { isFav, setFavoritesActions, toggleFav } from './app/favorites.js?v=20260707-cache21';
+import { buildFavoritesCodex, FAVORITES_CODEX_ID } from './app/fav-codex.js?v=20260707-cache21';
+import { renderList, clearMasonry, updateVirtualCards, setMasonryActions } from './app/masonry.js?v=20260707-cache21';
+import { openLightbox } from './app/lightbox.js?v=20260707-cache21';
+import { copyEntry } from './app/copy.js?v=20260707-cache21';
+import { openReportDialog } from './app/report.js?v=20260707-cache21';
+import { readUrlState, syncUrlState, openEntryDeepLink, setRouterActions } from './app/router.js?v=20260707-cache21';
+import { setupCodexPicker, setupAbout, setupTreeSpy, updateCodexPickerState, renderTree, renderCodexHeader, renderCategoryRail, updateRailActive, updateResultBar, updateEmptyState, setCodexUiActions } from './app/codex-ui.js?v=20260707-cache21';
+import { normalizeRecentEntries, normalizeLastBrowse, scheduleBrowseStateSave, suppressBrowseStateSave, setHistoryActions } from './app/history.js?v=20260707-cache21';
+import { bindUI, applyDensity, setUiActions } from './app/ui.js?v=20260707-cache21';
+import { maybeShowOnboarding } from './app/onboarding.js?v=20260707-cache21';
 
 let codexLoadSeq = 0;
 const codexPickerTitle = c => c?.selectorTitle || c?.title || '';
@@ -256,6 +256,29 @@ export function applyFilter(options = {}) {
   renderList(options);
 }
 
+/* 收藏视图内取消收藏后：从仍被收藏的词条重算合成法典的条目/计数/目录树，刷新顶栏、横幅进度、
+   分类轨道与目录树。applyFilter 只重过滤 state.list，不动这些在 buildFavoritesCodex 时烤进合成
+   法典的字段，故单独在此就地更新（不重放 chipIn 入场、不重绘横幅封面，保持“取消即消卡”的顺滑）。 */
+function refreshFavoritesView(options = {}) {
+  if (!state.favoritesView || !state.codex) { applyFilter(options); return; }
+  const c = state.codex;
+  c.entries = c.entries.filter(isFav);
+  c.entryCount = c.entries.length;
+  c.imagedCount = c.entries.filter(hasEntryImage).length;
+  c.tree = buildTreeFromEntries(c.entries);
+  state.activePath = normalizeRoutePath(c.tree, state.activePath);   // 清空的来源分组从路径里剔除
+  const meta = $('#codexMeta');
+  if (meta) meta.textContent = `${c.version} · ${c.entryCount} 条`;
+  const pct = c.entryCount ? Math.round((c.imagedCount / c.entryCount) * 100) : 0;
+  const bpFill = document.querySelector('#codexBanner .bp-fill');
+  const bpText = document.querySelector('#codexBanner .bp-text');
+  if (bpFill) bpFill.style.width = `${pct}%`;
+  if (bpText) bpText.textContent = `${c.imagedCount} / ${c.entryCount} 已配图`;
+  renderTree();
+  renderCategoryRail({ animate: false });
+  applyFilter(options);
+}
+
 function normalizeRoutePath(tree, path) {
   if (!Array.isArray(path) || !path.length) return [];
   let nodes = Array.isArray(tree) ? tree : [];
@@ -294,7 +317,7 @@ setHistoryActions({
   updateVirtualCards,
 });
 
-setFavoritesActions({ applyFilter });
+setFavoritesActions({ applyFilter, refreshFavoritesView });
 
 setMasonryActions({
   openLightbox,

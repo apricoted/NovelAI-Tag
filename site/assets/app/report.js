@@ -1,8 +1,8 @@
-import { state } from './state.js?v=20260707-cache20';
-import { $, clamp } from './utils.js?v=20260707-cache20';
-import { toast } from './feedback.js?v=20260707-cache20';
-import { openMask, closeMask, trapFocus } from './modal.js?v=20260707-cache20';
-import { entryImages, imageItemUrl, thumbUrl, originalUrl, hasEntryImage } from './media.js?v=20260707-cache20';
+import { state } from './state.js?v=20260707-cache21';
+import { $, clamp } from './utils.js?v=20260707-cache21';
+import { toast } from './feedback.js?v=20260707-cache21';
+import { openMask, closeMask, trapFocus } from './modal.js?v=20260707-cache21';
+import { entryImages, imageItemUrl, thumbUrl, originalUrl, hasEntryImage } from './media.js?v=20260707-cache21';
 
 const REPORT_TYPES = {
   site_bug: '站点 Bug / 使用问题',

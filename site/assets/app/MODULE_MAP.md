@@ -15,7 +15,7 @@ This file records the first split of `site/assets/app.js`. It is meant to keep l
 | `router.js` | `setRouterActions`, `readUrlState`, `syncUrlState`, `openEntryDeepLink` | `routerActions` | `state.js`, `utils.js`, `media.js`, `feedback.js` | `onUrlSync`, `renderTree`, `applyFilter`, `openLightbox`, `updateVirtualCards` |
 | `media.js` | image availability, asset paths, rev/cache bust URLs | none | `state.js`, `utils.js` | none |
 | `copy.js` | `copyEntry`, `copyText`, prompt conversion/building | `NAI_WEIGHT_BASE` | `state.js`, `feedback.js`, `history.js` | none |
-| `favorites.js` | `setFavoritesActions`, `favKey`, `favKeys`, `isFav`, `toggleFav`, `saveFavs` | `favoriteActions` | `state.js`, `feedback.js`, `data.js` | `applyFilter` |
+| `favorites.js` | `setFavoritesActions`, `favKey`, `favKeys`, `isFav`, `toggleFav`, `saveFavs` | `favoriteActions` | `state.js`, `feedback.js`, `data.js` | `applyFilter`, `refreshFavoritesView` |
 | `fav-codex.js` | `FAVORITES_CODEX_ID`, `buildFavoritesCodex` | none | `state.js`, `data.js`, `access.js`, `media.js` | none |
 | `report.js` | `setupReport`, `openReportDialog`, feedback context packing | `currentPayload`, `currentTrigger` | `state.js`, `utils.js`, `feedback.js`, `modal.js`, `media.js` | none |
 | `announcements.js` | `setupAnnouncements`, `loadAnnouncements`, `openAnnouncementsPanel`, badge update | `announcements`, loading flags | `utils.js`, `modal.js`, `history.js` | none |

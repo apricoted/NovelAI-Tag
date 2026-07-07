@@ -1,9 +1,9 @@
-import { state, RANDOM_RECENT_LIMIT, NSFW_LOCKED_MESSAGE } from './state.js?v=20260707-cache20';
-import { $, esc, samePath, pathStartsWith, updateSearchClear, prefersReducedMotion } from './utils.js?v=20260707-cache20';
-import { isCodexLocked, showNsfwLockedHint, isEntryAccessBlocked, isEntryNsfw, isNsfwPathSegment, isR18gEntry, isR18gName } from './access.js?v=20260707-cache20';
-import { codexStatusLabel, codexStatusClass, codexStatusTitle } from './data.js?v=20260707-cache20';
-import { hasEntryImage, thumbUrl } from './media.js?v=20260707-cache20';
-import { toast } from './feedback.js?v=20260707-cache20';
+import { state, RANDOM_RECENT_LIMIT, NSFW_LOCKED_MESSAGE } from './state.js?v=20260707-cache21';
+import { $, esc, samePath, pathStartsWith, updateSearchClear, prefersReducedMotion } from './utils.js?v=20260707-cache21';
+import { isCodexLocked, showNsfwLockedHint, isEntryAccessBlocked, isEntryNsfw, isNsfwPathSegment, isR18gEntry, isR18gName } from './access.js?v=20260707-cache21';
+import { codexStatusLabel, codexStatusClass, codexStatusTitle } from './data.js?v=20260707-cache21';
+import { hasEntryImage, thumbUrl } from './media.js?v=20260707-cache21';
+import { toast } from './feedback.js?v=20260707-cache21';
 
 /* 选择器类型图标（描边 SVG，跟随 currentColor） */
 const TYPE_ICONS = {
@@ -729,6 +729,21 @@ export function renderCodexHeader() {
     else { coverImg.onload = reveal; coverImg.onerror = reveal; }
   }
   if (!state.favoritesView) renderBannerAbout(c, banner);
+  renderCategoryRail();
+  /* 结果栏只在换书时一次性淡入（renderCodexHeader 只在 loadCodex/换书渲染时调）；搜索/筛选/就地刷新的高频更新保持瞬时 */
+  const resultBar = document.querySelector('.result-bar');
+  if (resultBar) {
+    clearTimeout(resultEnterTimer);
+    resultBar.classList.remove('result-entering');
+    void resultBar.offsetWidth;
+    resultBar.classList.add('result-entering');
+    resultEnterTimer = window.setTimeout(() => resultBar.classList.remove('result-entering'), 420);
+  }
+}
+
+/* 顶部横向分类轨道（chip rail）。animate=false 用于就地刷新（如收藏视图内取消收藏后重算计数），
+   避免 chipIn 入场错峰在每次删收藏时重放。 */
+export function renderCategoryRail({ animate = true } = {}) {
   const rail = $('#chipRail');
   if (!rail) return;
   rail.innerHTML = '';
@@ -742,6 +757,7 @@ export function renderCodexHeader() {
     chip.innerHTML = `<span class="rc-dot" style="background:${hue}"></span>${esc(label)}<span class="rc-n">${count}</span>`;
     chip.onclick = () => locked ? showNsfwLockedHint() : selectPathByPath(path);
     chip.style.setProperty('--chip-i', String(Math.min(rail.childElementCount, 12)));   // 错峰序号=插入位置，封顶防长尾
+    if (!animate) chip.style.animation = 'none';
     rail.appendChild(chip);
   };
   mkChip('全部', [], visibleEntryCount(), 'var(--accent)');
@@ -750,15 +766,6 @@ export function renderCodexHeader() {
     let h = 0;
     for (const ch of nd.name) h = (h * 31 + ch.codePointAt(0)) % 360;
     mkChip(nd.name, [nd.name], nd.count, `hsl(${h},58%,52%)`, { locked: Boolean(nd.locked && !state.allowNsfw) });
-  }
-  /* 结果栏只在换书时一次性淡入（本函数只在 loadCodex 渲染时被调）；搜索/筛选的高频更新保持瞬时 */
-  const resultBar = document.querySelector('.result-bar');
-  if (resultBar) {
-    clearTimeout(resultEnterTimer);
-    resultBar.classList.remove('result-entering');
-    void resultBar.offsetWidth;
-    resultBar.classList.add('result-entering');
-    resultEnterTimer = window.setTimeout(() => resultBar.classList.remove('result-entering'), 420);
   }
   updateRailActive();
 }

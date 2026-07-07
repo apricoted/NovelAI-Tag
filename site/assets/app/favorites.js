@@ -1,8 +1,8 @@
-import { state } from './state.js?v=20260707-cache20';
-import { toast } from './feedback.js?v=20260707-cache20';
-import { findCodexMeta } from './data.js?v=20260707-cache20';
+import { state } from './state.js?v=20260707-cache21';
+import { toast } from './feedback.js?v=20260707-cache21';
+import { findCodexMeta } from './data.js?v=20260707-cache21';
 
-const favoriteActions = { applyFilter: () => {} };
+const favoriteActions = { applyFilter: () => {}, refreshFavoritesView: () => {} };
 
 export function setFavoritesActions(actions = {}) {
   Object.assign(favoriteActions, actions);
@@ -45,6 +45,6 @@ export function toggleFav(e, btn) {
     btn.title = on ? '取消收藏' : '收藏';
     btn.setAttribute('aria-label', on ? '取消收藏' : '收藏');
   }
-  if (state.favoritesView) favoriteActions.applyFilter({ transition: 'filter' });   // 收藏视图里取消收藏，卡片就地消失
+  if (state.favoritesView) favoriteActions.refreshFavoritesView({ transition: 'filter' });   // 收藏视图里取消收藏：卡片就地消失 + 目录树/计数同步刷新
   toast(on ? `已收藏：${e.title}` : `已取消收藏：${e.title}`);
 }
