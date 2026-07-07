@@ -1,13 +1,12 @@
-import { state, VIRTUAL_BUFFER_UP, VIRTUAL_BUFFER_DOWN, IMAGE_LOAD_DELAY, RELAYOUT_INTERVAL, RELAYOUT_ANIM_MS, DEFAULT_IMAGE_RATIO } from './state.js?v=20260708-cache24';
-import { densityConfig } from './state.js?v=20260708-cache24';
-import { $, clamp, prefersReducedMotion, updateScrollProgress } from './utils.js?v=20260708-cache24';
-import { toast } from './feedback.js?v=20260708-cache24';
-import { currentHighlightTerms, renderHighlightedText } from './search.js?v=20260708-cache24';
-import { hasEntryImage, entryImages, thumbUrl, localAssetUrl, cacheBustUrl } from './media.js?v=20260708-cache24';
-import { copyText, combinedPrompt } from './copy.js?v=20260708-cache24';
-import { isFav } from './favorites.js?v=20260708-cache24';
-import { needsR18gReveal, revealR18gEntry } from './access.js?v=20260708-cache24';
-import { updateResultBar, updateEmptyState, updateReadingSpy } from './codex-ui.js?v=20260708-cache24';
+import { state, VIRTUAL_BUFFER_UP, VIRTUAL_BUFFER_DOWN, IMAGE_LOAD_DELAY, RELAYOUT_INTERVAL, RELAYOUT_ANIM_MS, DEFAULT_IMAGE_RATIO } from './state.js?v=20260708-cache25';
+import { densityConfig } from './state.js?v=20260708-cache25';
+import { $, clamp, prefersReducedMotion, updateScrollProgress } from './utils.js?v=20260708-cache25';
+import { toast } from './feedback.js?v=20260708-cache25';
+import { currentHighlightTerms, renderHighlightedText } from './search.js?v=20260708-cache25';
+import { hasEntryImage, entryImages, thumbUrl, localAssetUrl, cacheBustUrl } from './media.js?v=20260708-cache25';
+import { copyText, combinedPrompt } from './copy.js?v=20260708-cache25';
+import { isFav } from './favorites.js?v=20260708-cache25';
+import { updateResultBar, updateEmptyState, updateReadingSpy } from './codex-ui.js?v=20260708-cache25';
 
 const masonryActions = {
   openLightbox: () => {},
@@ -385,8 +384,6 @@ export function makeCard(placement) {
     node.classList.add('no-img');
   }
 
-  applyR18gCensor(node, e, hasImage);
-
   const packMode = state.codex?.type === 'pack' || e._srcType === 'pack';   // 收藏墙里的图包词条保持「点卡看图」行为
   const copyHint = node.querySelector('.copy-hint');
   if (copyHint && packMode) copyHint.textContent = hasImage ? '🔍 点击查看' : '暂无图片';
@@ -400,22 +397,6 @@ export function makeCard(placement) {
   };
   maybeAnimateCardEntry(node, placement);
   return node;
-}
-
-/* R18G 词条即便开启也要厚码遮挡，点击遮罩才揭示（本次浏览记忆，避免来回滚动重复点） */
-function applyR18gCensor(node, e, hasImage) {
-  const veil = node.querySelector('.r18g-veil');
-  const censored = hasImage && needsR18gReveal(e);
-  node.classList.toggle('r18g-censored', censored);
-  if (!veil) return;
-  veil.hidden = !censored;
-  if (!censored) return;
-  veil.onclick = ev => {
-    ev.stopPropagation();
-    revealR18gEntry(e);
-    node.classList.remove('r18g-censored');
-    veil.hidden = true;
-  };
 }
 
 export function updateCardPosition(node, placement) {

@@ -1,12 +1,12 @@
-import { state, RECENT_ENTRY_LIMIT, RECENT_STORAGE_KEY, LAST_BROWSE_STORAGE_KEY } from './state.js?v=20260708-cache24';
-import { $, esc, updateSearchClear, updateScrollProgress } from './utils.js?v=20260708-cache24';
-import { hasEntryImage, thumbUrl } from './media.js?v=20260708-cache24';
-import { syncUrlState } from './router.js?v=20260708-cache24';
-import { firstUnlockedCodex, isCodexLocked, isR18gPath, showNsfwLockedHint, showR18gLockedHint } from './access.js?v=20260708-cache24';
-import { toast } from './feedback.js?v=20260708-cache24';
-import { findCodexMeta } from './data.js?v=20260708-cache24';
-import { FAVORITES_CODEX_ID } from './fav-codex.js?v=20260708-cache24';
-import { SITE_SEARCH_CODEX_ID } from './site-search.js?v=20260708-cache24';
+import { state, RECENT_ENTRY_LIMIT, RECENT_STORAGE_KEY, LAST_BROWSE_STORAGE_KEY } from './state.js?v=20260708-cache25';
+import { $, esc, updateSearchClear, updateScrollProgress } from './utils.js?v=20260708-cache25';
+import { hasEntryImage, thumbUrl } from './media.js?v=20260708-cache25';
+import { syncUrlState } from './router.js?v=20260708-cache25';
+import { firstUnlockedCodex, isCodexLocked, isR18gPath, showNsfwLockedHint, showR18gLockedHint } from './access.js?v=20260708-cache25';
+import { toast } from './feedback.js?v=20260708-cache25';
+import { findCodexMeta } from './data.js?v=20260708-cache25';
+import { FAVORITES_CODEX_ID } from './fav-codex.js?v=20260708-cache25';
+import { SITE_SEARCH_CODEX_ID } from './site-search.js?v=20260708-cache25';
 
 const historyActions = {
   loadCodex: async () => {},

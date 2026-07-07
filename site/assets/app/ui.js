@@ -1,17 +1,17 @@
-import { state, DENSITY_PRESETS, DENSITY_STORAGE_KEY, THEME_STORAGE_KEY, THEMES, NSFW_STORAGE_KEY, R18G_STORAGE_KEY, SEARCH_SCOPE_STORAGE_KEY } from './state.js?v=20260708-cache24';
-import { normalizeDensity, densityConfig, normalizeSearchScope } from './state.js?v=20260708-cache24';
-import { $, updateSearchClear, updateScrollProgress, prefersReducedMotion } from './utils.js?v=20260708-cache24';
-import { toast } from './feedback.js?v=20260708-cache24';
-import { firstUnlockedCodex, isNsfwCodex, isNsfwPathSegment, isR18gName } from './access.js?v=20260708-cache24';
-import { closeBannerAbout, renderCodexArchive, renderTree, renderCodexHeader, randomExplore, updateCodexPickerState } from './codex-ui.js?v=20260708-cache24';
-import { syncUrlState } from './router.js?v=20260708-cache24';
-import { renderHistoryPanel, resumeLastBrowse, openRecentEntry, saveRecentEntries, scheduleBrowseStateSave } from './history.js?v=20260708-cache24';
-import { captureMasonryAnchor, restoreMasonryAnchor, relayoutVisible, updateVirtualCards, scheduleVirtualUpdate, scheduleRelayout } from './masonry.js?v=20260708-cache24';
-import { bindLightboxControls } from './lightbox.js?v=20260708-cache24';
-import { openMask, closeMask, trapFocus } from './modal.js?v=20260708-cache24';
-import { setupAnnouncements } from './announcements.js?v=20260708-cache24';
-import { setupReport, openReportDialog } from './report.js?v=20260708-cache24';
-import { setupOnboarding } from './onboarding.js?v=20260708-cache24';
+import { state, DENSITY_PRESETS, DENSITY_STORAGE_KEY, THEME_STORAGE_KEY, THEMES, NSFW_STORAGE_KEY, R18G_STORAGE_KEY, SEARCH_SCOPE_STORAGE_KEY } from './state.js?v=20260708-cache25';
+import { normalizeDensity, densityConfig, normalizeSearchScope } from './state.js?v=20260708-cache25';
+import { $, updateSearchClear, updateScrollProgress, prefersReducedMotion } from './utils.js?v=20260708-cache25';
+import { toast } from './feedback.js?v=20260708-cache25';
+import { firstUnlockedCodex, isNsfwCodex, isNsfwPathSegment, isR18gName } from './access.js?v=20260708-cache25';
+import { closeBannerAbout, renderCodexArchive, renderTree, renderCodexHeader, randomExplore, updateCodexPickerState } from './codex-ui.js?v=20260708-cache25';
+import { syncUrlState } from './router.js?v=20260708-cache25';
+import { renderHistoryPanel, resumeLastBrowse, openRecentEntry, saveRecentEntries, scheduleBrowseStateSave } from './history.js?v=20260708-cache25';
+import { captureMasonryAnchor, restoreMasonryAnchor, relayoutVisible, updateVirtualCards, scheduleVirtualUpdate, scheduleRelayout } from './masonry.js?v=20260708-cache25';
+import { bindLightboxControls } from './lightbox.js?v=20260708-cache25';
+import { openMask, closeMask, trapFocus } from './modal.js?v=20260708-cache25';
+import { setupAnnouncements } from './announcements.js?v=20260708-cache25';
+import { setupReport, openReportDialog } from './report.js?v=20260708-cache25';
+import { setupOnboarding } from './onboarding.js?v=20260708-cache25';
 
 const THEME_ICONS = {
   moon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.5 6.5 0 0 0 9.8 9.8Z"/></svg>',
@@ -323,7 +323,7 @@ export function bindUI() {
   nsfwMask.onclick = ev => { if (ev.target === nsfwMask) cancelNsfwConfirm(); };
   nsfwMask.onkeydown = ev => trapFocus(ev, nsfwMask);
 
-  /* R18G / 重口：默认完全隐藏；需先开 NSFW，再走多重恐吓式确认才能开启；开启后仍厚码点击揭示 */
+  /* R18G / 重口：默认完全隐藏；需先开 NSFW，再走多重恐吓式确认才能开启 */
   const r18gToggle = $('#r18gToggle');
   const r18gMask = $('#r18gConfirm');
   const R18G_STEPS = [
@@ -359,7 +359,6 @@ export function bindUI() {
   const cancelR18gConfirm = () => { if (r18gToggle) r18gToggle.checked = false; closeMask(r18gMask); };
   const setR18gAccess = (on, { announce = false } = {}) => {
     state.allowR18g = Boolean(on) && state.allowNsfw;
-    state.r18gRevealed.clear();  // 每次切换都重新厚码，开启后仍需逐张点击揭示
     document.body.classList.toggle('r18g-unlocked', state.allowR18g);
     localStorage.setItem(R18G_STORAGE_KEY, state.allowR18g ? '1' : '0');
     if (r18gToggle) r18gToggle.checked = state.allowR18g;
@@ -369,7 +368,7 @@ export function bindUI() {
       renderCodexHeader();
       uiActions.applyFilter({ resetScroll: true });
     }
-    if (announce) toast(state.allowR18g ? '已开启 R18G / 重口（仍打码，需逐张点击揭示）' : 'R18G / 重口内容已隐藏');
+    if (announce) toast(state.allowR18g ? '已开启 R18G / 重口' : 'R18G / 重口内容已隐藏');
   };
   const updateR18gToggleState = () => {
     if (!r18gToggle) return;

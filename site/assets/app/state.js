@@ -113,7 +113,6 @@ export const state = {
   favs: new Set(),    // 收藏集合，键为 codexId:entryId
   loadedImages: new Set(),
   seenAnimated: new Set(),
-  r18gRevealed: new Set(),  // 本次浏览已手动揭示的 R18G 词条（键 codexId:entryId）
   recentRandomIds: [],
   recentEntries: [],
   lastBrowse: null,

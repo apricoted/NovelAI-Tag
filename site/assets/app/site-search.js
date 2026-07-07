@@ -1,7 +1,7 @@
-import { state } from './state.js?v=20260708-cache24';
-import { fetchCodex, buildTreeFromEntries } from './data.js?v=20260708-cache24';
-import { isCodexLocked } from './access.js?v=20260708-cache24';
-import { hasEntryImage, entryImages, assetUrl } from './media.js?v=20260708-cache24';
+import { state } from './state.js?v=20260708-cache25';
+import { fetchCodex, buildTreeFromEntries } from './data.js?v=20260708-cache25';
+import { isCodexLocked } from './access.js?v=20260708-cache25';
+import { hasEntryImage, entryImages, assetUrl } from './media.js?v=20260708-cache25';
 
 export const SITE_SEARCH_CODEX_ID = 'site-search';
 

@@ -1,5 +1,5 @@
-import { state, NSFW_LOCKED_MESSAGE, R18G_LOCKED_MESSAGE } from './state.js?v=20260708-cache24';
-import { toast } from './feedback.js?v=20260708-cache24';
+import { state, NSFW_LOCKED_MESSAGE, R18G_LOCKED_MESSAGE } from './state.js?v=20260708-cache25';
+import { toast } from './feedback.js?v=20260708-cache25';
 
 export function isNsfwCodex(c) {
   return Boolean(c?.nsfw);
@@ -55,22 +55,6 @@ export function isR18gBlocked(e) {
 export function isEntryAccessBlocked(e) {
   if (isR18gBlocked(e)) return true;
   return isEntryNsfw(e) && !state.allowNsfw;
-}
-
-export function r18gRevealKey(e) {
-  return `${state.codex?.id || ''}:${e?.id || ''}`;
-}
-
-export function isR18gRevealed(e) {
-  return state.r18gRevealed.has(r18gRevealKey(e));
-}
-
-export function needsR18gReveal(e) {
-  return isR18gEntry(e) && state.allowR18g && !isR18gRevealed(e);
-}
-
-export function revealR18gEntry(e) {
-  state.r18gRevealed.add(r18gRevealKey(e));
 }
 
 export function showR18gLockedHint() {

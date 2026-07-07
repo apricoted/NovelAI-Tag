@@ -1,14 +1,13 @@
-import { state } from './state.js?v=20260708-cache24';
-import { $, clamp, esc, prefersReducedMotion } from './utils.js?v=20260708-cache24';
-import { notifyImageLoadError } from './masonry.js?v=20260708-cache24';
-import { renderHighlightedText, currentHighlightTerms } from './search.js?v=20260708-cache24';
-import { copyText, combinedPrompt } from './copy.js?v=20260708-cache24';
-import { toast } from './feedback.js?v=20260708-cache24';
-import { recordRecentEntry } from './history.js?v=20260708-cache24';
-import { syncUrlState } from './router.js?v=20260708-cache24';
-import { entryImages, imageItemUrl } from './media.js?v=20260708-cache24';
-import { isEntryAccessBlocked, isR18gBlocked, needsR18gReveal, showNsfwLockedHint, showR18gLockedHint } from './access.js?v=20260708-cache24';
-import { openReportDialog } from './report.js?v=20260708-cache24';
+import { state } from './state.js?v=20260708-cache25';
+import { $, clamp, esc, prefersReducedMotion } from './utils.js?v=20260708-cache25';
+import { notifyImageLoadError } from './masonry.js?v=20260708-cache25';
+import { renderHighlightedText, currentHighlightTerms } from './search.js?v=20260708-cache25';
+import { copyText, combinedPrompt } from './copy.js?v=20260708-cache25';
+import { recordRecentEntry } from './history.js?v=20260708-cache25';
+import { syncUrlState } from './router.js?v=20260708-cache25';
+import { entryImages, imageItemUrl } from './media.js?v=20260708-cache25';
+import { isEntryAccessBlocked, isR18gBlocked, showNsfwLockedHint, showR18gLockedHint } from './access.js?v=20260708-cache25';
+import { openReportDialog } from './report.js?v=20260708-cache25';
 
 /* ---------------- 灯箱（沉浸浮影 + 原位展开） ---------------- */
 let lbSeq = 0;
@@ -101,10 +100,6 @@ export function flyIn(sourceEl) {
 export function openLightbox(entry, index = 0, sourceEl = null) {
   if (isR18gBlocked(entry)) { showR18gLockedHint(); return; }  // 深链/最近记录等绕过路径的兜底拦截
   if (isEntryAccessBlocked(entry)) { showNsfwLockedHint(); return; }
-  if (needsR18gReveal(entry)) {
-    toast('请先点击卡片上的 R18G 遮罩，再打开大图', '!');
-    return;
-  }
   const images = entryImages(entry);
   if (!images.length) return;
   recordRecentEntry(entry);
