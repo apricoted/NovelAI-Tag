@@ -18,26 +18,27 @@ if('scrollRestoration' in history)history.scrollRestoration='manual';</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@400;500;700&family=Outfit:wght@300;400;500;600;700;800;900&display=swap">
-<link rel="stylesheet" href="assets/styles.css?v=20260707-cache21">
-<link rel="modulepreload" href="assets/app/state.js?v=20260707-cache21">
-<link rel="modulepreload" href="assets/app/utils.js?v=20260707-cache21">
-<link rel="modulepreload" href="assets/app/modal.js?v=20260707-cache21">
-<link rel="modulepreload" href="assets/app/feedback.js?v=20260707-cache21">
-<link rel="modulepreload" href="assets/app/access.js?v=20260707-cache21">
-<link rel="modulepreload" href="assets/app/data.js?v=20260707-cache21">
-<link rel="modulepreload" href="assets/app/search.js?v=20260707-cache21">
-<link rel="modulepreload" href="assets/app/router.js?v=20260707-cache21">
-<link rel="modulepreload" href="assets/app/media.js?v=20260707-cache21">
-<link rel="modulepreload" href="assets/app/copy.js?v=20260707-cache21">
-<link rel="modulepreload" href="assets/app/favorites.js?v=20260707-cache21">
-<link rel="modulepreload" href="assets/app/codex-ui.js?v=20260707-cache21">
-<link rel="modulepreload" href="assets/app/masonry.js?v=20260707-cache21">
-<link rel="modulepreload" href="assets/app/lightbox.js?v=20260707-cache21">
-<link rel="modulepreload" href="assets/app/history.js?v=20260707-cache21">
-<link rel="modulepreload" href="assets/app/report.js?v=20260707-cache21">
-<link rel="modulepreload" href="assets/app/announcements.js?v=20260707-cache21">
-<link rel="modulepreload" href="assets/app/onboarding.js?v=20260707-cache21">
-<link rel="modulepreload" href="assets/app/ui.js?v=20260707-cache21">
+<link rel="stylesheet" href="assets/styles.css?v=20260708-cache24">
+<link rel="modulepreload" href="assets/app/state.js?v=20260708-cache24">
+<link rel="modulepreload" href="assets/app/utils.js?v=20260708-cache24">
+<link rel="modulepreload" href="assets/app/modal.js?v=20260708-cache24">
+<link rel="modulepreload" href="assets/app/feedback.js?v=20260708-cache24">
+<link rel="modulepreload" href="assets/app/access.js?v=20260708-cache24">
+<link rel="modulepreload" href="assets/app/data.js?v=20260708-cache24">
+<link rel="modulepreload" href="assets/app/search.js?v=20260708-cache24">
+<link rel="modulepreload" href="assets/app/router.js?v=20260708-cache24">
+<link rel="modulepreload" href="assets/app/media.js?v=20260708-cache24">
+<link rel="modulepreload" href="assets/app/copy.js?v=20260708-cache24">
+<link rel="modulepreload" href="assets/app/favorites.js?v=20260708-cache24">
+<link rel="modulepreload" href="assets/app/site-search.js?v=20260708-cache24">
+<link rel="modulepreload" href="assets/app/codex-ui.js?v=20260708-cache24">
+<link rel="modulepreload" href="assets/app/masonry.js?v=20260708-cache24">
+<link rel="modulepreload" href="assets/app/lightbox.js?v=20260708-cache24">
+<link rel="modulepreload" href="assets/app/history.js?v=20260708-cache24">
+<link rel="modulepreload" href="assets/app/report.js?v=20260708-cache24">
+<link rel="modulepreload" href="assets/app/announcements.js?v=20260708-cache24">
+<link rel="modulepreload" href="assets/app/onboarding.js?v=20260708-cache24">
+<link rel="modulepreload" href="assets/app/ui.js?v=20260708-cache24">
 </head>
 <body>
 <script>/* 主题早应用：正式主题在 bindUI（等完网络请求后）才挂，这里先按本地偏好上类，消除深色/换肤用户的首帧闪色 */
@@ -65,7 +66,7 @@ if('scrollRestoration' in history)history.scrollRestoration='manual';</script>
   </div>
 
   <div class="search-wrap">
-    <span class="search-ico">🔍</span>
+    <button id="searchScopeBtn" class="search-scope" type="button" aria-label="搜索范围：全站" title="当前搜索范围：全站。点击切到当前法典">全站</button>
     <input id="search" type="search" placeholder="搜索词条或 tag（中 / 英）…" autocomplete="off">
     <button id="searchClear" class="search-clear" type="button" aria-label="清空搜索" title="清空搜索" hidden>
       <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 4.5 11.5 11.5M11.5 4.5 4.5 11.5"/></svg>
@@ -490,6 +491,6 @@ if('scrollRestoration' in history)history.scrollRestoration='manual';</script>
   </article>
 </template>
 
-<script type="module" src="assets/app.js?v=20260707-cache21"></script>
+<script type="module" src="assets/app.js?v=20260708-cache24"></script>
 </body>
 </html>

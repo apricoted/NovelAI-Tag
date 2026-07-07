@@ -1,17 +1,17 @@
-import { state, DENSITY_PRESETS, DENSITY_STORAGE_KEY, THEME_STORAGE_KEY, THEMES, NSFW_STORAGE_KEY, R18G_STORAGE_KEY } from './state.js?v=20260707-cache21';
-import { normalizeDensity, densityConfig } from './state.js?v=20260707-cache21';
-import { $, updateSearchClear, updateScrollProgress, prefersReducedMotion } from './utils.js?v=20260707-cache21';
-import { toast } from './feedback.js?v=20260707-cache21';
-import { firstUnlockedCodex, isNsfwCodex, isNsfwPathSegment, isR18gName } from './access.js?v=20260707-cache21';
-import { closeBannerAbout, renderCodexArchive, renderTree, renderCodexHeader, randomExplore, updateCodexPickerState } from './codex-ui.js?v=20260707-cache21';
-import { syncUrlState } from './router.js?v=20260707-cache21';
-import { renderHistoryPanel, resumeLastBrowse, openRecentEntry, saveRecentEntries, scheduleBrowseStateSave } from './history.js?v=20260707-cache21';
-import { captureMasonryAnchor, restoreMasonryAnchor, relayoutVisible, updateVirtualCards, scheduleVirtualUpdate, scheduleRelayout } from './masonry.js?v=20260707-cache21';
-import { bindLightboxControls } from './lightbox.js?v=20260707-cache21';
-import { openMask, closeMask, trapFocus } from './modal.js?v=20260707-cache21';
-import { setupAnnouncements } from './announcements.js?v=20260707-cache21';
-import { setupReport, openReportDialog } from './report.js?v=20260707-cache21';
-import { setupOnboarding } from './onboarding.js?v=20260707-cache21';
+import { state, DENSITY_PRESETS, DENSITY_STORAGE_KEY, THEME_STORAGE_KEY, THEMES, NSFW_STORAGE_KEY, R18G_STORAGE_KEY, SEARCH_SCOPE_STORAGE_KEY } from './state.js?v=20260708-cache24';
+import { normalizeDensity, densityConfig, normalizeSearchScope } from './state.js?v=20260708-cache24';
+import { $, updateSearchClear, updateScrollProgress, prefersReducedMotion } from './utils.js?v=20260708-cache24';
+import { toast } from './feedback.js?v=20260708-cache24';
+import { firstUnlockedCodex, isNsfwCodex, isNsfwPathSegment, isR18gName } from './access.js?v=20260708-cache24';
+import { closeBannerAbout, renderCodexArchive, renderTree, renderCodexHeader, randomExplore, updateCodexPickerState } from './codex-ui.js?v=20260708-cache24';
+import { syncUrlState } from './router.js?v=20260708-cache24';
+import { renderHistoryPanel, resumeLastBrowse, openRecentEntry, saveRecentEntries, scheduleBrowseStateSave } from './history.js?v=20260708-cache24';
+import { captureMasonryAnchor, restoreMasonryAnchor, relayoutVisible, updateVirtualCards, scheduleVirtualUpdate, scheduleRelayout } from './masonry.js?v=20260708-cache24';
+import { bindLightboxControls } from './lightbox.js?v=20260708-cache24';
+import { openMask, closeMask, trapFocus } from './modal.js?v=20260708-cache24';
+import { setupAnnouncements } from './announcements.js?v=20260708-cache24';
+import { setupReport, openReportDialog } from './report.js?v=20260708-cache24';
+import { setupOnboarding } from './onboarding.js?v=20260708-cache24';
 
 const THEME_ICONS = {
   moon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.5 6.5 0 0 0 9.8 9.8Z"/></svg>',
@@ -21,7 +21,10 @@ const THEME_ICONS = {
 const uiActions = {
   loadCodex: async () => {},
   openFavoritesView: async () => {},
+  openSiteSearchView: async () => {},
+  exitSiteSearchView: () => {},
   applyFilter: () => {},
+  applySearch: async () => {},
 };
 
 export function setUiActions(actions = {}) {
@@ -34,6 +37,16 @@ export function updateDensityControls() {
     btn.classList.toggle('active', active);
     btn.setAttribute('aria-pressed', active ? 'true' : 'false');
   }
+}
+
+export function updateSearchScopeControl() {
+  const btn = $('#searchScopeBtn');
+  if (!btn) return;
+  const site = state.searchScope === 'site';
+  btn.textContent = site ? '全站' : '本书';
+  btn.dataset.scope = state.searchScope;
+  btn.title = site ? '当前搜索范围：全站。点击切到当前法典' : '当前搜索范围：当前法典。点击切到全站';
+  btn.setAttribute('aria-label', site ? '搜索范围：全站' : '搜索范围：当前法典');
 }
 
 export function applyDensity(value, { render = true, announce = false } = {}) {
@@ -58,6 +71,7 @@ export function bindUI() {
   const searchInput = $('#search');
   const searchClear = $('#searchClear');
   const searchExit = $('#searchExit');
+  const searchScopeBtn = $('#searchScopeBtn');
   const mobileSearchBtn = $('#mobileSearchBtn');
   const mobileQuery = window.matchMedia('(max-width:600px)');
   const setSearchMode = (on, { focus = false, restoreButton = false } = {}) => {
@@ -71,6 +85,20 @@ export function bindUI() {
       if (restoreButton) mobileSearchBtn?.focus();
     }
   };
+  updateSearchScopeControl();
+  if (searchScopeBtn) {
+    searchScopeBtn.onclick = () => {
+      state.searchScope = normalizeSearchScope(state.searchScope === 'site' ? 'codex' : 'site');
+      localStorage.setItem(SEARCH_SCOPE_STORAGE_KEY, state.searchScope);
+      updateSearchScopeControl();
+      if (state.query.trim()) {
+        void uiActions.applySearch({ resetScroll: true, transition: 'filter' });
+      } else {
+        syncUrlState();
+      }
+      searchInput.focus();
+    };
+  }
   mobileSearchBtn?.addEventListener('click', () => setSearchMode(true, { focus: true }));
   searchExit?.addEventListener('click', () => setSearchMode(false, { restoreButton: true }));
   if (mobileQuery.addEventListener) {
@@ -84,12 +112,11 @@ export function bindUI() {
     st = setTimeout(() => {
       state.query = e.target.value;
       if (state.query.trim()) {
-        document.querySelectorAll('.tree-row.active').forEach(r => r.classList.remove('active'));
-      } else {
+        if (!state.siteSearchView) document.querySelectorAll('.tree-row.active').forEach(r => r.classList.remove('active'));   // 全站搜索保留目录收窄的高亮
+      } else if (!state.siteSearchView) {
         renderTree();
       }
-      uiActions.applyFilter({ resetScroll: true });
-      syncUrlState();
+      void uiActions.applySearch({ resetScroll: true });
     }, 180);
   };
   if (searchClear) {
@@ -99,9 +126,8 @@ export function bindUI() {
       searchInput.value = '';
       state.query = '';
       updateSearchClear();
-      renderTree();
-      uiActions.applyFilter({ resetScroll: true, transition: 'filter' });
-      syncUrlState();
+      if (!state.siteSearchView) renderTree();
+      void uiActions.applySearch({ resetScroll: true, transition: 'filter' });
       searchInput.focus();
     };
   }
@@ -262,6 +288,8 @@ export function bindUI() {
     if (!state.allowNsfw && isNsfwCodex(state.codex)) {
       const fallback = firstUnlockedCodex();
       if (fallback) uiActions.loadCodex(fallback.id, { replaceUrl: true });
+    } else if (state.siteSearchView) {
+      uiActions.openSiteSearchView({ replaceUrl: true });   // 全站搜索按整本锁态构建：NSFW 开关后重建索引
     } else if (state.favoritesView) {
       uiActions.openFavoritesView({ replaceUrl: true });   // 收藏视图按锁态构建：开关 NSFW 后重建，让 NSFW 法典的收藏浮现/隐藏
     } else if (state.codex) {

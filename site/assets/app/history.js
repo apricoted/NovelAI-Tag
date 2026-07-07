@@ -1,15 +1,17 @@
-import { state, RECENT_ENTRY_LIMIT, RECENT_STORAGE_KEY, LAST_BROWSE_STORAGE_KEY } from './state.js?v=20260707-cache21';
-import { $, esc, updateSearchClear, updateScrollProgress } from './utils.js?v=20260707-cache21';
-import { hasEntryImage, thumbUrl } from './media.js?v=20260707-cache21';
-import { syncUrlState } from './router.js?v=20260707-cache21';
-import { firstUnlockedCodex, isCodexLocked, isR18gPath, showNsfwLockedHint, showR18gLockedHint } from './access.js?v=20260707-cache21';
-import { toast } from './feedback.js?v=20260707-cache21';
-import { findCodexMeta } from './data.js?v=20260707-cache21';
-import { FAVORITES_CODEX_ID } from './fav-codex.js?v=20260707-cache21';
+import { state, RECENT_ENTRY_LIMIT, RECENT_STORAGE_KEY, LAST_BROWSE_STORAGE_KEY } from './state.js?v=20260708-cache24';
+import { $, esc, updateSearchClear, updateScrollProgress } from './utils.js?v=20260708-cache24';
+import { hasEntryImage, thumbUrl } from './media.js?v=20260708-cache24';
+import { syncUrlState } from './router.js?v=20260708-cache24';
+import { firstUnlockedCodex, isCodexLocked, isR18gPath, showNsfwLockedHint, showR18gLockedHint } from './access.js?v=20260708-cache24';
+import { toast } from './feedback.js?v=20260708-cache24';
+import { findCodexMeta } from './data.js?v=20260708-cache24';
+import { FAVORITES_CODEX_ID } from './fav-codex.js?v=20260708-cache24';
+import { SITE_SEARCH_CODEX_ID } from './site-search.js?v=20260708-cache24';
 
 const historyActions = {
   loadCodex: async () => {},
   openFavoritesView: async () => {},
+  openSiteSearchView: async () => {},
   openEntryDeepLink: () => {},
   renderTree: () => {},
   applyFilter: () => {},
@@ -46,6 +48,8 @@ export function normalizeLastBrowse(value) {
     onlyImaged: Boolean(value.onlyImaged),
     onlyFav: Boolean(value.onlyFav),
     favoritesView: Boolean(value.favoritesView || value.favMode || value.onlyFav || value.codexId === FAVORITES_CODEX_ID),
+    siteSearchView: Boolean(value.siteSearchView || value.searchView || value.codexId === SITE_SEARCH_CODEX_ID),
+    searchScope: value.searchScope === 'codex' ? 'codex' : 'site',
     entryId: String(value.entryId || ''),
     scrollY: Math.max(0, Number(value.scrollY) || 0),
     at: Number(value.at) || Date.now(),
@@ -88,11 +92,14 @@ let browseSaveSuppressedUntil = 0;
 export function currentBrowseSnapshot(entryId = state.lightbox.entry?.id || '') {
   if (!state.codex) return null;
   const favoritesView = Boolean(state.favoritesView);
-  const routeCodex = favoritesView ? (state.browseCodex || firstUnlockedCodex() || state.codex) : state.codex;
+  const siteSearchView = Boolean(state.siteSearchView);
+  const routeCodex = (favoritesView || siteSearchView) ? (state.browseCodex || firstUnlockedCodex() || state.codex) : state.codex;
   return {
     codexId: routeCodex.id,
-    codexTitle: favoritesView ? '全部收藏' : routeCodex.title,
+    codexTitle: favoritesView ? '全部收藏' : (siteSearchView ? '全站搜索' : routeCodex.title),
     favoritesView,
+    siteSearchView,
+    searchScope: state.searchScope,
     path: state.activePath || [],
     q: state.query.trim(),
     onlyImaged: Boolean(state.onlyImaged),
@@ -128,6 +135,11 @@ export function browseDesc(snapshot) {
     if (snapshot.q) return `全部收藏 · 搜索 “${snapshot.q}”`;
     if (snapshot.path?.length) return `全部收藏 · ${snapshot.path.join(' › ')}`;
     return `全部收藏 · ${formatRecentTime(snapshot.at)}`;
+  }
+  if (snapshot.siteSearchView || snapshot.searchScope === 'site') {
+    if (snapshot.q) return `全站搜索 · “${snapshot.q}”`;
+    if (snapshot.path?.length) return `全站搜索 · ${snapshot.path.join(' › ')}`;
+    return `全站搜索 · ${formatRecentTime(snapshot.at)}`;
   }
   if (snapshot.q) return `${snapshot.codexTitle} · 搜索 “${snapshot.q}”`;
   if (snapshot.path?.length) return `${snapshot.codexTitle} · ${snapshot.path.join(' › ')}`;
@@ -250,9 +262,10 @@ export async function resumeLastBrowse() {
     return;
   }
   const wantsFavorites = Boolean(snapshot.favoritesView || snapshot.onlyFav || snapshot.codexId === FAVORITES_CODEX_ID);
+  const wantsSiteSearch = Boolean(snapshot.siteSearchView || (!wantsFavorites && snapshot.searchScope === 'site' && snapshot.q));
   const requestedCodexId = snapshot.codexId === FAVORITES_CODEX_ID
     ? (state.browseCodex?.id || firstUnlockedCodex()?.id || '')
-    : snapshot.codexId;
+    : (snapshot.codexId === SITE_SEARCH_CODEX_ID ? (state.browseCodex?.id || firstUnlockedCodex()?.id || '') : snapshot.codexId);
   const meta = findCodexMeta(requestedCodexId);
   const targetId = meta?.id || requestedCodexId || firstUnlockedCodex()?.id || snapshot.codexId;
   if (meta && isCodexLocked(meta)) {
@@ -269,7 +282,17 @@ export async function resumeLastBrowse() {
       replaceUrl: true,
       saveBrowse: false,
     });
-  } else if (!state.codex || state.codex.id !== targetId || state.favoritesView) {
+  } else if (wantsSiteSearch) {
+    if (!state.codex || state.codex.id !== targetId || state.favoritesView || state.siteSearchView) {
+      await historyActions.loadCodex(targetId, { replaceUrl: true, saveBrowse: false });
+    }
+    applyBrowseControls({ ...snapshot, favoritesView: false, onlyFav: false });
+    await historyActions.openSiteSearchView({
+      urlState: { codex: targetId, path: snapshot.path || [], q: snapshot.q || '', entry: snapshot.entryId || '', scope: 'site' },
+      replaceUrl: true,
+      saveBrowse: false,
+    });
+  } else if (!state.codex || state.codex.id !== targetId || state.favoritesView || state.siteSearchView) {
     applyBrowseControls(snapshot);
     await historyActions.loadCodex(targetId, {
       urlState: { codex: targetId, path: snapshot.path || [], q: snapshot.q || '', entry: snapshot.entryId || '' },
@@ -300,7 +323,7 @@ export async function openRecentEntry(item) {
     return;
   }
   const urlState = { codex: targetId, path: item.path || [], q: '', entry: item.entryId };
-  if (!state.codex || state.codex.id !== targetId) {
+  if (!state.codex || state.codex.id !== targetId || state.siteSearchView) {
     state.onlyFav = false;
     state.onlyImaged = false;
     applyBrowseControls({ onlyFav: false, onlyImaged: false });

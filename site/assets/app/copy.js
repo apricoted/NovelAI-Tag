@@ -1,6 +1,6 @@
-import { state } from './state.js?v=20260707-cache21';
-import { toast } from './feedback.js?v=20260707-cache21';
-import { recordRecentEntry, saveBrowseStateNow } from './history.js?v=20260707-cache21';
+import { state } from './state.js?v=20260708-cache24';
+import { toast } from './feedback.js?v=20260708-cache24';
+import { recordRecentEntry, saveBrowseStateNow } from './history.js?v=20260708-cache24';
 
 export async function copyEntry(e, node) {
   recordRecentEntry(e);

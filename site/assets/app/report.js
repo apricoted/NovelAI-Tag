@@ -1,8 +1,8 @@
-import { state } from './state.js?v=20260707-cache21';
-import { $, clamp } from './utils.js?v=20260707-cache21';
-import { toast } from './feedback.js?v=20260707-cache21';
-import { openMask, closeMask, trapFocus } from './modal.js?v=20260707-cache21';
-import { entryImages, imageItemUrl, thumbUrl, originalUrl, hasEntryImage } from './media.js?v=20260707-cache21';
+import { state } from './state.js?v=20260708-cache24';
+import { $, clamp } from './utils.js?v=20260708-cache24';
+import { toast } from './feedback.js?v=20260708-cache24';
+import { openMask, closeMask, trapFocus } from './modal.js?v=20260708-cache24';
+import { entryImages, imageItemUrl, thumbUrl, originalUrl, hasEntryImage } from './media.js?v=20260708-cache24';
 
 const REPORT_TYPES = {
   site_bug: '站点 Bug / 使用问题',
@@ -55,7 +55,8 @@ export function openReportDialog({ source = 'global', entry = null, imageIndex =
 export function buildFeedbackContext({ source = 'global', entry = null, imageIndex = 0, imageError = false } = {}) {
   const params = new URLSearchParams(location.search);
   const hash = new URLSearchParams(String(location.hash || '').replace(/^#/, ''));
-  const codex = state.favoritesView ? (state.browseCodex || state.codex || {}) : (state.codex || {});
+  const virtualView = state.favoritesView || state.siteSearchView;
+  const codex = virtualView ? (state.browseCodex || state.codex || {}) : (state.codex || {});
   const images = entry ? entryImages(entry) : [];
   const index = clamp(Number(imageIndex) || 0, 0, Math.max(0, images.length - 1));
   const image = images[index] || null;
@@ -75,6 +76,8 @@ export function buildFeedbackContext({ source = 'global', entry = null, imageInd
       onlyImaged: Boolean(state.onlyImaged),
       onlyFav: Boolean(state.onlyFav),
       favoritesView: Boolean(state.favoritesView),
+      siteSearchView: Boolean(state.siteSearchView),
+      searchScope: state.searchScope || '',
     },
     codex: {
       id: codex.id || '',

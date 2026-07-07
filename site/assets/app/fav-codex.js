@@ -1,7 +1,7 @@
-import { state } from './state.js?v=20260707-cache21';
-import { fetchCodex, findCodexMeta, buildTreeFromEntries } from './data.js?v=20260707-cache21';
-import { isCodexLocked } from './access.js?v=20260707-cache21';
-import { hasEntryImage, entryImages, assetUrl } from './media.js?v=20260707-cache21';
+import { state } from './state.js?v=20260708-cache24';
+import { fetchCodex, findCodexMeta, buildTreeFromEntries } from './data.js?v=20260708-cache24';
+import { isCodexLocked } from './access.js?v=20260708-cache24';
+import { hasEntryImage, entryImages, assetUrl } from './media.js?v=20260708-cache24';
 
 /* 全部收藏视图：把全部法典的收藏合并成一份临时数据，复用瀑布流/灯箱/搜索/目录树。
    词条克隆时：图片地址预解析成绝对 URL（含外部源法典也能跨书显示）、path 前面插入来源法典名

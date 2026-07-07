@@ -1,9 +1,9 @@
-import { state, RANDOM_RECENT_LIMIT, NSFW_LOCKED_MESSAGE } from './state.js?v=20260707-cache21';
-import { $, esc, samePath, pathStartsWith, updateSearchClear, prefersReducedMotion } from './utils.js?v=20260707-cache21';
-import { isCodexLocked, showNsfwLockedHint, isEntryAccessBlocked, isEntryNsfw, isNsfwPathSegment, isR18gEntry, isR18gName } from './access.js?v=20260707-cache21';
-import { codexStatusLabel, codexStatusClass, codexStatusTitle } from './data.js?v=20260707-cache21';
-import { hasEntryImage, thumbUrl } from './media.js?v=20260707-cache21';
-import { toast } from './feedback.js?v=20260707-cache21';
+import { state, RANDOM_RECENT_LIMIT, NSFW_LOCKED_MESSAGE } from './state.js?v=20260708-cache24';
+import { $, esc, samePath, pathStartsWith, updateSearchClear, prefersReducedMotion } from './utils.js?v=20260708-cache24';
+import { isCodexLocked, showNsfwLockedHint, isEntryAccessBlocked, isEntryNsfw, isNsfwPathSegment, isR18gEntry, isR18gName } from './access.js?v=20260708-cache24';
+import { codexStatusLabel, codexStatusClass, codexStatusTitle } from './data.js?v=20260708-cache24';
+import { hasEntryImage, thumbUrl } from './media.js?v=20260708-cache24';
+import { toast } from './feedback.js?v=20260708-cache24';
 
 /* 选择器类型图标（描边 SVG，跟随 currentColor） */
 const TYPE_ICONS = {
@@ -27,12 +27,13 @@ const CODEX_TYPES = [
 const codexType = c => (c && c.type) || 'codex';
 const codexPickerTitle = c => c?.selectorTitle || c?.title || '';
 const realCodexesOfType = typeId => state.codexes.filter(c => codexType(c) === typeId);
-const pickerActiveCodex = () => state.favoritesView ? state.browseCodex : state.codex;
+const pickerActiveCodex = () => (state.favoritesView || state.siteSearchView) ? state.browseCodex : state.codex;
 const pickerActiveCodexId = () => pickerActiveCodex()?.id || '';
 
 const codexUiActions = {
   loadCodex: async () => {},
   applyFilter: () => {},
+  applySearch: async () => {},
   syncUrlState: () => {},
   openLightbox: () => {},
   updateVirtualCards: () => {},
@@ -81,7 +82,7 @@ export function setupCodexPicker() {
     if (!c) return;
     if (isCodexLocked(c)) { showNsfwLockedHint(); return; }
     close({ focusButton: true });
-    if (state.favoritesView || sel.value !== c.id) {
+    if (state.favoritesView || state.siteSearchView || sel.value !== c.id) {
       sel.value = c.id;
       codexUiActions.loadCodex(c.id);
     }
@@ -307,8 +308,9 @@ export function renderTree() {
   resetTreeSpy();
   nav.dataset.codexId = state.codex?.id || '';
   const searching = state.query.trim();
+  const allActive = (!searching || state.siteSearchView) && !state.activePath.length;
   const all = document.createElement('div');
-  all.className = 'tree-row' + (!searching && !state.activePath.length ? ' active' : '');
+  all.className = 'tree-row' + (allActive ? ' active' : '');
   all.dataset.path = '';
   all.innerHTML = `<span class="tw-arrow"></span><span class="tw-name">全部</span><span class="tw-count">${visibleEntryCount()}</span>`;
   all.onclick = () => selectPath([], all);
@@ -460,7 +462,7 @@ export function buildNodes(nodes, parent, prefix, depth) {
     const path = prefix.concat(nd.name);
     const item = document.createElement('div');
     const locked = Boolean(nd.locked && !state.allowNsfw);
-    const active = !locked && !state.query.trim() && samePath(path, state.activePath);
+    const active = !locked && (!state.query.trim() || state.siteSearchView) && samePath(path, state.activePath);
     const activeAncestor = pathStartsWith(state.activePath, path);
     item.className = 'tree-item' + (depth >= 1 && !activeAncestor ? ' collapsed' : '');
     const row = document.createElement('div');
@@ -497,13 +499,20 @@ export function buildNodes(nodes, parent, prefix, depth) {
 }
 
 export function selectPath(path, rowEl) {
+  document.querySelectorAll('.tree-row.active').forEach(r => r.classList.remove('active'));
+  rowEl.classList.add('active');
+  if (window.innerWidth <= 600) $('#sidebar').classList.add('closed');
+  if (state.siteSearchView) {
+    // 全站搜索：点目录 = 保留搜索词，把结果收窄到该来源法典/分类（点「全部」回到全站）
+    state.activePath = path;
+    codexUiActions.applyFilter({ resetScroll: true, transition: 'filter' });
+    codexUiActions.syncUrlState();
+    return;
+  }
   state.activePath = path;
   state.query = '';
   $('#search').value = '';
   updateSearchClear();
-  document.querySelectorAll('.tree-row.active').forEach(r => r.classList.remove('active'));
-  rowEl.classList.add('active');
-  if (window.innerWidth <= 600) $('#sidebar').classList.add('closed');
   codexUiActions.applyFilter({ resetScroll: true, transition: 'filter' });
   codexUiActions.syncUrlState();
 }
@@ -553,7 +562,7 @@ export function updateResultBar() {
     s.textContent = '›';
     crumbs.appendChild(s);
   };
-  if (q) {
+  if (q && !state.siteSearchView) {
     addChip('全部', [], false);
   } else {
     addChip('全部', [], state.activePath.length === 0);
@@ -566,7 +575,10 @@ export function updateResultBar() {
 
   const count = document.createElement('span');
   let t;
-  if (q) t = `${state.searchPlan?.isSyntax ? '筛选' : '搜索'} “${esc(q)}”：<b>${n}</b> 条结果`;
+  if (q) {
+    const scope = state.siteSearchView ? '全站' : (state.searchScope === 'codex' ? '本书' : '');
+    t = `${scope}${state.searchPlan?.isSyntax ? '筛选' : '搜索'} “${esc(q)}”：<b>${n}</b> 条结果`;
+  }
   else if (state.favoritesView) t = `收藏：<b>${n}</b> 条`;
   else if (state.activePath.length) t = `<b>${n}</b> 条`;
   else t = `共 <b>${n}</b> 条词条 · ${state.list.filter(hasEntryImage).length} 条已配图`;
@@ -591,9 +603,11 @@ export function updateEmptyState(n) {
 
   if (q) {
     title = state.searchPlan?.isSyntax ? '没有符合条件的筛选结果' : '没有找到匹配词条';
-    desc = state.searchPlan?.isSyntax
-      ? '删掉一两个筛选条件，或加一个普通关键词继续缩小范围。'
-      : '试试换个关键词，或清空搜索回到当前法典。';
+    desc = state.siteSearchView
+      ? '试试换个关键词，或切到“本书”只在当前法典里找。'
+      : (state.searchPlan?.isSyntax
+        ? '删掉一两个筛选条件，或加一个普通关键词继续缩小范围。'
+        : '试试换个关键词，或清空搜索回到当前法典。');
     actions.push({ label: '清空搜索', action: 'clear-search' });
   } else if (state.favoritesView && !state.onlyImaged && !state.activePath.length) {
     title = '收藏夹还是空的';
@@ -650,8 +664,7 @@ export function handleEmptyAction(action) {
     updateSearchClear();
     renderTree();
   }
-  codexUiActions.applyFilter({ resetScroll: true, transition: 'filter' });
-  codexUiActions.syncUrlState();
+  void codexUiActions.applySearch({ resetScroll: true, transition: 'filter' });
 }
 
 export function randomExplore() {
@@ -711,7 +724,8 @@ export function renderCodexHeader() {
   const cover = c.entries.find(hasEntryImage);
   const pct = c.entryCount ? Math.round((c.imagedCount / c.entryCount) * 100) : 0;
   const metaText = [c.author, c.version].filter(Boolean).join(' · ');
-  const originalPill = state.favoritesView ? '' :
+  const virtualView = state.favoritesView || state.siteSearchView;
+  const originalPill = virtualView ? '' :
     `<span class="data-pill ${c.hasOriginal ? 'has-orig' : 'no-orig'}" title="${esc(c.hasOriginal ? '本法典保留原图：放大后可拖入 NovelAI 读取生成参数' : '本法典为压缩缩略图，拖入 NovelAI 读不出参数')}">${c.hasOriginal ? '含原图' : '无原图'}</span>`;
   banner.innerHTML =
     `<div class="banner-cover">${cover ? `<img src="${esc(thumbUrl(cover))}" alt="">` : ''}</div>` +
@@ -728,7 +742,7 @@ export function renderCodexHeader() {
     if (coverImg.complete && coverImg.naturalWidth) reveal();
     else { coverImg.onload = reveal; coverImg.onerror = reveal; }
   }
-  if (!state.favoritesView) renderBannerAbout(c, banner);
+  if (!virtualView) renderBannerAbout(c, banner);
   renderCategoryRail();
   /* 结果栏只在换书时一次性淡入（renderCodexHeader 只在 loadCodex/换书渲染时调）；搜索/筛选/就地刷新的高频更新保持瞬时 */
   const resultBar = document.querySelector('.result-bar');
@@ -773,7 +787,7 @@ export function renderCategoryRail({ animate = true } = {}) {
 export function updateRailActive() {
   const rail = $('#chipRail');
   if (!rail) return;
-  const head = state.query.trim() ? null : (state.activePath[0] || '');
+  const head = (state.query.trim() && !state.siteSearchView) ? null : (state.activePath[0] || '');
   rail.querySelectorAll('.rail-chip').forEach(ch => {
     ch.classList.toggle('active', head !== null && (ch.dataset.path || '') === head);
   });

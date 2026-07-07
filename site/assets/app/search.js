@@ -1,7 +1,7 @@
-import { state } from './state.js?v=20260707-cache21';
-import { esc } from './utils.js?v=20260707-cache21';
-import { entryImages, hasEntryImage } from './media.js?v=20260707-cache21';
-import { isFav } from './favorites.js?v=20260707-cache21';
+import { state } from './state.js?v=20260708-cache24';
+import { esc } from './utils.js?v=20260708-cache24';
+import { entryImages, hasEntryImage } from './media.js?v=20260708-cache24';
+import { isFav } from './favorites.js?v=20260708-cache24';
 
 export function searchableText(e) {
   return [e.title, e.tags, e.negative, e.note, e.rawTags, ...(e.path || [])]
@@ -21,13 +21,16 @@ export function parseSearchQuery(raw) {
     hasImage: null,
     fav: null,
     author: '',
+    codex: '',
+    type: '',
+    terms: [],
     highlightTerms: [],
   };
   const terms = [];
   let invalidSyntax = false;
 
   for (const token of tokens) {
-    const match = token.match(/^(path|has|fav|author):(.+)$/i);
+    const match = token.match(/^(path|has|fav|author|codex|book|source|type):(.+)$/i);
     if (!match) {
       terms.push(token);
       continue;
@@ -55,6 +58,10 @@ export function parseSearchQuery(raw) {
       else invalidSyntax = true;
     } else if (key === 'author') {
       plan.author = value.toLowerCase();
+    } else if (key === 'codex' || key === 'book' || key === 'source') {
+      plan.codex = value.toLowerCase();
+    } else if (key === 'type') {
+      plan.type = value.toLowerCase();
     }
     if (invalidSyntax) break;
   }
@@ -69,10 +76,12 @@ export function parseSearchQuery(raw) {
   }
 
   plan.text = terms.join(' ').trim().toLowerCase();
-  plan.highlightTerms = highlightTermsFromText(terms.join(' '));
+  plan.terms = highlightTermsFromText(terms.join(' '));
+  plan.highlightTerms = plan.terms;
   if (!plan.isSyntax) {
     plan.text = input.toLowerCase();
-    plan.highlightTerms = highlightTermsFromText(input);
+    plan.terms = highlightTermsFromText(input);
+    plan.highlightTerms = plan.terms;
   }
   return plan;
 }
@@ -105,12 +114,16 @@ export function splitQueryTokens(input) {
 }
 
 export function matchSearchPlan(e, plan) {
-  if (!plan.isSyntax) return searchableText(e).includes(plan.text);
-  if (plan.text && !searchableText(e).includes(plan.text)) return false;
+  const text = searchableText(e);
+  const terms = plan.terms?.length ? plan.terms : (plan.text ? [plan.text] : []);
+  if (!plan.isSyntax) return terms.every(term => text.includes(term));
+  if (terms.length && !terms.every(term => text.includes(term))) return false;
   if (plan.path && !pathMatchesQuery(e.path || [], plan.path)) return false;
   if (plan.hasImage !== null && hasEntryImage(e) !== plan.hasImage) return false;
   if (plan.fav !== null && isFav(e) !== plan.fav) return false;
   if (plan.author && !entryAuthorText(e).includes(plan.author)) return false;
+  if (plan.codex && !entryCodexText(e).includes(plan.codex)) return false;
+  if (plan.type && !entryTypeText(e).includes(plan.type)) return false;
   return true;
 }
 
@@ -124,10 +137,28 @@ export function pathMatchesQuery(path, queryPath) {
 
 export function entryAuthorText(e) {
   const imageAuthors = entryImages(e).flatMap(img => [img.author, img.credit]);
-  const contributors = Array.isArray(state.codex?.contributors) ? state.codex.contributors.map(p => typeof p === 'string' ? p : `${p.name || ''} ${p.role || ''}`) : [];
-  return [state.codex?.author, state.codex?.source, e.author, e.credit, ...imageAuthors, ...contributors]
+  const contributors = Array.isArray(e._srcContributors)
+    ? e._srcContributors.map(p => typeof p === 'string' ? p : `${p.name || ''} ${p.role || ''}`)
+    : (Array.isArray(state.codex?.contributors) ? state.codex.contributors.map(p => typeof p === 'string' ? p : `${p.name || ''} ${p.role || ''}`) : []);
+  return [e._srcAuthor, e._srcSource, state.codex?.author, state.codex?.source, e.author, e.credit, ...imageAuthors, ...contributors]
     .join('\n')
     .toLowerCase();
+}
+
+export function entryCodexText(e) {
+  return [e._srcCodexId, e._srcCodexTitle, state.codex?.id, state.codex?.title]
+    .join('\n')
+    .toLowerCase();
+}
+
+export function entryTypeText(e) {
+  const type = e._srcType || state.codex?.type || '';
+  const labels = {
+    codex: 'codex 法典',
+    string: 'string 画风串',
+    pack: 'pack 图包 精选图包',
+  };
+  return [type, labels[type] || ''].join('\n').toLowerCase();
 }
 
 export function highlightTermsFromText(text) {

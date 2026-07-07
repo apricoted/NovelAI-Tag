@@ -17,6 +17,8 @@ export const THEMES = [
 export const RECENT_STORAGE_KEY = 'fadian-recent';
 export const LAST_BROWSE_STORAGE_KEY = 'fadian-last-browse';
 export const RECENT_ENTRY_LIMIT = 18;
+export const SEARCH_SCOPE_STORAGE_KEY = 'fadian-search-scope';
+export const DEFAULT_SEARCH_SCOPE = 'site';
 export const DENSITY_PRESETS = {
   comfort: {
     label: '舒适',
@@ -86,8 +88,9 @@ export const R18G_LOCKED_MESSAGE = 'R18G / 重口内容默认完全隐藏，需�
 
 export const state = {
   codex: null,        // 当前法典数据
-  browseCodex: null,  // 收藏视图背后的真实当前法典
+  browseCodex: null,  // 临时视图背后的真实当前法典
   favoritesView: false,
+  siteSearchView: false,
   codexes: [],
   codexCache: new Map(),
   list: [],           // 当前过滤后的词条
@@ -97,8 +100,10 @@ export const state = {
   colN: 0,
   itemWidth: 0,
   activePath: [],     // 选中的目录路径
+  searchReturnPath: [],
   query: '',
   searchPlan: null,
+  searchScope: DEFAULT_SEARCH_SCOPE,
   onlyImaged: false,
   onlyFav: false,
   allowNsfw: false,
@@ -134,4 +139,8 @@ export function normalizeDensity(value) {
 
 export function densityConfig() {
   return DENSITY_PRESETS[state.density] || DENSITY_PRESETS[DEFAULT_DENSITY];
+}
+
+export function normalizeSearchScope(value) {
+  return value === 'codex' ? 'codex' : DEFAULT_SEARCH_SCOPE;
 }

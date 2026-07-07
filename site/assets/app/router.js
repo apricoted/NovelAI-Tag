@@ -1,8 +1,8 @@
-import { state } from './state.js?v=20260707-cache21';
-import { $ } from './utils.js?v=20260707-cache21';
-import { hasEntryImage } from './media.js?v=20260707-cache21';
-import { toast } from './feedback.js?v=20260707-cache21';
-import { isEntryAccessBlocked, isR18gBlocked, showNsfwLockedHint, showR18gLockedHint } from './access.js?v=20260707-cache21';
+import { state } from './state.js?v=20260708-cache24';
+import { $ } from './utils.js?v=20260708-cache24';
+import { hasEntryImage } from './media.js?v=20260708-cache24';
+import { toast } from './feedback.js?v=20260708-cache24';
+import { isEntryAccessBlocked, isR18gBlocked, showNsfwLockedHint, showR18gLockedHint } from './access.js?v=20260708-cache24';
 
 const routerActions = {
   onUrlSync: () => {},
@@ -26,6 +26,7 @@ export function readUrlState() {
   return {
     codex: params.get('codex') || '',
     favorites: params.get('fav') === '1' || params.get('view') === 'favorites' || params.get('codex') === 'favorites',
+    scope: params.get('scope') || '',
     path,
     q: params.get('q') || '',
     entry: params.get('entry') || hash.get('entry') || '',
@@ -35,11 +36,17 @@ export function readUrlState() {
 export function syncUrlState({ replace = true, entry, saveBrowse = true } = {}) {
   if (state.suppressUrlSync || !state.codex) return;
   const params = new URLSearchParams();
-  const routeCodex = state.favoritesView ? (state.browseCodex?.id || state.codex.id) : state.codex.id;
+  const routeCodex = (state.favoritesView || state.siteSearchView) ? (state.browseCodex?.id || state.codex.id) : state.codex.id;
   params.set('codex', routeCodex);
   if (state.favoritesView) params.set('fav', '1');
   const q = state.query.trim();
-  if (q) params.set('q', q);
+  if (q) {
+    params.set('q', q);
+    params.set('scope', state.siteSearchView || state.searchScope === 'site' ? 'site' : 'codex');
+    if (state.siteSearchView) {
+      for (const seg of state.activePath) params.append('path', seg);   // 全站搜索的目录收窄进 URL，可分享/恢复
+    }
+  }
   else if (state.activePath.length) {
     for (const seg of state.activePath) params.append('path', seg);
   }
