@@ -8,6 +8,8 @@ const LIM = { title: 60, prompt: 2000, negative: 2000, comment: 500, submitter: 
 const CATEGORIES = window.COMMUNITY_CATEGORIES || ['画风', '人物', '动作', '构图', '随手分享'];
 const DEFAULT_CATEGORY = window.DEFAULT_COMMUNITY_CATEGORY || '随手分享';
 const SUBMIT_CATEGORIES = [DEFAULT_CATEGORY, ...CATEGORIES.filter(c => c !== DEFAULT_CATEGORY)];
+const SUBMIT_DISABLED = true;
+const SUBMIT_DISABLED_MSG = '投稿功能测试中，将会很快开放';
 
 let modal = null;
 let files = [];   // {blob, url}
@@ -170,6 +172,10 @@ function buildModal() {
 }
 
 function openModal() {
+  if (SUBMIT_DISABLED) {
+    toast(SUBMIT_DISABLED_MSG);
+    return;
+  }
   if (!modal) buildModal();
   showErr('');
   modal.style.display = '';
@@ -401,6 +407,10 @@ function resetForm() {
 
 async function doSubmit() {
   if (busy || !modal) return;
+  if (SUBMIT_DISABLED) {
+    showErr(SUBMIT_DISABLED_MSG);
+    return;
+  }
   const prompt = $('#subPrompt', modal).value.trim();
   if (!files.length) { showErr('请至少添加 1 张例图'); return; }
   if (!prompt) { showErr('请填写 prompt'); return; }
@@ -443,5 +453,12 @@ async function doSubmit() {
 
 const openBtn = document.getElementById('submitOpenBtn');
 if (openBtn) openBtn.onclick = openModal;
+
+if (SUBMIT_DISABLED) {
+  [openBtn, ...document.querySelectorAll('.hero-submit,.submit-tile')].filter(Boolean).forEach(btn => {
+    btn.setAttribute('aria-disabled', 'true');
+    btn.setAttribute('title', SUBMIT_DISABLED_MSG);
+  });
+}
 
 })();
