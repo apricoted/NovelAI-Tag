@@ -270,8 +270,8 @@ function updateEmptyState(n) {
   const actions = [];
 
   if (!hasEntries) {
-    title = '画风串投稿入口试运行中';
-    desc = '当前合集还没有公开条目，可以先提交你的画风串，或回到法典图鉴继续浏览。';
+    title = '还没有人投稿，来当第一个';
+    desc = '提交例图和 prompt，审核通过后就会出现在这里。';
     actions.push({ label: '投稿', action: 'submit' });
     actions.push({ label: '回到法典', action: 'home' });
   } else if (state.query) {
