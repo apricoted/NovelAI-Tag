@@ -5,6 +5,7 @@ import { renderHighlightedText, currentHighlightTerms } from './search.js';
 import { copyText, combinedPrompt } from './copy.js';
 import { recordRecentEntry } from './history.js';
 import { syncUrlState } from './router.js';
+import { findCodexMeta } from './data.js';
 import { entryImages, imageItemUrl } from './media.js';
 import { isEntryAccessBlocked, isR18gBlocked, showNsfwLockedHint, showR18gLockedHint } from './access.js';
 import { openReportDialog } from './report.js';
@@ -72,6 +73,29 @@ export function resolvedUrl(url) {
   } catch {
     return String(url);
   }
+}
+
+function canonicalShareEntryId(entry, meta, sourceId) {
+  const entryId = String(entry?.id || '').trim();
+  if (!entryId) return '';
+  for (const alias of [sourceId, ...(meta?.aliases || [])].filter(Boolean)) {
+    if (alias !== meta.id && entryId.startsWith(`${alias}-`)) {
+      return meta.id + entryId.slice(alias.length);
+    }
+  }
+  return entryId;
+}
+
+function shareUrlForEntry(entry) {
+  if (!entry?.id) return '';
+  const isVirtual = state.favoritesView || state.siteSearchView;
+  const sourceId = isVirtual ? entry._srcCodexId : (entry._srcCodexId || state.codex?.id);
+  if (!sourceId) return '';
+  const meta = findCodexMeta(sourceId);
+  if (!meta?.id) return '';
+  const entryId = canonicalShareEntryId(entry, meta, sourceId);
+  if (!entryId) return '';
+  return `${location.origin}/share/${encodeURIComponent(meta.id)}/${encodeURIComponent(entryId)}`;
 }
 
 export function flyIn(sourceEl) {
@@ -277,6 +301,15 @@ export function renderLightbox() {
   $('#copyAll').onclick = ev => { ev.stopPropagation(); copyText(combinedPrompt(e), `已复制正向+负面：${e.title}`); };
   $('#copyRawTag').hidden = !item.rawTag;
   $('#copyRawTag').onclick = ev => { ev.stopPropagation(); copyText(item.rawTag, `已复制当前图 raw tag：${e.title}`); };
+  const shareBtn = $('#shareLightbox');
+  const shareUrl = shareUrlForEntry(e);
+  if (shareBtn) {
+    shareBtn.hidden = !shareUrl;
+    shareBtn.onclick = ev => {
+      ev.stopPropagation();
+      if (shareUrl) copyText(shareUrl, '已复制分享链接', shareBtn, { convert: false });
+    };
+  }
   const reportBtn = $('#reportLightbox');
   if (reportBtn) {
     reportBtn.hidden = false;
@@ -292,7 +325,7 @@ export function renderLightbox() {
     };
   }
   const actions = document.querySelector('.lightbox-actions');
-  if (actions) actions.hidden = $('#copyAll').hidden && $('#copyRawTag').hidden && reportBtn?.hidden;
+  if (actions) actions.hidden = $('#copyAll').hidden && $('#copyRawTag').hidden && shareBtn?.hidden && reportBtn?.hidden;
 
   const prev = $('#lightboxPrev');
   const next = $('#lightboxNext');

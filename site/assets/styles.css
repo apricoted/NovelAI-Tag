@@ -1269,8 +1269,8 @@ a.lightbox-credit:hover{text-decoration:underline}
 .lightbox-actions button:hover,.section-head button:hover{filter:brightness(1.06);transform:translateY(-1px);box-shadow:0 6px 16px rgba(0,0,0,.18)}
 #copyPositive{background:var(--accent)}
 #copyNegative{background:var(--new)}
-#copyAll,#copyRawTag,#reportLightbox{background:var(--tagbg);color:var(--text);border:1px solid var(--line);box-shadow:none}
-#copyAll:hover,#copyRawTag:hover,#reportLightbox:hover{background:var(--tagbg-hover);filter:none}
+#copyAll,#copyRawTag,#shareLightbox,#reportLightbox{background:var(--tagbg);color:var(--text);border:1px solid var(--line);box-shadow:none}
+#copyAll:hover,#copyRawTag:hover,#shareLightbox:hover,#reportLightbox:hover{background:var(--tagbg-hover);filter:none}
 .lightbox-section{margin-top:12px}
 .section-head{display:flex;align-items:center;gap:10px;margin-bottom:6px}
 .section-label{font-size:12px;font-weight:700;color:var(--muted)}

@@ -100,8 +100,8 @@ export function naiToSd(text) {
   return parseRange(0).out;
 }
 
-export async function copyText(text, message, node) {
-  if (state.sdMode) {
+export async function copyText(text, message, node, options = {}) {
+  if (options.convert !== false && state.sdMode) {
     text = naiToSd(text);
     message += '（SD 格式）';
   }

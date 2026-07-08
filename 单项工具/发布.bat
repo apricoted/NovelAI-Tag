@@ -59,6 +59,13 @@ goto :fail
 
 :sync_ok
 
+echo == Building share card index ==
+call %PY% "tools\build_share_index.py"
+if errorlevel 1 (
+  echo [ERROR] Share index build failed.
+  goto :fail
+)
+
 echo == Publishing updates to GitHub - Cloudflare will auto-deploy ==
 call git add -A
 if errorlevel 1 goto :fail

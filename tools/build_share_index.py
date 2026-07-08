@@ -1,0 +1,347 @@
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+from typing import Any
+from urllib.parse import quote
+
+
+ROOT = Path(__file__).resolve().parents[1]
+DATA_DIR = ROOT / "site" / "data"
+SHARE_DIR = DATA_DIR / "share"
+SHARE_INDEX = DATA_DIR / "share-index.json"
+BLOCKED_RATINGS = {"restricted", "r18", "r18g", "nsfw"}
+DESC_LIMIT = 180
+
+
+def read_json(path: Path, default: Any = None) -> Any:
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return default
+
+
+def write_json(path: Path, data: Any) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(data, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def clean_text(value: Any) -> str:
+    return " ".join(str(value or "").split()).strip()
+
+
+def to_int(value: Any, default: int = 0) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def truncate(value: str, limit: int = DESC_LIMIT) -> str:
+    text = clean_text(value)
+    if len(text) <= limit:
+        return text
+    return text[: max(0, limit - 3)].rstrip() + "..."
+
+
+def is_absolute_url(value: Any) -> bool:
+    text = str(value or "")
+    return text.startswith("http://") or text.startswith("https://") or text.startswith("data:")
+
+
+def normalize_base(value: Any) -> str:
+    text = str(value or "").strip().rstrip("/")
+    if text.startswith("//"):
+        return "https:" + text
+    if text and not text.startswith(("http://", "https://", "/")):
+        return "https://" + text
+    return text
+
+
+def encode_asset_path(value: Any) -> str:
+    return "/".join(quote(part, safe="") for part in str(value or "").split("/"))
+
+
+def with_rev(url: str, entry: dict[str, Any]) -> str:
+    rev = str(entry.get("assetRev") or "").strip()
+    if not url or not rev:
+        return url
+    joiner = "&" if "?" in url else "?"
+    return f"{url}{joiner}v={quote(rev, safe='')}"
+
+
+def asset_url(kind: str, entry: dict[str, Any], codex: dict[str, Any], media: dict[str, Any]) -> str:
+    file_name = entry.get("original") if kind == "original" else entry.get("image")
+    if not file_name:
+        return ""
+    if is_absolute_url(file_name):
+        return with_rev(str(file_name), entry)
+
+    if codex.get("assetPathMode") == "relative":
+        base = normalize_base(codex.get("assetBaseUrl"))
+        if not base:
+            return ""
+        return with_rev(f"{base}/{encode_asset_path(file_name)}", entry)
+
+    prefix = media.get("originalPrefix") if kind == "original" else media.get("imagePrefix")
+    prefix = prefix or ("originals" if kind == "original" else "images")
+    asset_codex_id = entry.get("assetCodexId") or codex.get("id")
+    path = "/".join(encode_asset_path(part) for part in [prefix, asset_codex_id, file_name])
+    base = normalize_base(media.get("baseUrl"))
+    if not base:
+        return ""
+    return with_rev(f"{base}/{path}", entry)
+
+
+def is_r18g_name(value: Any) -> bool:
+    text = str(value or "").lower()
+    return "r18g" in text or "\u91cd\u53e3" in text
+
+
+def is_nsfw_path_segment(value: Any) -> bool:
+    return str(value or "").lower() == "nsfw"
+
+
+def entry_rating(entry: dict[str, Any]) -> str:
+    return str(entry.get("rating") or entry.get("level") or "").lower()
+
+
+def is_safe_entry(entry: dict[str, Any]) -> bool:
+    if entry_rating(entry) in BLOCKED_RATINGS:
+        return False
+    path = entry.get("path") if isinstance(entry.get("path"), list) else []
+    if any(is_r18g_name(part) or is_nsfw_path_segment(part) for part in path):
+        return False
+    return True
+
+
+def normalize_codex(data: dict[str, Any], meta: dict[str, Any]) -> dict[str, Any]:
+    return {
+        **data,
+        "id": meta.get("id") or data.get("id"),
+        "type": meta.get("type") or data.get("type") or "codex",
+        "title": meta.get("title") or data.get("title") or data.get("id") or meta.get("id"),
+        "selectorTitle": meta.get("selectorTitle") or data.get("selectorTitle") or "",
+        "version": meta.get("version") or data.get("version") or "",
+        "author": meta.get("author") or data.get("author") or "",
+        "nsfw": bool(meta.get("nsfw") or data.get("nsfw")),
+        "aliases": meta.get("aliases") or data.get("aliases") or [],
+        "assetBaseUrl": normalize_base(meta.get("assetBaseUrl") or meta.get("baseUrl") or data.get("assetBaseUrl") or ""),
+        "assetPathMode": meta.get("assetPathMode") or data.get("assetPathMode") or ("relative" if meta.get("dataUrl") else "codex"),
+        "entryCount": meta.get("entryCount") or data.get("entryCount") or len(data.get("entries") or []),
+    }
+
+
+def first_image_item(entry: dict[str, Any]) -> dict[str, Any] | None:
+    images = entry.get("images")
+    if isinstance(images, list) and images:
+        item = images[0]
+        if isinstance(item, dict) and (item.get("path") or item.get("image")):
+            return item
+    if entry.get("image"):
+        return {"path": entry.get("image"), "original": entry.get("original")}
+    return None
+
+
+def entry_image(entry: dict[str, Any], codex: dict[str, Any], media: dict[str, Any], warnings: list[str]) -> dict[str, Any] | None:
+    item = first_image_item(entry)
+    if not item:
+        return None
+    image_file = item.get("path") or item.get("image")
+    image_entry = {
+        **entry,
+        "image": image_file,
+        "original": item.get("original") or image_file,
+    }
+    url = asset_url("image", image_entry, codex, media)
+    width = to_int(item.get("width") or entry.get("imageWidth") or 0)
+    height = to_int(item.get("height") or entry.get("imageHeight") or 0)
+    entry_id = str(entry.get("id") or "")
+    if not url.startswith("https://"):
+        warnings.append(f"image skipped for {codex.get('id')}:{entry_id}: no https url")
+        return None
+    if width <= 0 or height <= 0:
+        warnings.append(f"image skipped for {codex.get('id')}:{entry_id}: missing size")
+        return None
+    return {
+        "url": url,
+        "width": width,
+        "height": height,
+        "alt": clean_text(entry.get("title") or codex.get("title") or "NovelAI tag image"),
+    }
+
+
+def entry_description(entry: dict[str, Any]) -> str:
+    parts: list[str] = []
+    path = entry.get("path") if isinstance(entry.get("path"), list) else []
+    path_text = " / ".join(clean_text(part) for part in path if clean_text(part))
+    if path_text:
+        parts.append(path_text)
+    tags = clean_text(entry.get("tags") or entry.get("prompt") or "")
+    if tags:
+        parts.append(tags)
+    note = clean_text(entry.get("note") or entry.get("comment") or "")
+    if note and not tags:
+        parts.append(note)
+    return truncate(" | ".join(parts) or "NovelAI tag atlas entry")
+
+
+def codex_description(codex: dict[str, Any], share_count: int) -> str:
+    title = clean_text(codex.get("title") or codex.get("id"))
+    version = clean_text(codex.get("version"))
+    author = clean_text(codex.get("author"))
+    bits = [f"{share_count} shareable entries"]
+    if author:
+        bits.append(f"author: {author}")
+    if version:
+        bits.append(f"version: {version}")
+    return truncate(f"{title} - " + " / ".join(bits))
+
+
+def build_entry(entry: dict[str, Any], codex: dict[str, Any], media: dict[str, Any], warnings: list[str]) -> dict[str, Any] | None:
+    entry_id = clean_text(entry.get("id"))
+    if not entry_id:
+        warnings.append(f"entry skipped in {codex.get('id')}: missing id")
+        return None
+    title = clean_text(entry.get("title")) or entry_id
+    if title == entry_id:
+        warnings.append(f"entry title fallback in {codex.get('id')}:{entry_id}")
+    image = entry_image(entry, codex, media, warnings)
+    return {
+        "id": entry_id,
+        "title": title,
+        "description": entry_description(entry),
+        "image": image,
+        "shareable": True,
+    }
+
+
+def build() -> tuple[dict[str, Any], dict[str, Any], list[str]]:
+    warnings: list[str] = []
+    codexes = read_json(DATA_DIR / "codexes.json", [])
+    media = read_json(DATA_DIR / "media.json", {})
+    if not isinstance(codexes, list):
+        warnings.append("codexes.json is not a list")
+        codexes = []
+    if not isinstance(media, dict):
+        warnings.append("media.json is not an object")
+        media = {}
+
+    index: dict[str, Any] = {
+        "schema": 1,
+        "site": {
+            "name": "\u6cd5\u5178\u56fe\u9274",
+            "title": "\u6cd5\u5178\u56fe\u9274 | NovelAI Tag Atlas",
+            "description": "\u6309\u56fe\u6311\u9009 NovelAI \u63d0\u793a\u8bcd\u3001\u753b\u98ce\u4e32\u4e0e\u6cd5\u5178\u6761\u76ee\u3002",
+        },
+        "aliases": {},
+        "codexes": {},
+    }
+    per_codex: dict[str, Any] = {}
+
+    for meta in codexes:
+        if not isinstance(meta, dict):
+            warnings.append("codex metadata skipped: not an object")
+            continue
+        codex_id = clean_text(meta.get("id"))
+        if not codex_id:
+            warnings.append("codex metadata skipped: missing id")
+            continue
+        aliases = [clean_text(alias) for alias in (meta.get("aliases") or []) if clean_text(alias)]
+        for alias in aliases:
+            index["aliases"][alias] = codex_id
+
+        data = read_json(DATA_DIR / f"{codex_id}.json", {})
+        if not isinstance(data, dict):
+            data = {}
+            warnings.append(f"codex data missing or invalid: {codex_id}")
+        codex = normalize_codex(data, meta)
+        nsfw = bool(codex.get("nsfw"))
+        base_index = {
+            "id": codex_id,
+            "aliases": aliases,
+            "shareable": not nsfw,
+        }
+        if nsfw:
+            index["codexes"][codex_id] = base_index
+            continue
+
+        entries: dict[str, Any] = {}
+        safe_with_image: dict[str, Any] | None = None
+        raw_entries = data.get("entries") if isinstance(data.get("entries"), list) else []
+        if not raw_entries:
+            warnings.append(f"codex has no entries: {codex_id}")
+        for raw_entry in raw_entries:
+            if not isinstance(raw_entry, dict):
+                warnings.append(f"entry skipped in {codex_id}: not an object")
+                continue
+            if not is_safe_entry(raw_entry):
+                continue
+            share_entry = build_entry(raw_entry, codex, media, warnings)
+            if not share_entry:
+                continue
+            entries[share_entry["id"]] = share_entry
+            if safe_with_image is None and share_entry.get("image"):
+                safe_with_image = share_entry
+
+        cover = safe_with_image.get("image") if safe_with_image else None
+        share_count = len(entries)
+        index["codexes"][codex_id] = {
+            **base_index,
+            "title": clean_text(codex.get("title") or codex_id),
+            "selectorTitle": clean_text(codex.get("selectorTitle")),
+            "type": clean_text(codex.get("type") or "codex"),
+            "entryCount": to_int(codex.get("entryCount") or len(raw_entries) or 0),
+            "shareCount": share_count,
+            "cover": cover,
+        }
+        per_codex[codex_id] = {
+            "schema": 1,
+            "id": codex_id,
+            "aliases": aliases,
+            "shareable": True,
+            "title": clean_text(codex.get("title") or codex_id),
+            "selectorTitle": clean_text(codex.get("selectorTitle")),
+            "type": clean_text(codex.get("type") or "codex"),
+            "description": codex_description(codex, share_count),
+            "entryCount": to_int(codex.get("entryCount") or len(raw_entries) or 0),
+            "shareCount": share_count,
+            "cover": cover,
+            "entries": entries,
+        }
+
+    return index, per_codex, warnings
+
+
+def main() -> int:
+    if len(sys.argv) > 1:
+        print("Usage: python tools/build_share_index.py")
+        return 2
+
+    index, per_codex, warnings = build()
+    SHARE_DIR.mkdir(parents=True, exist_ok=True)
+    for path in SHARE_DIR.glob("*.json"):
+        path.unlink()
+    write_json(SHARE_INDEX, index)
+    for codex_id, data in per_codex.items():
+        write_json(SHARE_DIR / f"{codex_id}.json", data)
+
+    print(f"OK: wrote {SHARE_INDEX.relative_to(ROOT).as_posix()}")
+    print(f"OK: wrote {len(per_codex)} codex share files")
+    total_entries = sum(int(data.get("shareCount") or 0) for data in per_codex.values())
+    print(f"OK: indexed {total_entries} safe entries")
+    if warnings:
+        print(f"WARNINGS: {len(warnings)}")
+        for item in warnings[:200]:
+            print(f"WARN: {item}")
+        if len(warnings) > 200:
+            print(f"WARN: truncated {len(warnings) - 200} additional warnings")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
