@@ -7,6 +7,7 @@
 const LIM = { title: 60, prompt: 2000, negative: 2000, comment: 500, submitter: 20, tags: 8, imgMax: 6, imgBytes: 3 * 1024 * 1024 };
 const CATEGORIES = window.COMMUNITY_CATEGORIES || ['画风', '人物', '动作', '构图', '随手分享'];
 const DEFAULT_CATEGORY = window.DEFAULT_COMMUNITY_CATEGORY || '随手分享';
+const SUBMIT_CATEGORIES = [DEFAULT_CATEGORY, ...CATEGORIES.filter(c => c !== DEFAULT_CATEGORY)];
 
 let modal = null;
 let files = [];   // {blob, url}
@@ -15,7 +16,11 @@ let metadataConsumed = false;
 
 const CSS = `
 .sub-field{margin-bottom:14px}
+.sub-panel{scrollbar-width:none;-ms-overflow-style:none}
+.sub-panel::-webkit-scrollbar{width:0;height:0}
 .sub-field>label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px}
+.sub-field-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px}
+.sub-field-head>label{font-size:12px;font-weight:700;color:var(--muted)}
 .sub-field input[type=text],.sub-field textarea{width:100%;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:10px;padding:10px 12px;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box}
 .sub-field textarea{resize:vertical;min-height:88px;line-height:1.6}
 .sub-field textarea.mono{font-family:var(--font-mono);font-size:12px}
@@ -45,12 +50,12 @@ const CSS = `
 .sub-more[open] summary::after{content:'-'}
 .sub-more-body{padding:0 13px 13px}
 .sub-check{display:inline-flex;align-items:center;gap:7px;font-size:13px;cursor:pointer;user-select:none;padding:9px 0}
+.sub-field-head .sub-check{padding:0;font-size:12px;color:var(--muted);font-weight:700;white-space:nowrap}
 .sub-check input{accent-color:var(--red);width:15px;height:15px}
 .sub-actions{display:flex;align-items:center;gap:12px;margin-top:16px;flex-wrap:wrap}
 .sub-go{border:none;background:var(--accent);color:#fff;font-weight:800;font-size:14px;padding:11px 28px;border-radius:10px;cursor:pointer;font-family:inherit;transition:filter .15s}
 .sub-go:hover{filter:brightness(1.08)}
 .sub-go:disabled{opacity:.55;cursor:not-allowed;filter:none}
-.sub-submit-note{font-size:12px;color:var(--muted);font-weight:700}
 .sub-err{color:var(--red);font-size:12px;flex:1;min-width:150px}
 .sub-note{font-size:12px;color:var(--muted);line-height:1.7;margin-top:6px}
 `;
@@ -68,18 +73,18 @@ function buildModal() {
   modal.className = 'detail-overlay';
   modal.style.display = 'none';
   modal.innerHTML = `
-    <div class="detail-panel" style="max-width:720px">
+    <div class="detail-panel sub-panel" style="max-width:720px">
       <button class="detail-close" id="subClose">✕</button>
       <div class="detail-body">
         <h2 class="detail-title" style="margin-bottom:4px">投稿到共创广场</h2>
-        <div class="sub-note" style="margin-bottom:18px">分享任意 NAI 的图 + prompt。可以是画风、人物、动作、构图，也可以只是今日最爱。</div>
+        <div class="sub-note" style="margin-bottom:18px">分享任意 NovelAI 作品。可以是画风、人物、动作、构图，也可以只是你的今日最爱。</div>
 
         <div class="sub-field">
-          <label>例图 *</label>
+          <label>作品 *</label>
           <div class="sub-drop sub-drop-main" id="subDrop">
             <div>
-              <strong>拖入例图，或点击选择</strong>
-              <span>1-${LIM.imgMax} 张，上传前会自动压缩</span>
+              <strong>拖入作品，或点击选择</strong>
+              <span>1-${LIM.imgMax} 张，会自动读取图片中的 prompt </span>
             </div>
           </div>
           <input type="file" id="subFile" accept="image/*" multiple hidden>
@@ -87,14 +92,17 @@ function buildModal() {
         </div>
 
         <div class="sub-field">
-          <label>Prompt *</label>
+          <div class="sub-field-head">
+            <label>Prompt *</label>
+            <label class="sub-check"><input type="checkbox" id="subNsfw">包含 NSFW 内容</label>
+          </div>
           <textarea id="subPrompt" class="mono" maxlength="${LIM.prompt}" placeholder="粘贴正向 prompt，例如 artist:xxx, cinematic lighting, dynamic pose, ..."></textarea>
         </div>
 
         <div class="sub-field">
           <label>分类</label>
           <div class="sub-cat-list" id="subCategoryList">
-            ${CATEGORIES.map(c => `<button type="button" class="sub-cat${c === DEFAULT_CATEGORY ? ' on' : ''}" data-cat="${esc(c)}">${esc(c)}</button>`).join('')}
+            ${SUBMIT_CATEGORIES.map(c => `<button type="button" class="sub-cat${c === DEFAULT_CATEGORY ? ' on' : ''}" data-cat="${esc(c)}">${esc(c)}</button>`).join('')}
           </div>
           <input type="hidden" id="subCategory" value="${esc(DEFAULT_CATEGORY)}">
         </div>
@@ -123,10 +131,6 @@ function buildModal() {
                 <label>标签（逗号分隔，最多 ${LIM.tags} 个）</label>
                 <input type="text" id="subTags" maxlength="200" placeholder="如：暗色, 油画, 高对比">
               </div>
-              <div class="sub-field">
-                <label>&nbsp;</label>
-                <label class="sub-check"><input type="checkbox" id="subNsfw">包含 NSFW 内容</label>
-              </div>
             </div>
 
             <div class="sub-field">
@@ -138,7 +142,6 @@ function buildModal() {
 
         <div class="sub-actions">
           <button class="sub-go" id="subGo">提交投稿</button>
-          <span class="sub-submit-note">先审后发，通过后进入展廊</span>
           <div class="sub-err" id="subErr"></div>
         </div>
       </div>
