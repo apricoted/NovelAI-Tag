@@ -11,6 +11,7 @@ const DEFAULT_CATEGORY = window.DEFAULT_COMMUNITY_CATEGORY || '随手分享';
 let modal = null;
 let files = [];   // {blob, url}
 let busy = false;
+let metadataConsumed = false;
 
 const CSS = `
 .sub-field{margin-bottom:14px}
@@ -181,6 +182,146 @@ function setCategory(cat) {
   $$('#subCategoryList .sub-cat', modal).forEach(btn => btn.classList.toggle('on', btn.dataset.cat === value));
 }
 
+/* ---- 原图 PNG 元数据：读取 tEXt / 未压缩 iTXt 文本块，压缩前调用 ---- */
+function decodePngText(bytes) {
+  try { return new TextDecoder('utf-8', { fatal: true }).decode(bytes); }
+  catch { return new TextDecoder('latin1').decode(bytes); }
+}
+
+function readPngType(raw, pos) {
+  return String.fromCharCode(raw[pos], raw[pos + 1], raw[pos + 2], raw[pos + 3]);
+}
+
+function parsePngTextChunk(data) {
+  const sep = data.indexOf(0);
+  if (sep < 0) return null;
+  return {
+    keyword: decodePngText(data.subarray(0, sep)),
+    text: decodePngText(data.subarray(sep + 1)),
+  };
+}
+
+function parsePngItxtChunk(data) {
+  const firstSep = data.indexOf(0);
+  if (firstSep < 0 || firstSep + 3 > data.length) return null;
+  const keyword = decodePngText(data.subarray(0, firstSep));
+  const compressed = data[firstSep + 1] === 1;
+  let pos = firstSep + 3; // compression flag + method
+  const langSep = data.indexOf(0, pos);
+  if (langSep < 0) return null;
+  pos = langSep + 1;
+  const translatedSep = data.indexOf(0, pos);
+  if (translatedSep < 0) return null;
+  pos = translatedSep + 1;
+  if (compressed) return null;
+  return { keyword, text: decodePngText(data.subarray(pos)) };
+}
+
+function readPngTextChunks(buffer) {
+  const raw = new Uint8Array(buffer);
+  const sig = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+  if (raw.length < sig.length || sig.some((b, i) => raw[i] !== b)) return [];
+  const view = new DataView(buffer);
+  const chunks = [];
+  let pos = 8;
+  while (pos + 12 <= raw.length) {
+    const size = view.getUint32(pos, false);
+    const type = readPngType(raw, pos + 4);
+    const dataStart = pos + 8;
+    const dataEnd = dataStart + size;
+    const next = dataEnd + 4;
+    if (dataEnd > raw.length || next > raw.length) break;
+    const data = raw.subarray(dataStart, dataEnd);
+    const parsed = type === 'tEXt' ? parsePngTextChunk(data) : (type === 'iTXt' ? parsePngItxtChunk(data) : null);
+    if (parsed && parsed.keyword) chunks.push({ type, ...parsed });
+    pos = next;
+    if (type === 'IEND') break;
+  }
+  return chunks;
+}
+
+function splitWebuiParameters(text) {
+  const idx = text.indexOf('Steps: ');
+  const prompts = idx >= 0 ? text.slice(0, idx) : text;
+  const negMarker = 'Negative prompt:';
+  const negIdx = prompts.indexOf(negMarker);
+  if (negIdx < 0) return { prompt: prompts.trim(), negative: '' };
+  return {
+    prompt: prompts.slice(0, negIdx).trim(),
+    negative: prompts.slice(negIdx + negMarker.length).trim(),
+  };
+}
+
+function naiV4CaptionText(data, key) {
+  const node = data && typeof data === 'object' ? data[key] : null;
+  const caption = node && typeof node === 'object' && node.caption && typeof node.caption === 'object' ? node.caption : {};
+  const parts = [];
+  if (caption.base_caption) parts.push(String(caption.base_caption));
+  for (const item of caption.char_captions || []) {
+    if (item && typeof item === 'object' && item.char_caption) parts.push(String(item.char_caption));
+  }
+  return parts.join('\n').trim();
+}
+
+function promptFromPngChunks(chunks) {
+  const fields = {};
+  for (const c of chunks) fields[c.keyword] = c.text;
+  let prompt = '';
+  let negative = '';
+  let source = fields.Software || fields.Source || 'PNG';
+
+  if (fields.Comment) {
+    try {
+      const comment = JSON.parse(fields.Comment);
+      prompt = naiV4CaptionText(comment, 'v4_prompt') || String(comment.prompt || '');
+      negative = naiV4CaptionText(comment, 'v4_negative_prompt') || String(comment.uc || comment.negative_prompt || '');
+      if (fields.Software === 'NovelAI' || prompt || negative) source = 'NovelAI';
+    } catch {
+      // 普通文本 Comment 不是错误，继续尝试 Description / parameters。
+    }
+  }
+
+  if (!prompt && fields.Description) {
+    prompt = fields.Description;
+    if (fields.Software === 'NovelAI' || fields.Source === 'NovelAI' || fields.Comment) source = 'NovelAI';
+  }
+
+  if (!prompt && fields.parameters) {
+    const sd = splitWebuiParameters(fields.parameters);
+    prompt = sd.prompt;
+    negative = sd.negative;
+    source = 'SD-WEBUI';
+  }
+
+  prompt = prompt.trim();
+  negative = negative.trim();
+  return prompt || negative ? { prompt, negative, source } : null;
+}
+
+async function readImagePrompt(file) {
+  if (!file || (!/^image\/png$/i.test(file.type || '') && !/\.png$/i.test(file.name || ''))) return null;
+  const buffer = await file.arrayBuffer();
+  const chunks = readPngTextChunks(buffer);
+  return chunks.length ? promptFromPngChunks(chunks) : null;
+}
+
+function fillPromptFromMetadata(meta) {
+  if (!meta || !modal) return false;
+  let filled = false;
+  const promptEl = $('#subPrompt', modal);
+  const negativeEl = $('#subNegative', modal);
+  if (meta.prompt && promptEl && !promptEl.value.trim()) {
+    promptEl.value = meta.prompt.slice(0, LIM.prompt);
+    filled = true;
+  }
+  if (meta.negative && negativeEl && !negativeEl.value.trim()) {
+    negativeEl.value = meta.negative.slice(0, LIM.negative);
+    filled = true;
+  }
+  if (filled) toast(`已从${meta.source || '图片'}读出 prompt，可修改`);
+  return filled;
+}
+
 /* ---- 图片：浏览器端压缩（长边 ≤1100px JPEG，与站内缩略图规格一致） ---- */
 async function compressImage(file) {
   const MAX = 1100;
@@ -208,6 +349,13 @@ async function addFiles(list) {
     if (files.length >= LIM.imgMax) { showErr(`例图最多 ${LIM.imgMax} 张`); break; }
     if (!/^image\//.test(f.type)) continue;
     try {
+      if (!metadataConsumed) {
+        const meta = await readImagePrompt(f).catch(() => null);
+        if (meta) {
+          metadataConsumed = true;
+          fillPromptFromMetadata(meta);
+        }
+      }
       const blob = await compressImage(f);
       files.push({ blob, url: URL.createObjectURL(blob) });
       showErr('');
@@ -242,6 +390,7 @@ function resetForm() {
   setCategory(DEFAULT_CATEGORY);
   $('#subNsfw', modal).checked = false;
   $('#subMore', modal).open = false;
+  metadataConsumed = false;
   files.forEach(im => URL.revokeObjectURL(im.url));
   files = [];
   renderPreviews();
