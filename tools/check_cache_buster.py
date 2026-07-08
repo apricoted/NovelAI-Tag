@@ -11,6 +11,7 @@ TARGET_FILES = [
     ROOT / "site" / "review.html",
 ]
 TARGET_FILES.extend(sorted((ROOT / "site" / "assets").rglob("*.js")))
+TARGET_FILES.extend(sorted((ROOT / "site" / "assets").rglob("*.css")))
 
 
 def main() -> int:
