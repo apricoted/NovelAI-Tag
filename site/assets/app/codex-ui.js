@@ -13,6 +13,10 @@ const TYPE_ICONS = {
   clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v5l3 2"/></svg>',
 };
 
+/* 投稿门图标：加号（贡献语义）+ 外链箭头（离站前往社区） */
+const DOOR_PLUS_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
+const DOOR_OUT_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6"/><path d="M20 4 11 13"/><path d="M18 13.5V18a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4.5"/></svg>';
+
 /* 选择器类型分类法。法典 / 画风串 / 精选图包均可由 codexes.json 按 type 接入。
    某类型在 codexes.json 里没有对应 type 的真法典时，显示其 placeholders（点击只提示「即将上线」，进不去）。
    将来给某本加 type:"string"/"pack" 即自动变为可加载、该类占位被忽略。 */
@@ -53,7 +57,7 @@ export function setupCodexPicker() {
 
   let activeType = null;  // 级联模式下当前选中的类型
 
-  const focusableItems = () => [...menu.querySelectorAll('.codex-type, .codex-item')];
+  const focusableItems = () => [...menu.querySelectorAll('.codex-type, .codex-item, .codex-door')];
   const focusItem = index => {
     const list = focusableItems();
     if (!list.length) return;
@@ -141,6 +145,26 @@ export function setupCodexPicker() {
     return b;
   };
 
+  /* 社区投稿门：置底一扇明确标记的「门」（虚线卡+加号），点击离站前往社区共建站（走跨页 View Transition）。
+     刻意做成和策展书行视觉区分的样子——它是共建入口，不是第四本书。 */
+  const makeSubmitDoor = () => {
+    const wrap = document.createElement('div');
+    wrap.className = 'codex-door-wrap';
+    const a = document.createElement('a');
+    a.className = 'codex-door';
+    a.href = '/strings.html';
+    a.setAttribute('aria-label', '前往社区共建，投稿你的画风串');
+    a.innerHTML =
+      `<span class="cd-ico">${DOOR_PLUS_ICON}</span>` +
+      `<span class="cd-main">` +
+      `<span class="cd-name">社区共建 · 去投稿</span>` +
+      `<span class="cd-sub">这里是大家的画风串，加入你的一条</span>` +
+      `</span>` +
+      `<span class="cd-out">${DOOR_OUT_ICON}</span>`;
+    wrap.appendChild(a);
+    return wrap;
+  };
+
   const fillItems = (container, t) => {
     if (t.soon) {
       (t.placeholders || []).forEach(ph => container.appendChild(makeSoonItem(t, ph)));
@@ -216,6 +240,7 @@ export function setupCodexPicker() {
   const renderMenu = () => {
     if (isMobile()) renderGrouped(buildTypes());
     else renderCascade(buildTypes());
+    menu.appendChild(makeSubmitDoor());  // 两套布局末尾都挂投稿门
   };
 
   btn.onclick = ev => {
