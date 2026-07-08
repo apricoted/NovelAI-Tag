@@ -2,7 +2,7 @@
 
 import {
   json, err, requireAdmin, requireStorage, validId, readJson, deleteImages, rebuildCommunity,
-  cleanLine, cleanText, normTags, normCategory, LIMITS,
+  cleanLine, cleanText, normTags, normCategory, defaultSubmissionTitle, LIMITS,
 } from '../../_lib.js';
 
 // POST /api/admin/decide — 审核：{id, action:"approve"|"reject", edits?}
@@ -31,16 +31,16 @@ export async function onRequestPost(context) {
 
   if (body.action === 'approve') {
     const e = body.edits || {};
-    if (e.title != null) rec.title = cleanLine(e.title, LIMITS.title);
+    const titleInput = e.title != null ? e.title : rec.title;
     if (e.prompt != null) rec.prompt = cleanText(e.prompt, LIMITS.prompt);
     if (e.negative != null) rec.negative = cleanText(e.negative, LIMITS.negative);
     if (e.comment != null) rec.comment = cleanText(e.comment, LIMITS.comment);
     if (e.submitter != null) rec.submitter = cleanLine(e.submitter, LIMITS.submitter);
     if (e.tags != null) rec.tags = normTags(e.tags);
-    if (e.category != null) rec.category = normCategory(e.category);
+    rec.category = normCategory(e.category != null ? e.category : rec.category);
     if (e.nsfw != null) rec.nsfw = !!e.nsfw;
-    if (!rec.title) return err('标题不能为空');
-    if (!rec.prompt) return err('画风串内容不能为空');
+    if (!rec.prompt) return err('Prompt 不能为空');
+    rec.title = defaultSubmissionTitle({ title: titleInput, category: rec.category, prompt: rec.prompt });
 
     rec.reviewedAt = Date.now();
     await env.STRINGS_BUCKET.put(`community/approved/${id}.json`, JSON.stringify(rec), {

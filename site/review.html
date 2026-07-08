@@ -60,8 +60,8 @@ input,textarea,select{font-family:inherit;color:var(--text)}
 .imgs .lab{font-size:10px;color:var(--muted);text-align:center;margin-top:2px}
 .f{margin-bottom:10px}
 .f>label{display:block;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px}
-.f input[type=text],.f textarea{width:100%;border:1px solid var(--line);background:var(--card);border-radius:8px;padding:7px 10px;font-size:13px;outline:none}
-.f input:focus,.f textarea:focus{border-color:var(--accent)}
+.f input[type=text],.f textarea,.f select{width:100%;border:1px solid var(--line);background:var(--card);border-radius:8px;padding:7px 10px;font-size:13px;outline:none}
+.f input:focus,.f textarea:focus,.f select:focus{border-color:var(--accent)}
 .f textarea{resize:vertical;min-height:56px;line-height:1.6}
 .f textarea.mono{font-family:var(--font-mono);font-size:12px}
 .frow{display:flex;gap:10px;flex-wrap:wrap}
@@ -165,6 +165,29 @@ function token() { return localStorage.getItem(KEY) || ''; }
 function escHtml(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function escAttr(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
+const COMMUNITY_CATEGORIES = ['画风', '人物', '动作', '构图', '随手分享'];
+const DEFAULT_COMMUNITY_CATEGORY = '随手分享';
+const CATEGORY_ALIASES = new Map([
+  ['画风', '画风'], ['style', '画风'],
+  ['人物', '人物'], ['面部', '人物'], ['角色', '人物'], ['face', '人物'],
+  ['动作', '动作'], ['pose', '动作'],
+  ['构图', '构图'], ['场景', '构图'], ['scene', '构图'], ['composition', '构图'],
+  ['随手分享', '随手分享'], ['gallery', '随手分享'], ['其他', '随手分享'],
+]);
+
+function normCategoryName(v) {
+  const raw = Array.isArray(v) ? v[0] : v;
+  const s = String(raw == null ? '' : raw).split('/')[0].replace(/\s+/g, ' ').trim();
+  if (!s) return DEFAULT_COMMUNITY_CATEGORY;
+  if (COMMUNITY_CATEGORIES.includes(s)) return s;
+  return CATEGORY_ALIASES.get(s.toLowerCase().replace(/\s+/g, '')) || DEFAULT_COMMUNITY_CATEGORY;
+}
+
+function categoryOptions(value) {
+  const current = normCategoryName(value);
+  return COMMUNITY_CATEGORIES.map(c => `<option value="${escAttr(c)}"${c === current ? ' selected' : ''}>${escHtml(c)}</option>`).join('');
+}
+
 let toastTimer;
 function toast(msg) {
   const t = $('#toast');
@@ -235,7 +258,6 @@ function renderPending() {
     const div = document.createElement('div');
     div.className = 'item';
     div.dataset.id = it.id;
-    const labNames = { gallery: '图库', face: '面部', scene: '场景', nsfw: 'NSFW' };
     div.innerHTML = `
       <div class="item-head">
         ${it.nsfw ? '<span class="badge">NSFW</span>' : ''}
@@ -244,17 +266,16 @@ function renderPending() {
       <div class="imgs">${(it.images || []).map(im => `
         <a href="${escAttr(im.file)}" target="_blank" rel="noopener">
           <img src="${escAttr(im.file)}" loading="lazy" alt="">
-          <div class="lab">${labNames[im.label] || im.label}</div>
         </a>`).join('')}
       </div>
       <div class="frow">
-        <div class="f"><label>标题</label><input type="text" class="e-title" value="${escAttr(it.title)}"></div>
+        <div class="f"><label>标题</label><input type="text" class="e-title" value="${escAttr(it.title)}" placeholder="不填自动生成"></div>
         <div class="f"><label>投稿人</label><input type="text" class="e-submitter" value="${escAttr(it.submitter)}"></div>
       </div>
-      <div class="f"><label>画风串 Prompt</label><textarea class="e-prompt mono">${escHtml(it.prompt)}</textarea></div>
+      <div class="f"><label>Prompt</label><textarea class="e-prompt mono">${escHtml(it.prompt)}</textarea></div>
       <div class="f"><label>负面 Prompt</label><textarea class="e-negative mono">${escHtml(it.negative || '')}</textarea></div>
       <div class="frow">
-        <div class="f"><label>分类（/ 分级）</label><input type="text" class="e-category" value="${escAttr((it.category || []).join('/'))}"></div>
+        <div class="f"><label>分类</label><select class="e-category">${categoryOptions(it.category)}</select></div>
         <div class="f"><label>标签（逗号分隔）</label><input type="text" class="e-tags" value="${escAttr((it.tags || []).join(', '))}"></div>
       </div>
       <div class="f"><label>备注</label><textarea class="e-comment">${escHtml(it.comment)}</textarea></div>

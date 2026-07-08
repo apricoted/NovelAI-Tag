@@ -17,6 +17,26 @@ export const LIMITS = {
 };
 
 export const IMAGE_LABELS = ['gallery', 'face', 'scene', 'nsfw'];
+export const COMMUNITY_CATEGORIES = ['画风', '人物', '动作', '构图', '随手分享'];
+export const DEFAULT_COMMUNITY_CATEGORY = '随手分享';
+
+const CATEGORY_ALIASES = new Map([
+  ['画风', '画风'],
+  ['style', '画风'],
+  ['人物', '人物'],
+  ['面部', '人物'],
+  ['角色', '人物'],
+  ['face', '人物'],
+  ['动作', '动作'],
+  ['pose', '动作'],
+  ['构图', '构图'],
+  ['场景', '构图'],
+  ['scene', '构图'],
+  ['composition', '构图'],
+  ['随手分享', '随手分享'],
+  ['gallery', '随手分享'],
+  ['其他', '随手分享'],
+]);
 
 const ABS_URL_RE = /^(?:https?:)?\/\//i;
 const HOST_PATH_RE = /^[a-z0-9.-]+\.[a-z]{2,}(?::\d+)?(?:\/|$)/i;
@@ -95,9 +115,33 @@ export function normTags(v) {
   return out;
 }
 
+export function normCategoryName(v) {
+  const s = cleanLine(v, LIMITS.category);
+  if (!s) return DEFAULT_COMMUNITY_CATEGORY;
+  if (COMMUNITY_CATEGORIES.includes(s)) return s;
+  const key = s.toLowerCase().replace(/\s+/g, '');
+  return CATEGORY_ALIASES.get(key) || DEFAULT_COMMUNITY_CATEGORY;
+}
+
 export function normCategory(v) {
-  const s = Array.isArray(v) ? v.join('/') : String(v == null ? '' : v);
-  return cleanLine(s, LIMITS.category).split('/').map(x => x.trim()).filter(Boolean).slice(0, 3);
+  const raw = Array.isArray(v) ? v[0] : String(v == null ? '' : v).split('/')[0];
+  return [normCategoryName(raw)];
+}
+
+export function communityCategoriesFromEntries(entries) {
+  const used = new Set((entries || []).map(e => normCategory(e && e.category)[0]));
+  return COMMUNITY_CATEGORIES.filter(c => used.has(c));
+}
+
+export function defaultSubmissionTitle({ title, category, prompt } = {}) {
+  const given = cleanLine(title, LIMITS.title);
+  if (given) return given;
+  if (category != null && (!Array.isArray(category) || category.length)) {
+    const cat = normCategoryName(Array.isArray(category) ? category[0] : category);
+    return cat.endsWith('分享') ? cat : `${cat}分享`;
+  }
+  const promptHead = cleanLine(String(prompt || '').replace(/[{}[\](),，]+/g, ' '), 18);
+  return promptHead || DEFAULT_COMMUNITY_CATEGORY;
 }
 
 /* ---- R2 辅助 ---- */
@@ -142,7 +186,7 @@ export function toEntry(env, rec) {
     negative: rec.negative || '',
     comment: rec.comment || '',
     tags: Array.isArray(rec.tags) ? rec.tags : [],
-    category: Array.isArray(rec.category) ? rec.category : [],
+    category: normCategory(rec.category),
     nsfw: !!rec.nsfw,
     submitter: rec.submitter || '',
     createdAt: rec.createdAt || 0,
@@ -154,7 +198,7 @@ export function toEntry(env, rec) {
 }
 
 export function emptyCollection() {
-  return { title: '社区画风串', author: '', categories: [], entries: [], imagedCount: 0 };
+  return { title: '共创广场', author: '', categories: [], entries: [], imagedCount: 0 };
 }
 
 // 重新生成聚合发布文件 community/community.json（每次通过/下架后调用）
@@ -164,7 +208,7 @@ export async function rebuildCommunity(env) {
   const records = await readJsonBatch(bucket, keys);
   records.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   const entries = records.map(r => toEntry(env, r));
-  const categories = [...new Set(entries.map(e => (e.category || []).join('/')).filter(Boolean))].sort();
+  const categories = communityCategoriesFromEntries(entries);
   const data = {
     ...emptyCollection(),
     categories,

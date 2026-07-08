@@ -22,7 +22,6 @@ const state = {
   activePath: null,
   activeCollection: null,
   collections: [],
-  viewMode: 'all',
   query: '',
   showNSFW: localStorage.getItem('strings-nsfw') === 'true',
   loadedImages: new Set(),
@@ -31,7 +30,45 @@ const state = {
 
 const svgCopy = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
 
+const COMMUNITY_CATEGORIES = Object.freeze(['画风', '人物', '动作', '构图', '随手分享']);
+const DEFAULT_COMMUNITY_CATEGORY = '随手分享';
+const CATEGORY_ALIASES = new Map([
+  ['画风', '画风'],
+  ['style', '画风'],
+  ['人物', '人物'],
+  ['面部', '人物'],
+  ['角色', '人物'],
+  ['face', '人物'],
+  ['动作', '动作'],
+  ['pose', '动作'],
+  ['构图', '构图'],
+  ['场景', '构图'],
+  ['scene', '构图'],
+  ['composition', '构图'],
+  ['随手分享', '随手分享'],
+  ['gallery', '随手分享'],
+  ['其他', '随手分享'],
+]);
+
+window.COMMUNITY_CATEGORIES = COMMUNITY_CATEGORIES;
+window.DEFAULT_COMMUNITY_CATEGORY = DEFAULT_COMMUNITY_CATEGORY;
+
 function normImg(img) { return typeof img === 'string' ? { file: img, label: 'gallery' } : img; }
+function normCategoryName(v) {
+  const s = String(v == null ? '' : v).split('/')[0].replace(/\s+/g, ' ').trim();
+  if (!s) return DEFAULT_COMMUNITY_CATEGORY;
+  if (COMMUNITY_CATEGORIES.includes(s)) return s;
+  const key = s.toLowerCase().replace(/\s+/g, '');
+  return CATEGORY_ALIASES.get(key) || DEFAULT_COMMUNITY_CATEGORY;
+}
+function normCategory(v) {
+  const raw = Array.isArray(v) ? v[0] : v;
+  return [normCategoryName(raw)];
+}
+function categoriesFromEntries(entries) {
+  const used = new Set((entries || []).map(e => normCategory(e && e.category)[0]));
+  return COMMUNITY_CATEGORIES.filter(c => used.has(c));
+}
 
 async function init() {
   bindUI();
@@ -67,7 +104,7 @@ async function init() {
 
   } catch (e) {
     console.error(e);
-    renderEmptyState('数据加载失败', '请检查画风串配置，或稍后刷新重试。');
+    renderEmptyState('数据加载失败', '请检查共创广场配置，或稍后刷新重试。');
   }
 }
 
@@ -86,12 +123,13 @@ async function loadCollection(col) {
   try {
     if (!data && col.file) data = await fetchJson('data/' + col.file);
     if (!data) throw new Error('no data source');
-    state.data = data;
     state.entries = (data.entries || []).map(e => ({
       ...e,
       negative: e.negative || '',
+      category: normCategory(e.category),
       images: (e.images || []).map(normImg)
     }));
+    state.data = { ...data, categories: categoriesFromEntries(state.entries) };
     state.activePath = null;
     buildTree();
     updateNSFWTooltip();
@@ -104,8 +142,8 @@ async function loadCollection(col) {
     state.activePath = null;
     buildTree();
     clearMasonry();
-    $('#resultInfo').innerHTML = '<b>0</b> 条画师串';
-    renderEmptyState('数据加载失败', '当前画风串合集无法加载，请稍后再试。');
+    $('#resultInfo').innerHTML = '<b>0</b> 条投稿';
+    renderEmptyState('数据加载失败', '当前投稿合集无法加载，请稍后再试。');
   }
 }
 
@@ -159,6 +197,14 @@ function renderTree() {
     const row = activeItem.querySelector('.tree-row');
     if (row) row.classList.add('active');
   }
+  syncCategoryTabs();
+}
+
+function syncCategoryTabs() {
+  $$('#viewTabs .view-tab').forEach(btn => {
+    const path = btn.dataset.path || null;
+    btn.classList.toggle('on', path === (state.activePath || null));
+  });
 }
 
 function renderTreeNode(node, expanded) {
@@ -190,6 +236,7 @@ function renderTreeNode(node, expanded) {
     $$('.tree-row.active').forEach(r => r.classList.remove('active'));
     row.classList.add('active');
     state.activePath = node.path;
+    syncCategoryTabs();
     applyFilter({ scrollUp: true });
   };
 
@@ -229,12 +276,6 @@ function applyFilter({ scrollUp = false } = {}) {
     });
   }
 
-  if (state.viewMode !== 'all') {
-    list = list.filter(e =>
-      (e.images || []).some(img => (img.label || 'gallery') === state.viewMode)
-    );
-  }
-
   if (!state.showNSFW) list = list.filter(e => !e.nsfw);
 
   state.filtered = list;
@@ -249,11 +290,7 @@ function updateResultBar(n) {
   const parts = [];
   if (state.activePath) parts.push(`分类: ${state.activePath}`);
   if (state.query) parts.push(`搜索 "${escHtml(state.query)}"`);
-  if (state.viewMode !== 'all') {
-    const names = { face: '面部', scene: '场景', nsfw: 'NSFW', gallery: '图库' };
-    parts.push(`视图: ${names[state.viewMode] || state.viewMode}`);
-  }
-  parts.push(`<b>${n}</b> 条画师串`);
+  parts.push(`<b>${n}</b> 条投稿`);
   $('#resultInfo').innerHTML = parts.join(' · ');
   updateEmptyState(n);
 }
@@ -265,7 +302,7 @@ function updateEmptyState(n) {
   if (n > 0) return;
 
   const hasEntries = state.entries.length > 0;
-  let title = '没有匹配的画师串';
+  let title = '没有匹配的投稿';
   let desc = '换个关键词或分类再试试。';
   const actions = [];
 
@@ -275,15 +312,11 @@ function updateEmptyState(n) {
     actions.push({ label: '投稿', action: 'submit' });
     actions.push({ label: '回到法典', action: 'home' });
   } else if (state.query) {
-    title = '没有找到匹配画风串';
+    title = '没有找到匹配投稿';
     desc = '试试换个关键词，或清空搜索回到当前合集。';
     actions.push({ label: '清空搜索', action: 'clear-search' });
-  } else if (state.viewMode === 'nsfw' && !state.showNSFW) {
-    title = 'NSFW 内容当前已隐藏';
-    desc = '开启 NSFW 后，才能查看对应视图里的画风串。';
-    actions.push({ label: '开启 NSFW', action: 'show-nsfw' });
-  } else if (state.viewMode !== 'all' || state.activePath) {
-    title = '这个范围暂时没有画风串';
+  } else if (state.activePath) {
+    title = '这个范围暂时没有投稿';
     desc = '可以回到全部视图，或者换个分类看看。';
     actions.push({ label: '查看全部', action: 'show-all' });
   }
@@ -326,18 +359,15 @@ function handleEmptyAction(action) {
   } else if (action === 'show-all') {
     state.query = '';
     state.activePath = null;
-    state.viewMode = 'all';
     const search = $('#search');
     if (search) search.value = '';
-    $$('.view-tab').forEach(b => b.classList.toggle('on', b.dataset.view === 'all'));
     renderTree();
   }
   applyFilter({ scrollUp: true });
 }
 
 function vidx(entry) {
-  if (state.viewMode === 'all') return 0;
-  return (entry.images || []).findIndex(img => (img.label || 'gallery') === state.viewMode);
+  return 0;
 }
 
 function vimg(entry) {
@@ -557,12 +587,9 @@ function openDetail(idx) {
   const imgs = e.images || [];
   const imagesHtml = imgs.length ? imgs.map(img => {
     const file = img.file || img;
-    const label = img.label || 'gallery';
-    const labelNames = { face: '面部', scene: '场景', nsfw: 'NSFW', gallery: '图库' };
     return `
       <div class="detail-img-card" data-img="${escAttr(file)}">
         ${e.nsfw ? '<div class="nsfw-flag">NSFW</div>' : ''}
-        <div class="img-label-tag" style="position:absolute;bottom:8px;left:8px;background:rgba(0,0,0,.6);color:#fff;font-size:10px;padding:2px 8px;border-radius:6px;font-weight:600;backdrop-filter:blur(4px);z-index:1">${labelNames[label] || label}</div>
         <img src="${thumbUrl(file)}" alt="" loading="lazy">
       </div>`;
   }).join('') : '<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--muted)">暂无例图</div>';
@@ -675,9 +702,8 @@ function bindUI() {
 
   $$('#viewTabs .view-tab').forEach(btn => {
     btn.onclick = () => {
-      $$('#viewTabs .view-tab').forEach(b => b.classList.remove('on'));
-      btn.classList.add('on');
-      state.viewMode = btn.dataset.view;
+      state.activePath = btn.dataset.path || null;
+      renderTree();
       applyFilter({ scrollUp: true });
     };
   });
@@ -713,7 +739,7 @@ function updateNSFWBtn() {
 function updateNSFWTooltip() {
   const n = state.entries.filter(e => e.nsfw).length;
   const btn = $('#nsfwBtn');
-  const label = state.showNSFW ? `已开启 · ${n} 条 NSFW 可见` : `已关闭 · 隐藏了 ${n} 条 NSFW`;
+  const label = state.showNSFW ? `已开启 · ${n} 条 NSFW 投稿可见` : `已关闭 · 隐藏了 ${n} 条 NSFW 投稿`;
   btn.setAttribute('title', label);
 }
 

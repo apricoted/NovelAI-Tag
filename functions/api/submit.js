@@ -2,7 +2,7 @@
 
 import {
   json, err, LIMITS, IMAGE_LABELS, requireStorage,
-  cleanLine, cleanText, normTags, normCategory,
+  cleanLine, cleanText, normTags, normCategory, defaultSubmissionTitle,
 } from '../_lib.js';
 
 // POST /api/submit — 游客投稿（multipart 表单）
@@ -26,17 +26,16 @@ export async function onRequestPost({ request, env }) {
   try { form = await request.formData(); } catch { return err('请求格式错误'); }
 
   // 文本字段
-  const title = cleanLine(form.get('title'), LIMITS.title);
   const prompt = cleanText(form.get('prompt'), LIMITS.prompt);
+  const category = normCategory(form.get('category'));
+  const title = defaultSubmissionTitle({ title: form.get('title'), category, prompt });
   const negative = cleanText(form.get('negative'), LIMITS.negative);
   const comment = cleanText(form.get('comment'), LIMITS.comment);
   const submitter = cleanLine(form.get('submitter'), LIMITS.submitter);
   const tags = normTags(form.get('tags'));
-  const category = normCategory(form.get('category'));
   const nsfw = ['1', 'true', 'on'].includes(String(form.get('nsfw') || '').toLowerCase());
 
-  if (!title) return err('标题不能为空');
-  if (!prompt) return err('画风串内容不能为空');
+  if (!prompt) return err('Prompt 不能为空');
 
   // 图片字段
   const files = form.getAll('images').filter(f => f && typeof f.arrayBuffer === 'function');
