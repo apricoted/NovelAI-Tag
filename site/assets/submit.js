@@ -29,6 +29,8 @@ const CSS = `
 .sub-src.is-manual{color:var(--muted);background:var(--tagbg)}
 .sub-src.is-read{color:#0f6e56;background:#e1f5ee}
 body.dark .sub-src.is-read{color:#8fe6c8;background:rgba(15,110,86,.30)}
+.sub-src.is-none{color:#854f0b;background:#faeeda}
+body.dark .sub-src.is-none{color:#f0c078;background:rgba(133,79,11,.32)}
 .sub-field input[type=text],.sub-field textarea{width:100%;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:10px;padding:10px 12px;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box}
 .sub-field textarea{resize:vertical;min-height:88px;line-height:1.6}
 .sub-field textarea.mono{font-family:var(--font-mono);font-size:12px}
@@ -85,7 +87,7 @@ function buildModal() {
       <button class="detail-close" id="subClose">✕</button>
       <div class="detail-body">
         <h2 class="detail-title" style="margin-bottom:4px">投稿到共创广场</h2>
-        <div class="sub-note" style="margin-bottom:18px">分享任意 NovelAI 作品。可以是画风、人物、动作、构图，也可以只是你的今日最爱。</div>
+        <div class="sub-note" style="margin-bottom:18px">分享任意 NovelAI 作品。可以是画风、人物、服装、动作、构图，也可以只是你的今日最爱。</div>
 
         <div class="sub-field">
           <label>作品 *</label>
@@ -107,6 +109,17 @@ function buildModal() {
           <textarea id="subPrompt" class="mono" maxlength="${LIM.prompt}" placeholder="粘贴正向 prompt，例如 artist:xxx, cinematic lighting, dynamic pose, ..."></textarea>
         </div>
 
+        <div class="sub-row">
+          <div class="sub-field">
+            <label>标题</label>
+            <input type="text" id="subTitle" maxlength="${LIM.title}" placeholder="不填会自动生成">
+          </div>
+          <div class="sub-field">
+            <label>投稿者名</label>
+            <input type="text" id="subName" maxlength="${LIM.submitter}" placeholder="匿名">
+          </div>
+        </div>
+
         <div class="sub-field">
           <label>分类</label>
           <div class="sub-cat-list" id="subCategoryList">
@@ -118,17 +131,6 @@ function buildModal() {
         <details class="sub-more" id="subMore">
           <summary>更多（可选）</summary>
           <div class="sub-more-body">
-            <div class="sub-row">
-              <div class="sub-field">
-                <label>标题</label>
-                <input type="text" id="subTitle" maxlength="${LIM.title}" placeholder="不填会自动生成">
-              </div>
-              <div class="sub-field">
-                <label>投稿者名</label>
-                <input type="text" id="subName" maxlength="${LIM.submitter}" placeholder="匿名">
-              </div>
-            </div>
-
             <div class="sub-field">
               <label>负面 Prompt</label>
               <textarea id="subNegative" class="mono" maxlength="${LIM.negative}" placeholder="lowres, bad anatomy, extra fingers, ..."></textarea>
@@ -175,8 +177,7 @@ function buildModal() {
     if (btn) setCategory(btn.dataset.cat);
   };
   $('#subGo', modal).onclick = doSubmit;
-  $('#subPrompt', modal).oninput = () => { if (!$('#subPrompt', modal).value.trim()) setPromptSource(false); };
-  setPromptSource(false);
+  setPromptSource('manual');  // 小标默认态；后续由图片是否含参数驱动（addFiles / 删图）
 }
 
 function openModal() {
@@ -318,16 +319,17 @@ async function readImagePrompt(file) {
   return chunks.length ? promptFromPngChunks(chunks) : null;
 }
 
-/* prompt 来源小标：手动输入（灰）↔ 已从图片读出（绿）。拖到带参数的原图时点亮 */
+/* prompt 来源小标三态：手动填写（灰）· 已从图片读出（绿·三星）· 图中未含参数（琥珀）。拖图后即时反馈图里到底有没有参数 */
 const PROMPT_SRC = {
-  manual: { cls: 'is-manual', text: '手动输入', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>' },
-  read: { cls: 'is-read', text: '已从图片读出', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.6L18.5 9l-4.7 1.4L12 15l-1.8-4.6L5.5 9l4.7-1.4z"/></svg>' },
+  manual: { cls: 'is-manual', text: '手动填写', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>' },
+  read: { cls: 'is-read', text: '已从图片读出', icon: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M11.5 3l1.3 3.4 3.4 1.3-3.4 1.3-1.3 3.4-1.3-3.4L6.8 8.7l3.4-1.3z"/><path d="M18 12.3l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/><path d="M6 13.6l.65 1.7 1.7.65-1.7.65L6 18.3l-.65-1.7L3.65 16l1.7-.65z"/></svg>' },
+  none: { cls: 'is-none', text: '图中未含参数', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.6h.01"/></svg>' },
 };
-function setPromptSource(read) {
+function setPromptSource(key) {
   if (!modal) return;
   const el = $('#subPromptSrc', modal);
   if (!el) return;
-  const s = read ? PROMPT_SRC.read : PROMPT_SRC.manual;
+  const s = PROMPT_SRC[key] || PROMPT_SRC.manual;
   el.className = 'sub-src ' + s.cls;
   el.innerHTML = `${s.icon}<span>${s.text}</span>`;
 }
@@ -345,7 +347,7 @@ function fillPromptFromMetadata(meta) {
     negativeEl.value = meta.negative.slice(0, LIM.negative);
     filled = true;
   }
-  if (filled) { setPromptSource(true); toast(`已从${meta.source || '图片'}读出 prompt，可修改`); }
+  if (filled) toast(`已从${meta.source || '图片'}读出 prompt，可修改`);
   return filled;
 }
 
@@ -381,6 +383,9 @@ async function addFiles(list) {
         if (meta) {
           metadataConsumed = true;
           fillPromptFromMetadata(meta);
+          setPromptSource('read');
+        } else {
+          setPromptSource('none');  // 这张图没读到参数，明确告诉用户（想读参数的知道要手填，只想分享 tag 的也安心）
         }
       }
       const blob = await compressImage(f);
@@ -406,6 +411,7 @@ function renderPreviews() {
     div.querySelector('.rm').onclick = () => {
       URL.revokeObjectURL(im.url);
       files.splice(i, 1);
+      if (!files.length) { metadataConsumed = false; setPromptSource('manual'); }  // 图删空了：回默认、允许下张重新读参数
       renderPreviews();
     };
     box.appendChild(div);
@@ -418,7 +424,7 @@ function resetForm() {
   $('#subNsfw', modal).checked = false;
   $('#subMore', modal).open = false;
   metadataConsumed = false;
-  setPromptSource(false);
+  setPromptSource('manual');
   files.forEach(im => URL.revokeObjectURL(im.url));
   files = [];
   renderPreviews();
