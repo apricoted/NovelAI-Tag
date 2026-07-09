@@ -157,7 +157,7 @@ export function setupCodexPicker() {
     a.innerHTML =
       `<span class="cd-ico">${DOOR_PLUS_ICON}</span>` +
       `<span class="cd-main">` +
-      `<span class="cd-name">社区共建 · 去投稿（测试中，窗口功能与投稿暂不生效）</span>` +
+      `<span class="cd-name">社区共建 · 去投稿</span>` +
       `<span class="cd-sub">这里是大家的画风串，加入你的一条</span>` +
       `</span>` +
       `<span class="cd-out">${DOOR_OUT_ICON}</span>`;

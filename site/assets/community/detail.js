@@ -1,6 +1,6 @@
 import { closeMask, isMaskOpen, openMask, trapFocus } from '../app/modal.js';
 import { toast } from '../app/feedback.js';
-import { $, copyText, escHtml, imageUrl } from './utils.js';
+import { $, copyText, escAttr, escHtml, imageUrl } from './utils.js';
 
 let detailMask;
 let detailBody;
@@ -44,16 +44,21 @@ function renderDetail() {
   const images = entry.images || [];
   const current = images[activeImageIndex];
   const title = entry.title || category + '分享';
+  const currentUrl = current ? imageUrl(current.file) : '';
+  const imageRatio = current?.width && current?.height
+    ? Math.max(.38, Math.min(2.4, Number(current.width) / Number(current.height)))
+    : 1;
+  const imageStageWidth = `min(100%, ${(imageRatio * 70).toFixed(2)}vh, ${(imageRatio * 700).toFixed(1)}px)`;
 
   detailBody.innerHTML = `
     <button class="dialog-close" type="button" data-close-detail aria-label="关闭">×</button>
     <div class="community-detail-shell">
       <section class="community-detail-media" aria-label="投稿图片">
-        ${current ? `<img id="detailImage" src="${imageUrl(current.file)}" alt="${escHtml(title)}">` : '<div class="community-detail-no-image">这条投稿没有例图</div>'}
+        ${current ? `<div class="community-detail-stage" style="--img-ratio:${imageRatio.toFixed(5)};--stage-w:${imageStageWidth}"><img id="detailImage" src="${escAttr(currentUrl)}" alt="${escAttr(title)}"></div>` : '<div class="community-detail-stage community-detail-stage-empty"><div class="community-detail-no-image">这条投稿没有例图</div></div>'}
         ${entry.nsfw ? '<span class="nsfw-badge">NSFW</span>' : ''}
         ${images.length > 1 ? `<div class="community-detail-thumbs">${images.map((image, index) => `
           <button type="button" class="community-detail-thumb${index === activeImageIndex ? ' active' : ''}" data-image-index="${index}" aria-label="查看第 ${index + 1} 张图">
-            <img src="${imageUrl(image.file)}" alt="">
+            <img src="${escAttr(imageUrl(image.file))}" alt="">
           </button>`).join('')}</div>` : ''}
       </section>
       <section class="community-detail-copy">
