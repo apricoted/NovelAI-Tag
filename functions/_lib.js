@@ -19,6 +19,8 @@ export const LIMITS = {
 export const IMAGE_LABELS = ['gallery', 'face', 'scene', 'nsfw'];
 export const COMMUNITY_CATEGORIES = ['随手分享', '画风', '人物', '服装', '动作', '构图', '场景'];
 export const DEFAULT_COMMUNITY_CATEGORY = '随手分享';
+export const COMMUNITY_STATUSES = ['pending', 'approved', 'hidden', 'rejected', 'deleted'];
+export const DEFAULT_COMMUNITY_STATUS = 'pending';
 
 const CATEGORY_ALIASES = new Map([
   ['画风', '画风'],
@@ -102,6 +104,11 @@ export function validId(id) {
   return /^[0-9a-fA-F-]{8,40}$/.test(id);
 }
 
+export function normCommunityStatus(v, fallback = DEFAULT_COMMUNITY_STATUS) {
+  const status = cleanLine(v, 20);
+  return COMMUNITY_STATUSES.includes(status) ? status : fallback;
+}
+
 /* ---- 字段清洗（投稿与审核编辑共用） ---- */
 const CTRL_RE = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g;
 
@@ -153,6 +160,56 @@ export function defaultSubmissionTitle({ title, category, prompt } = {}) {
   return promptHead || DEFAULT_COMMUNITY_CATEGORY;
 }
 
+export function normalizeCommunityRecord(record, status = DEFAULT_COMMUNITY_STATUS, now = Date.now()) {
+  const rec = record && typeof record === 'object' ? { ...record } : {};
+  rec.id = String(rec.id || '');
+  rec.status = normCommunityStatus(status, normCommunityStatus(rec.status));
+  rec.title = defaultSubmissionTitle({ title: rec.title, category: rec.category, prompt: rec.prompt });
+  rec.prompt = cleanText(rec.prompt, LIMITS.prompt);
+  rec.negative = cleanText(rec.negative, LIMITS.negative);
+  rec.comment = cleanText(rec.comment, LIMITS.comment);
+  rec.submitter = cleanLine(rec.submitter, LIMITS.submitter);
+  rec.tags = normTags(rec.tags);
+  rec.category = normCategory(rec.category);
+  rec.nsfw = !!rec.nsfw;
+  rec.images = Array.isArray(rec.images) ? rec.images.filter(Boolean) : [];
+  rec.createdAt = Number(rec.createdAt || now);
+  rec.updatedAt = Number(rec.updatedAt || rec.createdAt || now);
+  rec.reviewedAt = Number(rec.reviewedAt || 0);
+  rec.publishedAt = Number(rec.publishedAt || 0);
+  rec.hiddenAt = Number(rec.hiddenAt || 0);
+  rec.deletedAt = Number(rec.deletedAt || 0);
+  rec.coverIndex = clampIndex(rec.coverIndex, rec.images.length);
+  rec.adminNote = cleanText(rec.adminNote, LIMITS.comment);
+  return rec;
+}
+
+export function applyCommunityEdits(record, edits = {}, now = Date.now()) {
+  const rec = normalizeCommunityRecord(record, record && record.status, now);
+  const e = edits && typeof edits === 'object' ? edits : {};
+  const has = name => Object.prototype.hasOwnProperty.call(e, name);
+  const titleInput = has('title') ? e.title : rec.title;
+  if (has('prompt')) rec.prompt = cleanText(e.prompt, LIMITS.prompt);
+  if (has('negative')) rec.negative = cleanText(e.negative, LIMITS.negative);
+  if (has('comment')) rec.comment = cleanText(e.comment, LIMITS.comment);
+  if (has('submitter')) rec.submitter = cleanLine(e.submitter, LIMITS.submitter);
+  if (has('tags')) rec.tags = normTags(e.tags);
+  if (has('category')) rec.category = normCategory(e.category);
+  if (has('nsfw')) rec.nsfw = !!e.nsfw;
+  if (has('coverIndex')) rec.coverIndex = clampIndex(e.coverIndex, rec.images.length);
+  if (has('adminNote')) rec.adminNote = cleanText(e.adminNote, LIMITS.comment);
+  if (!rec.prompt) return { error: 'Prompt 不能为空' };
+  rec.title = defaultSubmissionTitle({ title: titleInput, category: rec.category, prompt: rec.prompt });
+  rec.updatedAt = now;
+  return { record: rec };
+}
+
+function clampIndex(value, length) {
+  const n = Number(value || 0);
+  if (!Number.isFinite(n) || n < 0 || !length) return 0;
+  return Math.min(Math.floor(n), Math.max(0, length - 1));
+}
+
 /* ---- R2 辅助 ---- */
 export async function readJson(bucket, key) {
   const obj = await bucket.get(key);
@@ -186,6 +243,63 @@ export async function deleteImages(env, id) {
   if (keys.length) await env.STRINGS_BUCKET.delete(keys);
 }
 
+export function communityRecordKey(status, id) {
+  return `community/${normCommunityStatus(status)}/${id}.json`;
+}
+
+export async function readCommunityRecord(env, status, id) {
+  if (!validId(id)) return null;
+  const rec = await readJson(env.STRINGS_BUCKET, communityRecordKey(status, id));
+  return rec ? normalizeCommunityRecord(rec, status) : null;
+}
+
+export async function findCommunityRecord(env, id, statuses = COMMUNITY_STATUSES) {
+  if (!validId(id)) return null;
+  const search = (Array.isArray(statuses) ? statuses : [statuses])
+    .map(s => normCommunityStatus(s, ''))
+    .filter(Boolean);
+  for (const status of search) {
+    const key = communityRecordKey(status, id);
+    const rec = await readJson(env.STRINGS_BUCKET, key);
+    if (rec) return { status, key, record: normalizeCommunityRecord(rec, status) };
+  }
+  return null;
+}
+
+export async function writeCommunityRecord(env, status, record) {
+  const rec = normalizeCommunityRecord(record, status);
+  rec.status = normCommunityStatus(status);
+  await env.STRINGS_BUCKET.put(communityRecordKey(rec.status, rec.id), JSON.stringify(rec), {
+    httpMetadata: { contentType: 'application/json; charset=utf-8' },
+  });
+  return rec;
+}
+
+export async function moveCommunityRecord(env, found, nextStatus, updates = {}) {
+  const now = updates.now || Date.now();
+  const status = normCommunityStatus(nextStatus);
+  const fromStatus = found.status;
+  const rec = normalizeCommunityRecord({ ...found.record, ...(updates.fields || {}) }, status, now);
+  rec.status = status;
+  rec.updatedAt = now;
+  if (status === 'approved') {
+    rec.publishedAt = now;
+    rec.hiddenAt = 0;
+    rec.deletedAt = 0;
+  } else if (status === 'hidden') {
+    rec.hiddenAt = now;
+  } else if (status === 'deleted') {
+    rec.deletedAt = now;
+    rec.previousStatus = fromStatus;
+  } else if (status === 'rejected') {
+    rec.rejectedAt = now;
+  }
+  await writeCommunityRecord(env, status, rec);
+  if (fromStatus !== status) await env.STRINGS_BUCKET.delete(found.key);
+  if (fromStatus === 'approved' || status === 'approved') await rebuildCommunity(env);
+  return rec;
+}
+
 /* ---- 投稿记录 -> 前端 entry（图片转绝对 URL，结构对齐 strings.js） ---- */
 export function toEntry(env, rec) {
   return {
@@ -199,10 +313,28 @@ export function toEntry(env, rec) {
     nsfw: !!rec.nsfw,
     submitter: rec.submitter || '',
     createdAt: rec.createdAt || 0,
+    coverIndex: Number(rec.coverIndex || 0),
     images: (rec.images || []).map(im => {
-      const image = { file: imageUrl(env, im.key) };
+      const key = String(im && im.key || '');
+      const image = { file: key ? imageUrl(env, key) : normalizeImageFile(im && im.file) };
       if (IMAGE_LABELS.includes(im.label)) image.label = im.label;
       return image;
+    }),
+  };
+}
+
+export function toAdminEntry(env, rec, status = rec && rec.status) {
+  const item = normalizeCommunityRecord(rec, status);
+  return {
+    ...item,
+    images: (item.images || []).map((im, index) => {
+      const key = String(im && im.key || '');
+      return {
+        key,
+        file: key ? imageUrl(env, key) : normalizeImageFile(im && im.file),
+        label: String(im && im.label || ''),
+        index,
+      };
     }),
   };
 }

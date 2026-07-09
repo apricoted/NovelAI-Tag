@@ -1,8 +1,8 @@
 'use strict';
 
 import {
-  json, err, requireAdmin, requireStorage, validId, readJson, deleteImages, rebuildCommunity,
-  cleanLine, cleanText, normTags, normCategory, defaultSubmissionTitle, LIMITS,
+  json, err, requireAdmin, requireStorage, validId, readJson,
+  applyCommunityEdits, moveCommunityRecord,
 } from '../../_lib.js';
 
 // POST /api/admin/decide — 审核：{id, action:"approve"|"reject", edits?}
@@ -22,33 +22,22 @@ export async function onRequestPost(context) {
   const pendKey = `community/pending/${id}.json`;
   const rec = await readJson(env.STRINGS_BUCKET, pendKey);
   if (!rec) return err('该投稿不存在或已被处理', 404);
+  const found = { status: 'pending', key: pendKey, record: rec };
 
   if (body.action === 'reject') {
-    await deleteImages(env, id);
-    await env.STRINGS_BUCKET.delete(pendKey);
+    await moveCommunityRecord(env, found, 'rejected', { now: Date.now() });
     return json({ ok: true, action: 'reject' });
   }
 
   if (body.action === 'approve') {
-    const e = body.edits || {};
-    const titleInput = e.title != null ? e.title : rec.title;
-    if (e.prompt != null) rec.prompt = cleanText(e.prompt, LIMITS.prompt);
-    if (e.negative != null) rec.negative = cleanText(e.negative, LIMITS.negative);
-    if (e.comment != null) rec.comment = cleanText(e.comment, LIMITS.comment);
-    if (e.submitter != null) rec.submitter = cleanLine(e.submitter, LIMITS.submitter);
-    if (e.tags != null) rec.tags = normTags(e.tags);
-    rec.category = normCategory(e.category != null ? e.category : rec.category);
-    if (e.nsfw != null) rec.nsfw = !!e.nsfw;
-    if (!rec.prompt) return err('Prompt 不能为空');
-    rec.title = defaultSubmissionTitle({ title: titleInput, category: rec.category, prompt: rec.prompt });
-
-    rec.reviewedAt = Date.now();
-    await env.STRINGS_BUCKET.put(`community/approved/${id}.json`, JSON.stringify(rec), {
-      httpMetadata: { contentType: 'application/json; charset=utf-8' },
+    const result = applyCommunityEdits(rec, body.edits || {});
+    if (result.error) return err(result.error);
+    const now = Date.now();
+    await moveCommunityRecord(env, { ...found, record: result.record }, 'approved', {
+      now,
+      fields: { reviewedAt: now, publishedAt: now, hiddenAt: 0, deletedAt: 0 },
     });
-    await env.STRINGS_BUCKET.delete(pendKey);
-    const data = await rebuildCommunity(env);
-    return json({ ok: true, action: 'approve', published: data.entries.length });
+    return json({ ok: true, action: 'approve' });
   }
 
   return err('未知操作');

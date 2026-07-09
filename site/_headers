@@ -21,5 +21,14 @@
 /assets/community/*.js
   Cache-Control: no-store
 
+/assets/admin.css
+  Cache-Control: no-store
+
+/assets/admin.js
+  Cache-Control: no-store
+
+/assets/admin/*.js
+  Cache-Control: no-store
+
 /review.html
   Cache-Control: no-store

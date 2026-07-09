@@ -1,9 +1,9 @@
 'use strict';
 
-import { json, err, requireAdmin, requireStorage, validId, readJson, deleteImages, rebuildCommunity } from '../../_lib.js';
+import { json, err, requireAdmin, requireStorage, validId, findCommunityRecord, moveCommunityRecord } from '../../_lib.js';
 
 // POST /api/admin/unpublish — 下架已发布的投稿：{id}
-// 删除记录与图片后重新生成发布文件
+// 软下架到 community/hidden/，保留记录与图片，再重新生成发布文件
 export async function onRequestPost(context) {
   const denied = requireAdmin(context);
   if (denied) return denied;
@@ -16,12 +16,9 @@ export async function onRequestPost(context) {
   const id = String(body.id || '');
   if (!validId(id)) return err('无效的投稿 id');
 
-  const key = `community/approved/${id}.json`;
-  const rec = await readJson(env.STRINGS_BUCKET, key);
-  if (!rec) return err('该投稿不在已发布列表', 404);
+  const found = await findCommunityRecord(env, id, ['approved']);
+  if (!found) return err('该投稿不在已发布列表', 404);
 
-  await deleteImages(env, id);
-  await env.STRINGS_BUCKET.delete(key);
-  const data = await rebuildCommunity(env);
-  return json({ ok: true, published: data.entries.length });
+  await moveCommunityRecord(env, found, 'hidden', { now: Date.now() });
+  return json({ ok: true, action: 'unpublish' });
 }
