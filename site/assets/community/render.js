@@ -3,6 +3,13 @@ import { isFavorite } from './favorites.js';
 import { state } from './state.js';
 import { $, escHtml, imageUrl, promptExcerpt } from './utils.js';
 
+function imageRatio(image, fallback = 4 / 5) {
+  const width = Number(image?.width);
+  const height = Number(image?.height);
+  if (!(width > 0 && height > 0)) return fallback;
+  return Math.max(.52, Math.min(1.82, width / height));
+}
+
 export function renderCategoryRail(onSelect) {
   const rail = $('#categoryRail');
   if (!rail) return;
@@ -112,13 +119,17 @@ export function renderGrid(entries, { onOpenDetail, onToggleFavorite } = {}) {
     const media = document.createElement('div');
     media.className = firstImage ? 'community-card-media' : 'community-card-media no-image';
     if (firstImage) {
-      if (firstImage.width && firstImage.height) {
-        media.style.aspectRatio = `${firstImage.width} / ${firstImage.height}`;
-      }
+      media.style.setProperty('--img-ratio', String(imageRatio(firstImage)));
       const img = document.createElement('img');
       img.src = imageUrl(firstImage.file);
       img.alt = entry.title || category;
       img.loading = 'lazy';
+      img.addEventListener('load', () => {
+        if (!(img.naturalWidth > 0 && img.naturalHeight > 0)) return;
+        if (!(Number(firstImage.width) > 0)) firstImage.width = img.naturalWidth;
+        if (!(Number(firstImage.height) > 0)) firstImage.height = img.naturalHeight;
+        media.style.setProperty('--img-ratio', String(imageRatio(firstImage)));
+      }, { once: true });
       media.appendChild(img);
       if (entry.images.length > 1) {
         const count = document.createElement('span');
