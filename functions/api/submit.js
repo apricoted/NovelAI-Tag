@@ -1,7 +1,7 @@
 'use strict';
 
 import {
-  json, err, LIMITS, IMAGE_LABELS, requireStorage,
+  json, err, LIMITS, requireStorage,
   cleanLine, cleanText, normTags, normCategory, defaultSubmissionTitle,
 } from '../_lib.js';
 
@@ -39,7 +39,6 @@ export async function onRequestPost({ request, env }) {
 
   // 图片字段
   const files = form.getAll('images').filter(f => f && typeof f.arrayBuffer === 'function');
-  const labels = form.getAll('labels').map(String);
   if (files.length < 1) return err('至少需要 1 张例图');
   if (files.length > LIMITS.imageCount) return err(`例图最多 ${LIMITS.imageCount} 张`);
 
@@ -53,8 +52,7 @@ export async function onRequestPost({ request, env }) {
     const buf = new Uint8Array(await f.arrayBuffer());
     const ext = sniffImage(buf);
     if (!ext) return err(`第 ${i + 1} 张图不是有效的 JPEG/PNG/WebP 图片`);
-    const label = IMAGE_LABELS.includes(labels[i]) ? labels[i] : 'gallery';
-    images.push({ buf, ext, label });
+    images.push({ buf, ext });
   }
 
   // 待审区容量保险丝，防恶意灌水撑爆存储
@@ -71,7 +69,7 @@ export async function onRequestPost({ request, env }) {
     await env.STRINGS_BUCKET.put(key, im.buf, {
       httpMetadata: { contentType: CONTENT_TYPES[im.ext], cacheControl: 'public, max-age=31536000, immutable' },
     });
-    stored.push({ key, label: im.label });
+    stored.push({ key });
   }
 
   const record = {

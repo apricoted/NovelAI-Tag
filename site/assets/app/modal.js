@@ -10,7 +10,12 @@ export function focusableIn(root) {
 }
 
 export function focusFirstIn(root) {
-  requestAnimationFrame(() => focusableIn(root)[0]?.focus());
+  // 双 rAF：等一帧让弹窗的 display（含 allow-discrete 过渡）落定，
+  // 否则单帧时 offsetParent 可能仍为 null、focusableIn 取不到元素而空转（社区弹窗曾因此开时不聚焦）。
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const target = focusableIn(root)[0];
+    if (target && !root.contains(document.activeElement)) target.focus();
+  }));
 }
 
 export function trapFocus(ev, root) {

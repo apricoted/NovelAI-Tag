@@ -199,10 +199,11 @@ export function toEntry(env, rec) {
     nsfw: !!rec.nsfw,
     submitter: rec.submitter || '',
     createdAt: rec.createdAt || 0,
-    images: (rec.images || []).map(im => ({
-      file: imageUrl(env, im.key),
-      label: IMAGE_LABELS.includes(im.label) ? im.label : 'gallery',
-    })),
+    images: (rec.images || []).map(im => {
+      const image = { file: imageUrl(env, im.key) };
+      if (IMAGE_LABELS.includes(im.label)) image.label = im.label;
+      return image;
+    }),
   };
 }
 

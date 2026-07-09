@@ -1,0 +1,39 @@
+:root{
+  --topbar-h:80px;
+  --bg:#eef0f6; --panel:#ffffff; --card:#ffffff; --text:#232a3c; --muted:#878da3;
+  --line:#e2e5f0; --accent:#6f5cf2; --accent-soft:#ece9fe; --tagbg:#f3f4fa; --tagbg-hover:#ebecf7;
+  --new:#ef4d7e; --shadow:0 1px 3px rgba(28,32,58,.08),0 6px 18px rgba(28,32,58,.05);
+  --shadow-hover:0 4px 12px rgba(28,32,58,.12),0 14px 34px rgba(28,32,58,.10);
+  --glass:rgba(255,255,255,.74);
+  --popover-glass:rgba(255,255,255,.93);
+  --popover-line:rgba(226,229,240,.92);
+  --popover-shadow:0 18px 48px rgba(28,32,58,.16),0 4px 14px rgba(28,32,58,.08);
+  --overlay:rgba(21,24,38,.48);
+  --accent-glow:rgba(111,92,242,.18);
+  --font-ui:"Outfit","PingFang SC","Microsoft YaHei",-apple-system,"Segoe UI",Roboto,sans-serif;
+  --font-prompt:"IBM Plex Mono","PingFang SC","Microsoft YaHei",Menlo,"SFMono-Regular",Consolas,"Liberation Mono",monospace;
+  --font-display:"Outfit","Noto Serif SC","PingFang SC","Microsoft YaHei",serif;
+  --font-directory:"Outfit","Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;
+  --font:var(--font-ui);
+  --font-serif:var(--font-display);
+  --font-mono:var(--font-prompt);
+  --red:var(--new);
+}
+body.dark{
+  --bg:#0b0d13; --panel:#12141d; --card:#161a26; --text:#e8eaf3; --muted:#8a91a6;
+  --line:#242a3a; --accent:#8b7cf8; --accent-soft:#262050; --tagbg:#1b202e; --tagbg-hover:#222840;
+  --new:#f25c8a; --shadow:0 1px 3px rgba(0,0,0,.45); --shadow-hover:0 14px 40px rgba(0,0,0,.55);
+  --glass:rgba(18,21,30,.68);
+  --popover-glass:rgba(18,21,30,.94);
+  --popover-line:rgba(255,255,255,.14);
+  --popover-shadow:0 20px 54px rgba(0,0,0,.56),0 5px 18px rgba(0,0,0,.34);
+  --overlay:rgba(0,0,0,.62);
+  --accent-glow:rgba(139,124,248,.22);
+}
+/* ============ 主题色（换肤）：每套含 light + dark，与深浅色正交；默认紫=base 不加类 ============ */
+body.theme-teal{--bg:#eaeef5;--panel:#ffffff;--card:#ffffff;--text:#22304a;--muted:#7d8aa3;--line:#dbe2ee;--accent:#0fa173;--accent-soft:#dff4ea;--tagbg:#f1f4f9;--tagbg-hover:#e8eef6;--accent-glow:rgba(15,161,115,.18)}
+body.theme-teal.dark{--bg:#10141c;--panel:#171c26;--card:#181e2a;--text:#e4e9f3;--muted:#7e8aa0;--line:#262e3e;--accent:#2ecb86;--accent-soft:#14352a;--tagbg:#1e2533;--tagbg-hover:#242c3d;--accent-glow:rgba(46,203,134,.20)}
+body.theme-sakura{--bg:#fbf4f1;--panel:#fffaf7;--card:#ffffff;--text:#3d3034;--muted:#a18d92;--line:#f0dde0;--accent:#e0577f;--accent-soft:#fce8ee;--tagbg:#faf1ef;--tagbg-hover:#f7e9e7;--new:#c2342d;--accent-glow:rgba(224,87,127,.18)}
+body.theme-sakura.dark{--bg:#1b1418;--panel:#241a20;--card:#281d23;--text:#f2e6ea;--muted:#9c8790;--line:#3a2b33;--accent:#f08fb0;--accent-soft:#3d2230;--tagbg:#2e2129;--tagbg-hover:#362730;--new:#e0577f;--accent-glow:rgba(240,143,176,.20)}
+body.theme-amber{--bg:#f4eee1;--panel:#faf6ec;--card:#ffffff;--text:#2b261e;--muted:#94896f;--line:#e0d5bb;--accent:#a87f2f;--accent-soft:#f1e7cd;--tagbg:#f5f0e3;--tagbg-hover:#efe7d2;--new:#b5452f;--accent-glow:rgba(168,127,47,.18)}
+body.theme-amber.dark{--bg:#16120c;--panel:#1d1812;--card:#221c13;--text:#e9e0cd;--muted:#8d8268;--line:#362d1e;--accent:#d2a651;--accent-soft:#332a1a;--tagbg:#262017;--tagbg-hover:#2d2619;--new:#e06a52;--accent-glow:rgba(210,166,81,.20)}

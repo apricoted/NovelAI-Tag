@@ -1,5 +1,5 @@
 # JS/CSS freshness is controlled only by no-store below.
-# Version query strings (?v=YYYYMMDD-cacheN) were intentionally removed; do not add them back.
+# Versioned JS/CSS query strings were intentionally removed; do not add them back.
 /assets/app.js
   Cache-Control: no-store
 
@@ -7,6 +7,18 @@
   Cache-Control: no-store
 
 /assets/styles.css
+  Cache-Control: no-store
+
+/assets/tokens.css
+  Cache-Control: no-store
+
+/assets/community.css
+  Cache-Control: no-store
+
+/assets/community.js
+  Cache-Control: no-store
+
+/assets/community/*.js
   Cache-Control: no-store
 
 /review.html
