@@ -21,6 +21,14 @@ const CSS = `
 .sub-field>label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px}
 .sub-field-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px}
 .sub-field-head>label{font-size:12px;font-weight:700;color:var(--muted)}
+.sub-label-src{display:inline-flex;align-items:center;gap:8px;min-width:0}
+.sub-label-src>label{font-size:12px;font-weight:700;color:var(--muted)}
+.sub-src{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;border-radius:6px;padding:2px 8px;white-space:nowrap}
+.sub-src:empty{display:none}
+.sub-src svg{width:12px;height:12px;flex:none}
+.sub-src.is-manual{color:var(--muted);background:var(--tagbg)}
+.sub-src.is-read{color:#0f6e56;background:#e1f5ee}
+body.dark .sub-src.is-read{color:#8fe6c8;background:rgba(15,110,86,.30)}
 .sub-field input[type=text],.sub-field textarea{width:100%;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:10px;padding:10px 12px;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box}
 .sub-field textarea{resize:vertical;min-height:88px;line-height:1.6}
 .sub-field textarea.mono{font-family:var(--font-mono);font-size:12px}
@@ -93,7 +101,7 @@ function buildModal() {
 
         <div class="sub-field">
           <div class="sub-field-head">
-            <label>Prompt *</label>
+            <span class="sub-label-src"><label>Prompt *</label><span id="subPromptSrc" class="sub-src is-manual"></span></span>
             <label class="sub-check"><input type="checkbox" id="subNsfw">包含 NSFW 内容</label>
           </div>
           <textarea id="subPrompt" class="mono" maxlength="${LIM.prompt}" placeholder="粘贴正向 prompt，例如 artist:xxx, cinematic lighting, dynamic pose, ..."></textarea>
@@ -167,6 +175,8 @@ function buildModal() {
     if (btn) setCategory(btn.dataset.cat);
   };
   $('#subGo', modal).onclick = doSubmit;
+  $('#subPrompt', modal).oninput = () => { if (!$('#subPrompt', modal).value.trim()) setPromptSource(false); };
+  setPromptSource(false);
 }
 
 function openModal() {
@@ -308,6 +318,20 @@ async function readImagePrompt(file) {
   return chunks.length ? promptFromPngChunks(chunks) : null;
 }
 
+/* prompt 来源小标：手动输入（灰）↔ 已从图片读出（绿）。拖到带参数的原图时点亮 */
+const PROMPT_SRC = {
+  manual: { cls: 'is-manual', text: '手动输入', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>' },
+  read: { cls: 'is-read', text: '已从图片读出', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.6L18.5 9l-4.7 1.4L12 15l-1.8-4.6L5.5 9l4.7-1.4z"/></svg>' },
+};
+function setPromptSource(read) {
+  if (!modal) return;
+  const el = $('#subPromptSrc', modal);
+  if (!el) return;
+  const s = read ? PROMPT_SRC.read : PROMPT_SRC.manual;
+  el.className = 'sub-src ' + s.cls;
+  el.innerHTML = `${s.icon}<span>${s.text}</span>`;
+}
+
 function fillPromptFromMetadata(meta) {
   if (!meta || !modal) return false;
   let filled = false;
@@ -321,7 +345,7 @@ function fillPromptFromMetadata(meta) {
     negativeEl.value = meta.negative.slice(0, LIM.negative);
     filled = true;
   }
-  if (filled) toast(`已从${meta.source || '图片'}读出 prompt，可修改`);
+  if (filled) { setPromptSource(true); toast(`已从${meta.source || '图片'}读出 prompt，可修改`); }
   return filled;
 }
 
@@ -394,6 +418,7 @@ function resetForm() {
   $('#subNsfw', modal).checked = false;
   $('#subMore', modal).open = false;
   metadataConsumed = false;
+  setPromptSource(false);
   files.forEach(im => URL.revokeObjectURL(im.url));
   files = [];
   renderPreviews();
