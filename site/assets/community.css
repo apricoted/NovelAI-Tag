@@ -211,7 +211,7 @@ body.dark .theme-btn .moon{display:block}
   display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
 }
 .card-tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:11px}
-.card-tags span{font-size:11px;color:var(--muted);background:var(--tagbg);border-radius:7px;padding:3px 8px}
+.card-tags span{max-width:100%;overflow-wrap:anywhere;font-size:11px;color:var(--muted);background:var(--tagbg);border-radius:7px;padding:3px 8px}
 
 .empty{
   margin:18px auto 0;max-width:540px;border:1px dashed var(--line);border-radius:16px;
@@ -246,23 +246,32 @@ body.dark .theme-btn .moon{display:block}
 }
 .dialog-close:hover{background:var(--red);color:#fff}
 
-.community-detail-shell{display:grid;grid-template-columns:minmax(300px,46%) minmax(0,1fr);gap:0;min-height:520px}
-.community-detail-media{
-  position:relative;display:flex;flex-direction:column;gap:10px;padding:18px;background:#0c0f17;
+#detailBody.dialog-panel{overflow:auto}
+.community-detail-shell{
+  display:grid;grid-template-columns:minmax(300px,46%) minmax(0,1fr);gap:0;
+  min-height:520px;align-items:start;
 }
-.community-detail-media>img{width:100%;min-height:0;flex:1;object-fit:contain;border-radius:14px;background:#05070a}
-.community-detail-no-image{display:grid;place-items:center;min-height:360px;color:#aab0c2;border:1px dashed rgba(255,255,255,.16);border-radius:14px}
-.community-detail-thumbs{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px}
+.community-detail-media{
+  position:sticky;top:0;align-self:start;display:flex;flex-direction:column;align-items:center;gap:10px;
+  padding:18px;background:#0c0f17;border-right:1px solid rgba(255,255,255,.08);
+  max-height:min(88vh,820px);overflow:auto;
+}
+.community-detail-media>img{
+  display:block;flex:0 1 auto;width:auto;height:auto;max-width:100%;max-height:min(70vh,700px);
+  object-fit:contain;border-radius:14px;background:#05070a;box-shadow:0 0 0 1px rgba(255,255,255,.08);
+}
+.community-detail-no-image{display:grid;place-items:center;width:100%;min-height:360px;color:#aab0c2;border:1px dashed rgba(255,255,255,.16);border-radius:14px}
+.community-detail-thumbs{display:flex;align-self:stretch;gap:8px;overflow-x:auto;padding-bottom:2px}
 .community-detail-thumb{
   flex:none;width:62px;height:62px;border:2px solid transparent;border-radius:10px;padding:0;overflow:hidden;background:#111722;
 }
 .community-detail-thumb.active{border-color:var(--accent)}
 .community-detail-thumb img{width:100%;height:100%;object-fit:cover;display:block}
-.community-detail-copy{padding:28px;overflow:auto}
+.community-detail-copy{min-width:0;padding:28px;overflow:visible}
 .community-detail-kicker{color:var(--accent);font-size:12px;font-weight:850;margin-bottom:8px}
 .community-detail-copy h2{margin:0;font-family:var(--font-display);font-size:26px;line-height:1.24}
-.community-detail-tags{display:flex;gap:6px;flex-wrap:wrap;margin:14px 0 4px}
-.community-detail-tags span{background:var(--tagbg);color:var(--muted);border-radius:8px;padding:4px 9px;font-size:11px;font-weight:750}
+.community-detail-tags{display:flex;gap:6px;flex-wrap:wrap;margin:14px 0 4px;max-height:96px;overflow:auto;padding-right:3px}
+.community-detail-tags span{max-width:100%;overflow-wrap:anywhere;background:var(--tagbg);color:var(--muted);border-radius:8px;padding:4px 9px;font-size:11px;font-weight:750}
 .prompt-section{margin-top:18px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--card)}
 .prompt-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-bottom:1px solid var(--line);color:var(--muted);font-size:12px;font-weight:850}
 .prompt-heading button{
@@ -374,8 +383,9 @@ html.vt-arrived .topbar,html.vt-arrived .community-main{animation:none}
   .community-grid{grid-template-columns:repeat(auto-fill,minmax(162px,1fr));gap:12px}
   .community-card h2{font-size:15px}
   .community-card p{-webkit-line-clamp:2}
-  .community-detail-shell{grid-template-columns:1fr}
-  .community-detail-media{min-height:320px}
+  .community-detail-shell{grid-template-columns:1fr;min-height:0}
+  .community-detail-media{position:relative;max-height:none;min-height:0;border-right:0;border-bottom:1px solid rgba(255,255,255,.08)}
+  .community-detail-media>img{max-height:62vh}
   .community-detail-copy{padding:22px}
   .dialog-panel{max-height:92vh;border-radius:16px}
   .submit-panel{padding:24px 18px}
