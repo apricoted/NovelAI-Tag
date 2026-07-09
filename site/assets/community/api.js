@@ -3,7 +3,8 @@ import {
   COMMUNITY_CATEGORIES,
   DEFAULT_COMMUNITY_CATEGORY,
 } from './constants.js';
-import { normalizeImage } from './utils.js';
+import { demoEntries } from './demo.js';
+import { isLocal, normalizeImage } from './utils.js';
 
 export function normalizeCategoryName(value) {
   const text = String(value == null ? '' : value).split('/')[0].replace(/\s+/g, ' ').trim();
@@ -64,7 +65,8 @@ export async function loadCommunityData() {
 
   if (!raw) raw = await fetchJson('data/' + (collection.file || 'strings.json'));
 
-  const entries = (raw.entries || []).map(normalizeEntry);
+  let entries = (raw.entries || []).map(normalizeEntry);
+  if (!entries.length && isLocal()) entries = demoEntries().map(normalizeEntry);
   const data = {
     title: '共创广场',
     author: raw.author || '',

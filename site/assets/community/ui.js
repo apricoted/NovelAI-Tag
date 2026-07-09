@@ -1,5 +1,7 @@
 import { updateScrollProgress } from '../app/utils.js';
+import { toast } from '../app/feedback.js';
 import { COMMUNITY_CATEGORIES } from './constants.js';
+import { favoriteCountForEntries, isFavorite, toggleFavorite } from './favorites.js';
 import { state } from './state.js';
 import { $, $$ } from './utils.js';
 import { renderCategoryRail, renderEmptyState, renderGrid, renderResultBar } from './render.js';
@@ -13,6 +15,7 @@ export function initCommunityUI(handlers = {}) {
 
   bindSearch();
   bindNsfw();
+  bindFavorites();
   bindTheme();
   bindFocusSearch();
   bindScrollProgress();
@@ -44,16 +47,19 @@ export function applyCommunityFilters({ scrollTop = false } = {}) {
     list = list.filter(entry => entry.category?.[0] === state.activeCategory);
   }
 
+  if (state.onlyFavorites) list = list.filter(isFavorite);
+
   if (!state.showNSFW) list = list.filter(entry => !entry.nsfw);
 
   state.filtered = list;
   renderCategoryRail(selectCategory);
   renderResultBar();
-  renderGrid(state.filtered, { onOpenDetail: openDetail });
+  renderGrid(state.filtered, { onOpenDetail: openDetail, onToggleFavorite: handleToggleFavorite });
   renderEmptyState({
     onSubmit: () => openSubmit?.(),
     onClearSearch: clearSearch,
     onShowAll: showAll,
+    onShowFavoritesAll: showFavoritesAll,
     onShowNSFW: () => {
       state.showNSFW = true;
       localStorage.setItem('strings-nsfw', 'true');
@@ -65,6 +71,13 @@ export function applyCommunityFilters({ scrollTop = false } = {}) {
   if (scrollTop) {
     window.scrollTo({ top: 0, behavior: 'auto' });
   }
+}
+
+function handleToggleFavorite(entry) {
+  const active = toggleFavorite(entry);
+  toast(active ? '已收藏' : '已取消收藏');
+  updateFavoriteButton();
+  applyCommunityFilters();
 }
 
 function selectCategory(category) {
@@ -84,6 +97,13 @@ function showAll() {
   state.query = '';
   const input = $('#search');
   if (input) input.value = '';
+  applyCommunityFilters({ scrollTop: true });
+}
+
+function showFavoritesAll() {
+  state.onlyFavorites = false;
+  localStorage.setItem('community-only-favorites', 'false');
+  updateFavoriteButton();
   applyCommunityFilters({ scrollTop: true });
 }
 
@@ -119,6 +139,25 @@ function bindNsfw() {
   });
 }
 
+function bindFavorites() {
+  $('#favFilterBtn')?.addEventListener('click', () => {
+    state.onlyFavorites = !state.onlyFavorites;
+    localStorage.setItem('community-only-favorites', String(state.onlyFavorites));
+    updateFavoriteButton();
+    applyCommunityFilters({ scrollTop: true });
+  });
+  updateFavoriteButton();
+}
+
+function updateFavoriteButton() {
+  const btn = $('#favFilterBtn');
+  if (!btn) return;
+  const count = favoriteCountForEntries(state.entries);
+  btn.classList.toggle('active', state.onlyFavorites);
+  btn.setAttribute('aria-pressed', String(state.onlyFavorites));
+  btn.title = state.onlyFavorites ? `只看收藏 · ${count} 条` : `收藏 · ${count} 条`;
+}
+
 function updateNSFWButton() {
   const btn = $('#nsfwBtn');
   if (!btn) return;
@@ -145,5 +184,6 @@ function bindScrollProgress() {
 
 export function syncAfterLoad() {
   updateNSFWButton();
+  updateFavoriteButton();
   applyCommunityFilters();
 }

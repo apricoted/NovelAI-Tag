@@ -17,6 +17,8 @@ if('scrollRestoration' in history)history.scrollRestoration='manual';</script>
 <link rel="modulepreload" href="assets/community/state.js">
 <link rel="modulepreload" href="assets/community/utils.js">
 <link rel="modulepreload" href="assets/community/api.js">
+<link rel="modulepreload" href="assets/community/demo.js">
+<link rel="modulepreload" href="assets/community/favorites.js">
 <link rel="modulepreload" href="assets/community/render.js">
 <link rel="modulepreload" href="assets/community/detail.js">
 <link rel="modulepreload" href="assets/community/submit.js">
@@ -43,12 +45,15 @@ if('scrollRestoration' in history)history.scrollRestoration='manual';</script>
   <div class="brand">共创<span>广场</span></div>
   <a class="home-link" href="/index.html" aria-label="返回法典图鉴">← <span>法典图鉴</span></a>
   <div class="topbar-actions">
-    <button id="submitOpenBtn" class="submit-top-btn" type="button" data-open-submit title="分享图 + prompt">
+    <button id="submitOpenBtn" class="submit-top-btn" type="button" data-open-submit title="分享你的作品">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
       <span>投稿</span>
     </button>
+    <button id="favFilterBtn" class="icon-btn fav-filter-btn" type="button" aria-pressed="false" title="收藏">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3.8 2.45 4.96 5.48.8-3.96 3.86.94 5.46L12 16.3l-4.9 2.58.93-5.46-3.96-3.86 5.48-.8L12 3.8Z"/></svg>
+    </button>
     <button id="nsfwBtn" class="icon-btn nsfw-btn" type="button" aria-pressed="false" title="NSFW 已隐藏">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path class="nsfw-shield" d="M12 3.2 19 6v5.2c0 4.2-2.7 7.5-7 9.6-4.3-2.1-7-5.4-7-9.6V6l7-2.8Z"/><path class="nsfw-cut" d="m8.2 15.8 7.6-7.6"/><path class="nsfw-eye" d="M8 12s1.5-2.6 4-2.6 4 2.6 4 2.6-1.5 2.6-4 2.6S8 12 8 12Z"/><circle class="nsfw-dot" cx="12" cy="12" r="1.1"/></svg>
     </button>
     <button id="themeBtn" class="icon-btn theme-btn" type="button" title="深色 / 浅色" aria-label="切换深浅色">
       <svg class="sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
@@ -61,11 +66,11 @@ if('scrollRestoration' in history)history.scrollRestoration='manual';</script>
   <section class="community-hero" aria-labelledby="communityTitle">
     <div class="hero-copy">
       <h1 id="communityTitle">共创广场</h1>
-      <p>分享任意 NAI 图 + prompt。画风、人物、服装、动作、构图、场景，或者只是今天最喜欢的一张图。</p>
+      <p>分享任意 NovelAI 作品。</p>
       <div class="hero-actions">
         <button class="primary-btn" type="button" data-open-submit>
           <span aria-hidden="true">＋</span>
-          分享图 + prompt
+          分享你的作品
         </button>
         <button class="ghost-btn" type="button" data-focus-search>
           浏览投稿
@@ -93,7 +98,7 @@ if('scrollRestoration' in history)history.scrollRestoration='manual';</script>
 
     <button class="submit-inline" type="button" data-open-submit>
       <span class="plus" aria-hidden="true">＋</span>
-      分享你的图 + prompt
+      分享你的作品
     </button>
 
     <div id="communityGrid" class="community-grid" aria-live="polite"></div>

@@ -1,4 +1,5 @@
 import { COMMUNITY_CATEGORIES } from './constants.js';
+import { isFavorite } from './favorites.js';
 import { state } from './state.js';
 import { $, escHtml, imageUrl, promptExcerpt } from './utils.js';
 
@@ -34,12 +35,13 @@ export function renderResultBar() {
   const parts = [];
   if (state.activeCategory) parts.push(`分类: ${state.activeCategory}`);
   if (state.query) parts.push(`搜索 "${state.query}"`);
+  if (state.onlyFavorites) parts.push('只看收藏');
   if (!state.showNSFW) parts.push('已隐藏 NSFW');
   parts.push(`<b>${state.filtered.length}</b> 条投稿`);
   result.innerHTML = parts.map(part => part.startsWith('<b>') ? part : escHtml(part)).join(' · ');
 }
 
-export function renderEmptyState({ onSubmit, onClearSearch, onShowAll, onShowNSFW } = {}) {
+export function renderEmptyState({ onSubmit, onClearSearch, onShowAll, onShowNSFW, onShowFavoritesAll } = {}) {
   const empty = $('#empty');
   if (!empty) return;
   const visible = !state.loading && state.filtered.length === 0;
@@ -48,11 +50,15 @@ export function renderEmptyState({ onSubmit, onClearSearch, onShowAll, onShowNSF
 
   const hasEntries = state.entries.length > 0;
   let title = '还没有人投稿，来当第一个';
-  let desc = '拖入作品和 prompt，之后会进入这里。';
+  let desc = '提交作品信息，之后会进入这里。';
   const actions = [];
 
   if (!hasEntries) {
-    actions.push({ label: '分享图 + prompt', action: onSubmit });
+    actions.push({ label: '分享你的作品', action: onSubmit });
+  } else if (state.onlyFavorites) {
+    title = '还没有收藏的投稿';
+    desc = '在卡片右上角点星标，就能把喜欢的作品收进这里。';
+    actions.push({ label: '查看全部投稿', action: onShowFavoritesAll });
   } else if (!state.showNSFW && state.entries.some(entry => entry.nsfw)) {
     title = '当前筛选下没有可见投稿';
     desc = 'NSFW 投稿已被隐藏，开启后会和普通投稿混合显示。';
@@ -66,7 +72,7 @@ export function renderEmptyState({ onSubmit, onClearSearch, onShowAll, onShowNSF
     title = '这个分类还没有投稿';
     desc = '先回到全部视图看看，或者贡献这个分类的第一条。';
     actions.push({ label: '查看全部', action: onShowAll });
-    actions.push({ label: '分享图 + prompt', action: onSubmit });
+    actions.push({ label: '分享你的作品', action: onSubmit });
   }
 
   empty.innerHTML = `
@@ -87,7 +93,7 @@ export function renderEmptyState({ onSubmit, onClearSearch, onShowAll, onShowNSF
   }
 }
 
-export function renderGrid(entries, { onOpenDetail } = {}) {
+export function renderGrid(entries, { onOpenDetail, onToggleFavorite } = {}) {
   const grid = $('#communityGrid');
   if (!grid) return;
   grid.innerHTML = '';
@@ -106,6 +112,9 @@ export function renderGrid(entries, { onOpenDetail } = {}) {
     const media = document.createElement('div');
     media.className = firstImage ? 'community-card-media' : 'community-card-media no-image';
     if (firstImage) {
+      if (firstImage.width && firstImage.height) {
+        media.style.aspectRatio = `${firstImage.width} / ${firstImage.height}`;
+      }
       const img = document.createElement('img');
       img.src = imageUrl(firstImage.file);
       img.alt = entry.title || category;
@@ -136,6 +145,19 @@ export function renderGrid(entries, { onOpenDetail } = {}) {
       <div class="card-tags">${(entry.tags || []).slice(0, 4).map(tag => `<span>${escHtml(tag)}</span>`).join('')}</div>
     `;
 
+    const fav = document.createElement('button');
+    fav.type = 'button';
+    fav.className = 'card-fav-btn';
+    fav.setAttribute('aria-label', isFavorite(entry) ? '取消收藏' : '收藏');
+    fav.setAttribute('aria-pressed', String(isFavorite(entry)));
+    fav.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3.8 2.45 4.96 5.48.8-3.96 3.86.94 5.46L12 16.3l-4.9 2.58.93-5.46-3.96-3.86 5.48-.8L12 3.8Z"/></svg>';
+    fav.addEventListener('click', event => {
+      event.stopPropagation();
+      onToggleFavorite?.(entry);
+    });
+    fav.addEventListener('keydown', event => event.stopPropagation());
+
+    card.appendChild(fav);
     card.append(media, body);
     card.addEventListener('click', () => onOpenDetail?.(entry, 0));
     card.addEventListener('keydown', event => {

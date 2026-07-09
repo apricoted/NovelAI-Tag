@@ -59,7 +59,14 @@ button:disabled{cursor:not-allowed}
 }
 .submit-top-btn:hover{background:color-mix(in srgb,var(--accent) 90%,#fff)}
 .submit-top-btn.is-disabled{opacity:.62}
+.fav-filter-btn.active{color:var(--accent);background:var(--accent-soft)}
+.fav-filter-btn svg{fill:none}
+.fav-filter-btn.active svg{fill:color-mix(in srgb,var(--accent) 18%,transparent)}
+.nsfw-btn{color:var(--muted)}
+.nsfw-btn .nsfw-shield,.nsfw-btn .nsfw-cut,.nsfw-btn .nsfw-eye{fill:none;stroke:currentColor}
+.nsfw-btn .nsfw-dot{fill:currentColor;stroke:none}
 .nsfw-btn.active{color:var(--red);background:color-mix(in srgb,var(--red) 12%,transparent)}
+.nsfw-btn.active .nsfw-shield{fill:color-mix(in srgb,var(--red) 14%,transparent)}
 .theme-btn .moon{display:none;fill:currentColor;stroke:none}
 body.dark .theme-btn .sun{display:none}
 body.dark .theme-btn .moon{display:block}
@@ -159,6 +166,7 @@ body.dark .theme-btn .moon{display:block}
   align-items:start;
 }
 .community-card{
+  position:relative;
   background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;
   box-shadow:var(--shadow);cursor:pointer;min-width:0;
   animation:cardIn .38s cubic-bezier(.22,1,.36,1) backwards;
@@ -175,12 +183,22 @@ body.dark .theme-btn .moon{display:block}
   font-family:var(--font-prompt);font-size:12px;
   background:linear-gradient(135deg,var(--accent-soft),var(--tagbg));
 }
+.card-fav-btn{
+  position:absolute;right:8px;top:8px;z-index:3;width:30px;height:30px;border:0;border-radius:10px;
+  display:grid;place-items:center;background:rgba(0,0,0,.46);color:#fff;
+  backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);
+  transition:background .15s,color .15s,scale .15s;
+}
+.card-fav-btn:hover{background:var(--accent)}
+.card-fav-btn svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2;stroke-linejoin:round}
+.card-fav-btn[aria-pressed="true"]{background:var(--accent);color:#fff}
+.card-fav-btn[aria-pressed="true"] svg{fill:currentColor}
 .nsfw-badge,.image-count{
   position:absolute;top:8px;border-radius:999px;padding:3px 9px;font-size:11px;font-weight:850;line-height:1;
   box-shadow:0 2px 8px rgba(0,0,0,.20);
 }
 .nsfw-badge{left:8px;background:var(--red);color:#fff}
-.image-count{right:8px;background:rgba(0,0,0,.54);color:#fff;backdrop-filter:blur(6px)}
+.image-count{right:44px;background:rgba(0,0,0,.54);color:#fff;backdrop-filter:blur(6px)}
 .community-card-body{padding:13px 14px 14px}
 .card-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:7px;color:var(--muted);font-size:11px;font-weight:750}
 .card-meta span:first-child{color:var(--accent)}
