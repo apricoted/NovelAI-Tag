@@ -17,7 +17,7 @@ export const LIMITS = {
 };
 
 export const IMAGE_LABELS = ['gallery', 'face', 'scene', 'nsfw'];
-export const COMMUNITY_CATEGORIES = ['画风', '人物', '服装', '动作', '构图', '随手分享'];
+export const COMMUNITY_CATEGORIES = ['随手分享', '画风', '人物', '服装', '动作', '构图', '场景'];
 export const DEFAULT_COMMUNITY_CATEGORY = '随手分享';
 
 const CATEGORY_ALIASES = new Map([
@@ -35,9 +35,13 @@ const CATEGORY_ALIASES = new Map([
   ['动作', '动作'],
   ['pose', '动作'],
   ['构图', '构图'],
-  ['场景', '构图'],
-  ['scene', '构图'],
   ['composition', '构图'],
+  ['场景', '场景'],
+  ['背景', '场景'],
+  ['环境', '场景'],
+  ['scene', '场景'],
+  ['background', '场景'],
+  ['environment', '场景'],
   ['随手分享', '随手分享'],
   ['gallery', '随手分享'],
   ['其他', '随手分享'],

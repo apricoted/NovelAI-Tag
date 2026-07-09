@@ -165,14 +165,15 @@ function token() { return localStorage.getItem(KEY) || ''; }
 function escHtml(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function escAttr(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
-const COMMUNITY_CATEGORIES = ['画风', '人物', '服装', '动作', '构图', '随手分享'];
+const COMMUNITY_CATEGORIES = ['随手分享', '画风', '人物', '服装', '动作', '构图', '场景'];
 const DEFAULT_COMMUNITY_CATEGORY = '随手分享';
 const CATEGORY_ALIASES = new Map([
   ['画风', '画风'], ['style', '画风'],
   ['人物', '人物'], ['面部', '人物'], ['角色', '人物'], ['face', '人物'],
   ['服装', '服装'], ['穿搭', '服装'], ['衣服', '服装'], ['outfit', '服装'], ['clothing', '服装'],
   ['动作', '动作'], ['pose', '动作'],
-  ['构图', '构图'], ['场景', '构图'], ['scene', '构图'], ['composition', '构图'],
+  ['构图', '构图'], ['composition', '构图'],
+  ['场景', '场景'], ['背景', '场景'], ['环境', '场景'], ['scene', '场景'], ['background', '场景'], ['environment', '场景'],
   ['随手分享', '随手分享'], ['gallery', '随手分享'], ['其他', '随手分享'],
 ]);
 

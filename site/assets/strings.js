@@ -30,7 +30,7 @@ const state = {
 
 const svgCopy = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
 
-const COMMUNITY_CATEGORIES = Object.freeze(['画风', '人物', '服装', '动作', '构图', '随手分享']);
+const COMMUNITY_CATEGORIES = Object.freeze(['随手分享', '画风', '人物', '服装', '动作', '构图', '场景']);
 const DEFAULT_COMMUNITY_CATEGORY = '随手分享';
 const CATEGORY_ALIASES = new Map([
   ['画风', '画风'],
@@ -47,9 +47,13 @@ const CATEGORY_ALIASES = new Map([
   ['动作', '动作'],
   ['pose', '动作'],
   ['构图', '构图'],
-  ['场景', '构图'],
-  ['scene', '构图'],
   ['composition', '构图'],
+  ['场景', '场景'],
+  ['背景', '场景'],
+  ['环境', '场景'],
+  ['scene', '场景'],
+  ['background', '场景'],
+  ['environment', '场景'],
   ['随手分享', '随手分享'],
   ['gallery', '随手分享'],
   ['其他', '随手分享'],

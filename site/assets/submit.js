@@ -5,7 +5,7 @@
 
 // 与后端 functions/_lib.js 的 LIMITS 保持一致
 const LIM = { title: 60, prompt: 2000, negative: 2000, comment: 500, submitter: 20, tags: 8, imgMax: 6, imgBytes: 3 * 1024 * 1024 };
-const CATEGORIES = window.COMMUNITY_CATEGORIES || ['画风', '人物', '动作', '构图', '随手分享'];
+const CATEGORIES = window.COMMUNITY_CATEGORIES || ['随手分享', '画风', '人物', '服装', '动作', '构图', '场景'];
 const DEFAULT_CATEGORY = window.DEFAULT_COMMUNITY_CATEGORY || '随手分享';
 const SUBMIT_CATEGORIES = [DEFAULT_CATEGORY, ...CATEGORIES.filter(c => c !== DEFAULT_CATEGORY)];
 
@@ -55,6 +55,7 @@ body.dark .sub-src.is-none{color:#f0c078;background:rgba(133,79,11,.32)}
 .sub-cat.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
 .sub-more{border:1px solid var(--line);border-radius:12px;background:var(--tagbg);padding:0;margin-top:4px}
 .sub-more summary{list-style:none;cursor:pointer;padding:11px 13px;color:var(--text);font-size:13px;font-weight:800;user-select:none}
+.sub-more summary span{margin-left:8px;color:var(--muted);font-size:12px;font-weight:600}
 .sub-more summary::-webkit-details-marker{display:none}
 .sub-more summary::after{content:'+';float:right;color:var(--accent);font-weight:900}
 .sub-more[open] summary::after{content:'-'}
@@ -87,7 +88,7 @@ function buildModal() {
       <button class="detail-close" id="subClose">✕</button>
       <div class="detail-body">
         <h2 class="detail-title" style="margin-bottom:4px">投稿到共创广场</h2>
-        <div class="sub-note" style="margin-bottom:18px">分享任意 NovelAI 作品。可以是画风、人物、服装、动作、构图，也可以只是你的今日最爱。</div>
+        <div class="sub-note" style="margin-bottom:18px">分享任意 NovelAI 作品。可以是画风、人物、服装、动作、构图、场景，也可以只是你的今日最爱。</div>
 
         <div class="sub-field">
           <label>作品 *</label>
@@ -129,7 +130,7 @@ function buildModal() {
         </div>
 
         <details class="sub-more" id="subMore">
-          <summary>更多（可选）</summary>
+          <summary>更多（可选）<span>负面 prompt · 说明 · 标签</span></summary>
           <div class="sub-more-body">
             <div class="sub-field">
               <label>负面 Prompt</label>
