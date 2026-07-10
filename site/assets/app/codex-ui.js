@@ -566,6 +566,8 @@ export function selectPathByPath(path) {
 export function updateResultBar() {
   const n = state.list.length;
   const box = $('#resultInfo');
+  const favoritesBackupButton = $('#favoritesViewBackupBtn');
+  if (favoritesBackupButton) favoritesBackupButton.hidden = !state.favoritesView;
   box.innerHTML = '';
   const q = state.query.trim();
 

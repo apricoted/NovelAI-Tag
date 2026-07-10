@@ -570,6 +570,27 @@ def run_suite(base_url: str, out_dir: Path, cdp: CDP) -> list[dict]:
         check_no_errors(cdp)
         return data
 
+    def favorites_backup_entry():
+        clear_errors(cdp)
+        navigate(cdp, base + "?codex=suozhang")
+        wait_for(cdp, "document.querySelectorAll('.card').length >= 1", "favorite source cards")
+        normal_hidden = cdp.eval("document.querySelector('#favoritesViewBackupBtn')?.hidden === true")
+        cdp.eval(f"localStorage.setItem('fadian-favs', JSON.stringify(['suozhang:{entry_id}']))")
+        navigate(cdp, base + "?codex=suozhang&fav=1")
+        wait_for(cdp, "!document.querySelector('#favoritesViewBackupBtn')?.hidden", "favorites backup entry", timeout=10)
+        wait_for(cdp, "document.querySelectorAll('.card').length >= 1", "favorite cards", timeout=10)
+        cdp.eval("document.querySelector('#favoritesViewBackupBtn').click()")
+        wait_for(cdp, "!document.querySelector('#favoritesBackupPanel')?.hidden", "favorites backup dialog")
+        settle(cdp, 250)
+        data = cdp.eval("({button: document.querySelector('#favoritesViewBackupBtn')?.textContent.trim() || '', dialog: document.querySelector('#favoritesBackupTitle')?.textContent || '', atlas: document.querySelector('#favoritesCurrentAtlas')?.textContent || '', normalHidden: " + ("true" if normal_hidden else "false") + "})")
+        if not data["normalHidden"]:
+            raise CheckFailed("Favorites backup entry was visible outside the favorites view")
+        if "备份与恢复" not in data["button"] or data["dialog"] != "收藏备份与恢复":
+            raise CheckFailed("Favorites backup entry did not open the shared dialog")
+        cdp.eval("document.querySelector('#favoritesBackupClose')?.click(); localStorage.removeItem('fadian-favs')")
+        check_no_errors(cdp)
+        return data
+
     def nsfw_toggle():
         clear_errors(cdp)
         navigate(cdp, base + "?codex=suozhang")
@@ -619,6 +640,7 @@ def run_suite(base_url: str, out_dir: Path, cdp: CDP) -> list[dict]:
         ("resume last browse", resume_browse),
         ("recent entry opens lightbox", recent_entry_lightbox),
         ("codex switch loads wardrobe", codex_switch),
+        ("favorites view opens backup dialog", favorites_backup_entry),
         ("NSFW toggle locks back", nsfw_toggle),
         ("mobile home renders", mobile_home),
     ]:

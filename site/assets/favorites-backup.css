@@ -187,6 +187,16 @@ label.favorites-backup-file:has(+ .favorites-backup-file-input:focus-visible){ou
 .favorites-backup-entry button:hover,
 .favorites-backup-result-btn:hover{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
 
+/* 全部收藏结果栏入口：场景内一级操作；普通法典隐藏，移动端单独占一行。 */
+.favorites-view-backup-btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;margin-left:auto;
+  border-color:color-mix(in srgb,var(--accent) 28%,var(--line));
+  background:var(--accent-soft);color:var(--accent);
+  box-shadow:0 7px 18px color-mix(in srgb,var(--accent) 10%,transparent);
+}
+.favorites-view-backup-btn:hover{box-shadow:0 9px 22px color-mix(in srgb,var(--accent) 16%,transparent);translate:0 -1px}
+.favorites-view-backup-icon{font-size:17px;line-height:1}
+
 /* 共创广场结果栏入口；独立一行容器可换行，不占顶栏空间。 */
 .community-result-row{
   display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:2px 0 14px;
@@ -221,6 +231,7 @@ label.favorites-backup-file:has(+ .favorites-backup-file-input:focus-visible){ou
   .favorites-backup-stats{gap:7px}
   .favorites-backup-stats>div{padding:9px}
   .favorites-backup-stats strong{font-size:19px}
+  .favorites-view-backup-btn{width:100%;margin-left:0}
   .community-result-row .favorites-backup-result-btn{width:100%}
 }
 
