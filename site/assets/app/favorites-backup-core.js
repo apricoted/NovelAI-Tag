@@ -1,0 +1,440 @@
+export const FAVORITES_BACKUP_FORMAT = 'novelai-tag-favorites';
+export const FAVORITES_BACKUP_VERSION = 1;
+export const ATLAS_FAVORITES_STORAGE_KEY = 'fadian-favs';
+export const COMMUNITY_FAVORITES_STORAGE_KEY = 'community-favorites-v1';
+
+export const FAVORITES_BACKUP_LIMITS = Object.freeze({
+  maxFileBytes: 2 * 1024 * 1024,
+  maxTotalItems: 30000,
+  maxAtlasFieldLength: 128,
+  maxCommunityIdLength: 256,
+});
+
+const CONTROL_CHAR_RE = /[\u0000-\u001f\u007f-\u009f]/;
+
+export class FavoritesBackupError extends Error {
+  constructor(code, message, details = {}) {
+    super(message);
+    this.name = 'FavoritesBackupError';
+    this.code = code;
+    this.details = details;
+  }
+}
+
+function fail(code, message, details) {
+  throw new FavoritesBackupError(code, message, details);
+}
+
+function isRecord(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function compareText(a, b) {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+function compareAtlas(a, b) {
+  return compareText(a.codexId, b.codexId) || compareText(a.entryId, b.entryId);
+}
+
+function atlasSignature(item) {
+  return JSON.stringify([item.codexId, item.entryId]);
+}
+
+function atlasStorageKey(item) {
+  return `${item.codexId}:${item.entryId}`;
+}
+
+function asArray(value, label) {
+  if (Array.isArray(value)) return [...value];
+  if (value && typeof value[Symbol.iterator] === 'function') return [...value];
+  fail('INVALID_INPUT', `${label} 必须是数组或可迭代集合`);
+}
+
+function assertTotalItemLimit(atlas, community) {
+  const total = atlas.length + community.length;
+  if (total > FAVORITES_BACKUP_LIMITS.maxTotalItems) {
+    fail(
+      'TOO_MANY_ITEMS',
+      `收藏总数不能超过 ${FAVORITES_BACKUP_LIMITS.maxTotalItems} 条`,
+      { total, max: FAVORITES_BACKUP_LIMITS.maxTotalItems },
+    );
+  }
+}
+
+function validateIdentifier(value, maxLength, label, code) {
+  if (typeof value !== 'string') fail(code, `${label} 必须是字符串`);
+  if (!value.length || !value.trim().length) fail(code, `${label} 不能为空`);
+  if (value.length > maxLength) {
+    fail(code, `${label} 不能超过 ${maxLength} 个字符`, { length: value.length, max: maxLength });
+  }
+  if (CONTROL_CHAR_RE.test(value)) fail(code, `${label} 不能包含控制字符`);
+  return value;
+}
+
+function validateAtlasItem(value, index = -1) {
+  const label = index >= 0 ? `法典收藏第 ${index + 1} 项` : '法典收藏';
+  if (!isRecord(value)) fail('INVALID_ATLAS_ITEM', `${label} 必须是对象`);
+  return {
+    codexId: validateIdentifier(
+      value.codexId,
+      FAVORITES_BACKUP_LIMITS.maxAtlasFieldLength,
+      `${label}的 codexId`,
+      'INVALID_ATLAS_ITEM',
+    ),
+    entryId: validateIdentifier(
+      value.entryId,
+      FAVORITES_BACKUP_LIMITS.maxAtlasFieldLength,
+      `${label}的 entryId`,
+      'INVALID_ATLAS_ITEM',
+    ),
+  };
+}
+
+function validateCommunityId(value, index = -1) {
+  const label = index >= 0 ? `共创广场收藏第 ${index + 1} 项` : '共创广场收藏';
+  return validateIdentifier(
+    value,
+    FAVORITES_BACKUP_LIMITS.maxCommunityIdLength,
+    label,
+    'INVALID_COMMUNITY_ITEM',
+  );
+}
+
+export function createCodexLookup(codexes = []) {
+  if (!Array.isArray(codexes)) fail('INVALID_CODEX_INDEX', '法典索引必须是数组');
+  const byAnyId = new Map();
+  const canonicalIds = new Set();
+
+  // 与 findCodexMeta(Array.find) 一致：索引中先出现的法典优先认领冲突 id/alias。
+  for (const codex of codexes) {
+    if (!isRecord(codex) || typeof codex.id !== 'string' || !codex.id) continue;
+    canonicalIds.add(codex.id);
+    const ids = [codex.id, ...(Array.isArray(codex.aliases) ? codex.aliases : [])];
+    for (const id of ids) {
+      if (typeof id === 'string' && id && !byAnyId.has(id)) byAnyId.set(id, codex);
+    }
+  }
+
+  return { byAnyId, canonicalIds };
+}
+
+function toCodexLookup(codexesOrLookup) {
+  if (
+    codexesOrLookup
+    && codexesOrLookup.byAnyId instanceof Map
+    && codexesOrLookup.canonicalIds instanceof Set
+  ) return codexesOrLookup;
+  return createCodexLookup(codexesOrLookup || []);
+}
+
+export function canonicalizeAtlasFavorite(favorite, codexesOrLookup = []) {
+  const item = validateAtlasItem(favorite);
+  const lookup = toCodexLookup(codexesOrLookup);
+  const meta = lookup.byAnyId.get(item.codexId);
+  if (!meta) return item;
+
+  let entryId = item.entryId;
+  // 复刻 fav-codex.js：只有收藏挂在 alias 下且词条 id 也带同一 alias 前缀时才换前缀。
+  if (meta.id !== item.codexId && entryId.startsWith(`${item.codexId}-`)) {
+    entryId = meta.id + entryId.slice(item.codexId.length);
+  }
+  return { codexId: meta.id, entryId };
+}
+
+function normalizeAtlasItems(values, lookup) {
+  const unique = new Map();
+  values.forEach((value, index) => {
+    const normalized = canonicalizeAtlasFavorite(validateAtlasItem(value, index), lookup);
+    unique.set(atlasSignature(normalized), normalized);
+  });
+  return [...unique.values()].sort(compareAtlas);
+}
+
+function parseAtlasStorageKey(value, index) {
+  if (typeof value !== 'string') {
+    fail('INVALID_ATLAS_ITEM', `本地法典收藏第 ${index + 1} 项必须是字符串`);
+  }
+  const separator = value.indexOf(':');
+  if (separator <= 0 || separator === value.length - 1) {
+    fail('INVALID_ATLAS_ITEM', `本地法典收藏第 ${index + 1} 项格式无效`);
+  }
+  return validateAtlasItem({ codexId: value.slice(0, separator), entryId: value.slice(separator + 1) }, index);
+}
+
+function normalizeAtlasStorageKeys(values, lookup) {
+  return normalizeAtlasItems(values.map(parseAtlasStorageKey), lookup);
+}
+
+function normalizeCommunityItems(values) {
+  return [...new Set(values.map(validateCommunityId))].sort(compareText);
+}
+
+function unknownCodexInfo(atlas, lookup) {
+  const unknownItems = atlas.filter(item => !lookup.canonicalIds.has(item.codexId));
+  return {
+    unknownCodexCount: unknownItems.length,
+    unknownCodexIds: [...new Set(unknownItems.map(item => item.codexId))].sort(compareText),
+  };
+}
+
+function normalizeExportedAt(value, { optional = false, canonical = false } = {}) {
+  if ((value === undefined || value === null) && optional) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+    fail('INVALID_EXPORTED_AT', 'exportedAt 必须是有效日期');
+  }
+  return canonical || value instanceof Date ? date.toISOString() : String(value);
+}
+
+function normalizeBackupFavorites(favorites, lookup) {
+  if (!isRecord(favorites)) fail('INVALID_FAVORITES', 'favorites 必须是对象');
+  if (!Object.hasOwn(favorites, 'atlas') || !Array.isArray(favorites.atlas)) {
+    fail('INVALID_ATLAS', 'favorites.atlas 必须存在且为数组');
+  }
+  if (!Object.hasOwn(favorites, 'community') || !Array.isArray(favorites.community)) {
+    fail('INVALID_COMMUNITY', 'favorites.community 必须存在且为数组');
+  }
+  assertTotalItemLimit(favorites.atlas, favorites.community);
+  return {
+    atlas: normalizeAtlasItems(favorites.atlas, lookup),
+    community: normalizeCommunityItems(favorites.community),
+  };
+}
+
+function safeStoredArray(raw) {
+  if (raw === null || raw === undefined || raw === '') return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function assertStorage(storage) {
+  if (!storage || typeof storage.getItem !== 'function' || typeof storage.setItem !== 'function') {
+    fail('STORAGE_UNAVAILABLE', '收藏存储不可用');
+  }
+}
+
+export function readStoredFavorites(storage, codexes = []) {
+  assertStorage(storage);
+  let atlasRaw;
+  let communityRaw;
+  try {
+    atlasRaw = storage.getItem(ATLAS_FAVORITES_STORAGE_KEY);
+    communityRaw = storage.getItem(COMMUNITY_FAVORITES_STORAGE_KEY);
+  } catch (cause) {
+    throw new FavoritesBackupError('STORAGE_READ_FAILED', '读取本地收藏失败', { cause });
+  }
+
+  const lookup = createCodexLookup(codexes);
+  const atlas = normalizeAtlasStorageKeys(safeStoredArray(atlasRaw), lookup);
+  const community = normalizeCommunityItems(safeStoredArray(communityRaw));
+  assertTotalItemLimit(atlas, community);
+  return {
+    atlasKeys: atlas.map(atlasStorageKey),
+    communityIds: community,
+  };
+}
+
+export function createFavoritesBackup({
+  atlasKeys = [],
+  communityIds = [],
+  codexes = [],
+  exportedAt = new Date(),
+} = {}) {
+  const atlasValues = asArray(atlasKeys, 'atlasKeys');
+  const communityValues = asArray(communityIds, 'communityIds');
+  assertTotalItemLimit(atlasValues, communityValues);
+  const lookup = createCodexLookup(codexes);
+
+  return {
+    format: FAVORITES_BACKUP_FORMAT,
+    version: FAVORITES_BACKUP_VERSION,
+    exportedAt: normalizeExportedAt(exportedAt, { canonical: true }),
+    favorites: {
+      atlas: normalizeAtlasStorageKeys(atlasValues, lookup),
+      community: normalizeCommunityItems(communityValues),
+    },
+  };
+}
+
+export function serializeFavoritesBackup(options) {
+  return JSON.stringify(createFavoritesBackup(options));
+}
+
+export function parseFavoritesBackup(text, codexes = []) {
+  if (typeof text !== 'string') fail('INVALID_JSON', '备份内容必须是 JSON 文本');
+  const source = text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
+  let parsed;
+  try {
+    parsed = JSON.parse(source);
+  } catch (cause) {
+    throw new FavoritesBackupError('INVALID_JSON', '无法解析收藏备份 JSON', { cause });
+  }
+
+  if (!isRecord(parsed)) fail('INVALID_ROOT', '收藏备份根节点必须是对象');
+  if (parsed.format !== FAVORITES_BACKUP_FORMAT) {
+    fail('INVALID_FORMAT', '这不是法典图鉴收藏备份');
+  }
+  if (parsed.version !== FAVORITES_BACKUP_VERSION) {
+    const message = typeof parsed.version === 'number' && parsed.version > FAVORITES_BACKUP_VERSION
+      ? '备份版本较新，请先更新站点后再导入'
+      : '不支持这个收藏备份版本';
+    fail('UNSUPPORTED_VERSION', message, { version: parsed.version });
+  }
+
+  const lookup = createCodexLookup(codexes);
+  const favorites = normalizeBackupFavorites(parsed.favorites, lookup);
+  const unknown = unknownCodexInfo(favorites.atlas, lookup);
+  return {
+    format: FAVORITES_BACKUP_FORMAT,
+    version: FAVORITES_BACKUP_VERSION,
+    exportedAt: normalizeExportedAt(parsed.exportedAt, { optional: true }),
+    favorites,
+    ...unknown,
+  };
+}
+
+function unionAtlas(a, b) {
+  const unique = new Map(a.map(item => [atlasSignature(item), item]));
+  b.forEach(item => unique.set(atlasSignature(item), item));
+  return [...unique.values()].sort(compareAtlas);
+}
+
+function unionCommunity(a, b) {
+  return [...new Set([...a, ...b])].sort(compareText);
+}
+
+function collectionStats(current, incoming, next, signature = value => value) {
+  const currentKeys = new Set(current.map(signature));
+  const incomingKeys = new Set(incoming.map(signature));
+  const nextKeys = new Set(next.map(signature));
+  let added = 0;
+  let duplicate = 0;
+  let removed = 0;
+  incomingKeys.forEach(key => (currentKeys.has(key) ? duplicate++ : added++));
+  currentKeys.forEach(key => { if (!nextKeys.has(key)) removed++; });
+  return {
+    current: currentKeys.size,
+    incoming: incomingKeys.size,
+    added,
+    duplicate,
+    removed,
+    total: nextKeys.size,
+  };
+}
+
+function sumStats(atlas, community) {
+  return Object.fromEntries(
+    ['current', 'incoming', 'added', 'duplicate', 'removed', 'total']
+      .map(key => [key, atlas[key] + community[key]]),
+  );
+}
+
+export function createFavoritesRestorePlan({
+  backup,
+  currentAtlasKeys = [],
+  currentCommunityIds = [],
+  mode = 'merge',
+  codexes = [],
+} = {}) {
+  if (mode !== 'merge' && mode !== 'replace') {
+    fail('INVALID_MODE', '恢复模式必须是 merge 或 replace');
+  }
+  if (!isRecord(backup)) fail('INVALID_INPUT', 'backup 必须是已解析的收藏备份');
+
+  const lookup = createCodexLookup(codexes);
+  const currentAtlasValues = asArray(currentAtlasKeys, 'currentAtlasKeys');
+  const currentCommunityValues = asArray(currentCommunityIds, 'currentCommunityIds');
+  assertTotalItemLimit(currentAtlasValues, currentCommunityValues);
+  const current = {
+    atlas: normalizeAtlasStorageKeys(currentAtlasValues, lookup),
+    community: normalizeCommunityItems(currentCommunityValues),
+  };
+  const incoming = normalizeBackupFavorites(backup.favorites, lookup);
+  const next = mode === 'merge'
+    ? {
+      atlas: unionAtlas(current.atlas, incoming.atlas),
+      community: unionCommunity(current.community, incoming.community),
+    }
+    : { atlas: [...incoming.atlas], community: [...incoming.community] };
+  assertTotalItemLimit(next.atlas, next.community);
+
+  const atlasStats = collectionStats(current.atlas, incoming.atlas, next.atlas, atlasSignature);
+  const communityStats = collectionStats(current.community, incoming.community, next.community);
+  const unknown = unknownCodexInfo(incoming.atlas, lookup);
+  return {
+    mode,
+    current,
+    incoming,
+    next,
+    stats: {
+      atlas: atlasStats,
+      community: communityStats,
+      all: sumStats(atlasStats, communityStats),
+      ...unknown,
+      willClearAll: mode === 'replace'
+        && atlasStats.current + communityStats.current > 0
+        && atlasStats.total + communityStats.total === 0,
+    },
+  };
+}
+
+function restoreRawValue(storage, key, raw) {
+  if (raw === null) {
+    if (typeof storage.removeItem !== 'function') fail('STORAGE_UNAVAILABLE', '收藏存储不支持删除');
+    storage.removeItem(key);
+  } else {
+    storage.setItem(key, raw);
+  }
+}
+
+export function commitFavoritesRestore(storage, plan) {
+  assertStorage(storage);
+  if (!isRecord(plan) || !isRecord(plan.next)) fail('INVALID_INPUT', '恢复预案无效');
+  if (!Array.isArray(plan.next.atlas) || !Array.isArray(plan.next.community)) {
+    fail('INVALID_INPUT', '恢复预案缺少 next.atlas 或 next.community');
+  }
+
+  const atlasKeys = plan.next.atlas.map((item, index) => atlasStorageKey(validateAtlasItem(item, index)));
+  const communityIds = plan.next.community.map(validateCommunityId);
+  assertTotalItemLimit(atlasKeys, communityIds);
+  const atlasJson = JSON.stringify(atlasKeys);
+  const communityJson = JSON.stringify(communityIds);
+
+  let previousAtlas;
+  let previousCommunity;
+  try {
+    previousAtlas = storage.getItem(ATLAS_FAVORITES_STORAGE_KEY);
+    previousCommunity = storage.getItem(COMMUNITY_FAVORITES_STORAGE_KEY);
+  } catch (cause) {
+    throw new FavoritesBackupError('STORAGE_READ_FAILED', '保存前读取本地收藏失败', { cause });
+  }
+
+  try {
+    storage.setItem(ATLAS_FAVORITES_STORAGE_KEY, atlasJson);
+    storage.setItem(COMMUNITY_FAVORITES_STORAGE_KEY, communityJson);
+  } catch (cause) {
+    const rollbackErrors = [];
+    for (const [key, raw] of [
+      [ATLAS_FAVORITES_STORAGE_KEY, previousAtlas],
+      [COMMUNITY_FAVORITES_STORAGE_KEY, previousCommunity],
+    ]) {
+      try {
+        restoreRawValue(storage, key, raw);
+      } catch (rollbackCause) {
+        rollbackErrors.push({ key, cause: rollbackCause });
+      }
+    }
+    const code = rollbackErrors.length ? 'STORAGE_ROLLBACK_FAILED' : 'STORAGE_WRITE_FAILED';
+    const message = rollbackErrors.length
+      ? '写入收藏失败，且无法完整恢复原数据'
+      : '写入收藏失败，已恢复原数据';
+    throw new FavoritesBackupError(code, message, { cause, rollbackErrors });
+  }
+
+  return { atlasKeys, communityIds };
+}

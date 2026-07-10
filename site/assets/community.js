@@ -4,13 +4,17 @@ import { openCommunityDetail, initDetailDialog } from './community/detail.js';
 import { initSubmitDialog, openSubmitDialog } from './community/submit.js';
 import { state } from './community/state.js';
 import { applyCommunityFilters, initCommunityUI, syncAfterLoad } from './community/ui.js';
+import { reloadFavorites } from './community/favorites.js';
 import { $ } from './community/utils.js';
+import { setupFavoritesBackup, subscribeFavoritesChanges } from './app/favorites-backup.js';
 
 window.COMMUNITY_CATEGORIES = COMMUNITY_CATEGORIES;
 window.DEFAULT_COMMUNITY_CATEGORY = DEFAULT_COMMUNITY_CATEGORY;
 window.openSubmitDialog = openSubmitDialog;
 window.openCommunityDetail = openCommunityDetail;
 window.applyCommunityFilters = applyCommunityFilters;
+
+let favoritesBackupBound = false;
 
 async function loadAndRender() {
   state.loading = true;
@@ -39,6 +43,14 @@ function init() {
     openDetail: openCommunityDetail,
     openSubmit: openSubmitDialog,
   });
+  setupFavoritesBackup();
+  if (!favoritesBackupBound) {
+    favoritesBackupBound = true;
+    subscribeFavoritesChanges('community', () => {
+      reloadFavorites();
+      syncAfterLoad();
+    });
+  }
   loadAndRender();
 }
 

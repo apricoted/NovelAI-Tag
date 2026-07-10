@@ -6,6 +6,8 @@ import { loadMedia, loadAbout, fetchCodex, findCodexMeta, notifyCodexDataStatus,
 import { parseSearchQuery, matchSearchPlan } from './app/search.js';
 import { hasEntryImage, primeResourceHints } from './app/media.js';
 import { isFav, setFavoritesActions, toggleFav } from './app/favorites.js';
+import { ATLAS_FAVORITES_STORAGE_KEY, readStoredFavorites } from './app/favorites-backup-core.js';
+import { setupFavoritesBackup, subscribeFavoritesChanges } from './app/favorites-backup.js';
 import { buildFavoritesCodex, FAVORITES_CODEX_ID } from './app/fav-codex.js';
 import { buildSiteSearchCodex, SITE_SEARCH_CODEX_ID } from './app/site-search.js';
 import { renderList, clearMasonry, updateVirtualCards, setMasonryActions } from './app/masonry.js';
@@ -19,6 +21,7 @@ import { bindUI, applyDensity, setUiActions, updateSearchScopeControl } from './
 import { maybeShowOnboarding } from './app/onboarding.js';
 
 let codexLoadSeq = 0;
+let favoritesBackupBound = false;
 const codexPickerTitle = c => c?.selectorTitle || c?.title || '';
 const setOnlyFavControl = checked => {
   state.onlyFav = Boolean(checked);
@@ -42,7 +45,7 @@ export async function init() {
   try {
     showSkeleton(initSkeletonToken, { delay: 0 });
     setLoading('');
-    const savedFavs = safeJsonParse(localStorage.getItem('fadian-favs'), []);
+    const savedFavs = safeJsonParse(localStorage.getItem(ATLAS_FAVORITES_STORAGE_KEY), []);
     state.favs = new Set(Array.isArray(savedFavs) ? savedFavs : []);
     state.recentEntries = normalizeRecentEntries(safeJsonParse(localStorage.getItem(RECENT_STORAGE_KEY), []));
     state.lastBrowse = normalizeLastBrowse(safeJsonParse(localStorage.getItem(LAST_BROWSE_STORAGE_KEY), null));
@@ -68,6 +71,7 @@ export async function init() {
     setupAbout();
     setupTreeSpy();
     bindUI();
+    bindFavoritesBackup();
     state.pendingUrlState = readUrlState();
     const wantsFavorites = state.pendingUrlState.favorites || state.pendingUrlState.codex === FAVORITES_CODEX_ID;
     const wantsSiteSearch = !wantsFavorites && state.pendingUrlState.scope === 'site' && state.pendingUrlState.q.trim();
@@ -97,6 +101,33 @@ export async function init() {
     hideSkeleton(initSkeletonToken);
     setLoading('加载失败，请刷新页面重试');
   }
+}
+
+function bindFavoritesBackup() {
+  setupFavoritesBackup({ getCodexes: () => state.codexes });
+  if (favoritesBackupBound) return;
+  favoritesBackupBound = true;
+  subscribeFavoritesChanges('atlas', syncAtlasFavoritesFromStorage);
+}
+
+async function syncAtlasFavoritesFromStorage() {
+  state.favs = new Set(readStoredFavorites(localStorage, state.codexes).atlasKeys);
+  if (!state.codex) return;
+  if (state.favoritesView) {
+    await openFavoritesView({
+      urlState: {
+        codex: state.browseCodex?.id || '',
+        favorites: true,
+        path: state.activePath.slice(),
+        q: state.query,
+        scope: state.searchScope,
+      },
+      replaceUrl: true,
+      saveBrowse: false,
+    });
+    return;
+  }
+  applyFilter({ transition: 'none' });
 }
 
 export async function loadCodex(id, options = {}) {

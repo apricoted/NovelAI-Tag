@@ -270,6 +270,7 @@ export function bindUI() {
   const nsfwMask = $('#nsfwConfirm');
   const shortcutMask = $('#shortcutHelp');
   const historyMask = $('#historyPanel');
+  const favoritesBackupMask = $('#favoritesBackupPanel');
   const aboutMask = $('#about');
   const archiveMask = $('#codexArchive');
   const announcementsMask = $('#announcementsPanel');
@@ -524,6 +525,7 @@ export function bindUI() {
     (r18gMask && !r18gMask.hidden) ||
     !shortcutMask.hidden ||
     !historyMask.hidden ||
+    (favoritesBackupMask && !favoritesBackupMask.hidden) ||
     !aboutMask.hidden ||
     !archiveMask.hidden ||
     (announcementsMask && !announcementsMask.hidden) ||

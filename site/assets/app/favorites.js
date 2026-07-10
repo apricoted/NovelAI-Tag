@@ -1,6 +1,7 @@
 import { state } from './state.js';
 import { toast } from './feedback.js';
 import { findCodexMeta } from './data.js';
+import { ATLAS_FAVORITES_STORAGE_KEY } from './favorites-backup-core.js';
 
 const favoriteActions = { applyFilter: () => {}, refreshFavoritesView: () => {} };
 
@@ -29,7 +30,7 @@ export function favKey(e) { return favKeys(e)[0]; }
 export function isFav(e) { return favKeys(e).some(key => state.favs.has(key)); }
 
 export function saveFavs() {
-  localStorage.setItem('fadian-favs', JSON.stringify([...state.favs]));
+  localStorage.setItem(ATLAS_FAVORITES_STORAGE_KEY, JSON.stringify([...state.favs]));
 }
 
 export function toggleFav(e, btn) {

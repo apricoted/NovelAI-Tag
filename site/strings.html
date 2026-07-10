@@ -13,6 +13,7 @@ if('scrollRestoration' in history)history.scrollRestoration='manual';</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@400;500;700&family=Outfit:wght@300;400;500;600;700;800;900&display=swap">
 <link rel="stylesheet" href="assets/tokens.css">
 <link rel="stylesheet" href="assets/community.css">
+<link rel="stylesheet" href="assets/favorites-backup.css">
 <link rel="modulepreload" href="assets/community/constants.js">
 <link rel="modulepreload" href="assets/community/state.js">
 <link rel="modulepreload" href="assets/community/utils.js">
@@ -94,7 +95,10 @@ if('scrollRestoration' in history)history.scrollRestoration='manual';</script>
       <div id="categoryRail" class="category-rail" aria-label="分类筛选"></div>
     </div>
 
-    <div id="resultInfo" class="result-bar">正在加载共创广场…</div>
+    <div class="community-result-row">
+      <div id="resultInfo" class="result-bar">正在加载共创广场…</div>
+      <button class="favorites-backup-result-btn" type="button" data-favorites-backup-open>收藏备份</button>
+    </div>
 
     <button class="submit-inline" type="button" data-open-submit>
       <span class="plus" aria-hidden="true">＋</span>
@@ -176,6 +180,95 @@ if('scrollRestoration' in history)history.scrollRestoration='manual';</script>
       <div id="subErr" class="sub-err" aria-live="polite"></div>
     </div>
   </form>
+</div>
+
+<div id="favoritesBackupPanel" class="favorites-backup-mask" role="dialog" aria-modal="true" aria-labelledby="favoritesBackupTitle" aria-describedby="favoritesBackupIntro" hidden>
+  <div class="favorites-backup-dialog">
+    <header class="favorites-backup-header">
+      <div class="favorites-backup-title-row">
+        <span class="favorites-backup-mark" aria-hidden="true">⇄</span>
+        <div>
+          <h2 id="favoritesBackupTitle">收藏备份与恢复</h2>
+          <p id="favoritesBackupIntro">只包含两处收藏标识，不含浏览记录、设置、图片或 Prompt；文件只在当前设备处理，不会上传。</p>
+        </div>
+      </div>
+      <button id="favoritesBackupClose" class="favorites-backup-close" type="button" aria-label="关闭收藏备份弹窗">×</button>
+    </header>
+
+    <div class="favorites-backup-body">
+      <section class="favorites-backup-section" aria-labelledby="favoritesCurrentTitle">
+        <div class="favorites-backup-section-heading">
+          <div>
+            <h3 id="favoritesCurrentTitle">当前收藏</h3>
+            <p>一份文件会同时包含两处收藏。</p>
+          </div>
+          <button id="favoritesExportBtn" class="favorites-backup-primary" type="button">导出 JSON</button>
+        </div>
+        <dl class="favorites-backup-stats">
+          <div>
+            <dt>法典图鉴</dt>
+            <dd><strong id="favoritesCurrentAtlas">0</strong><span> 条</span></dd>
+          </div>
+          <div>
+            <dt>共创广场</dt>
+            <dd><strong id="favoritesCurrentCommunity">0</strong><span> 条</span></dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="favorites-backup-section" aria-labelledby="favoritesImportTitle">
+        <div class="favorites-backup-section-heading">
+          <div>
+            <h3 id="favoritesImportTitle">从 JSON 恢复</h3>
+            <p>选择备份后先预览变更，再决定恢复方式。</p>
+          </div>
+        </div>
+        <label class="favorites-backup-file" for="favoritesImportFile">
+          <span aria-hidden="true">＋</span>
+          <b>选择 JSON 备份文件</b>
+          <small>最大 2 MiB，仅在浏览器中读取</small>
+        </label>
+        <input id="favoritesImportFile" class="favorites-backup-file-input" type="file" accept=".json,application/json">
+
+        <div id="favoritesImportPreview" class="favorites-import-preview" aria-live="polite" hidden>
+          <h4>恢复预览</h4>
+          <div id="favoritesImportSummary" class="favorites-import-summary"></div>
+        </div>
+
+        <fieldset class="favorites-restore-modes">
+          <legend>恢复方式</legend>
+          <label>
+            <input type="radio" name="favoritesRestoreMode" value="merge" checked>
+            <span><b>合并并去重</b><small>保留当前收藏，只加入备份中尚未收藏的内容。</small></span>
+          </label>
+          <label>
+            <input type="radio" name="favoritesRestoreMode" value="replace">
+            <span><b>覆盖当前收藏</b><small>用备份同时替换两处收藏，执行前会再次确认。</small></span>
+          </label>
+        </fieldset>
+      </section>
+    </div>
+
+    <footer class="favorites-backup-footer">
+      <div class="favorites-backup-feedback">
+        <p id="favoritesBackupError" class="favorites-backup-error" role="alert" hidden></p>
+        <p id="favoritesBackupStatus" class="favorites-backup-status" role="status" aria-live="polite"></p>
+      </div>
+      <button id="favoritesRestoreBtn" class="favorites-backup-primary" type="button" disabled>恢复收藏</button>
+    </footer>
+
+    <div id="favoritesReplaceConfirm" class="favorites-replace-confirm" role="alertdialog" aria-modal="true" aria-labelledby="favoritesReplaceTitle" aria-describedby="favoritesReplaceMessage" hidden>
+      <div class="favorites-replace-card">
+        <span class="favorites-replace-mark" aria-hidden="true">!</span>
+        <h3 id="favoritesReplaceTitle">确认覆盖当前收藏？</h3>
+        <p id="favoritesReplaceMessage">这会同时替换法典图鉴与共创广场收藏。</p>
+        <div class="favorites-replace-actions">
+          <button id="favoritesReplaceBack" class="favorites-backup-secondary" type="button">返回检查</button>
+          <button id="favoritesReplaceConfirmBtn" class="favorites-backup-danger" type="button">确认覆盖</button>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div id="toast" class="toast" role="status" aria-live="polite"></div>

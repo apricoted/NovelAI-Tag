@@ -15,6 +15,9 @@
 /assets/community.css
   Cache-Control: no-store
 
+/assets/favorites-backup.css
+  Cache-Control: no-store
+
 /assets/community.js
   Cache-Control: no-store
 
