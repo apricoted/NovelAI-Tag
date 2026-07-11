@@ -1,6 +1,7 @@
 import {
   $, state, COMMUNITY_CATEGORIES, COMMUNITY_STATUSES, STATUS_LABELS, FEEDBACK_LABELS,
-  escHtml, escAttr, formatDate, currentItems, selectedItem, selectedFeedback, pluralCount,
+  BATCH_ACTIONS_BY_STATUS, escHtml, escAttr, formatDate, currentItems, selectedItem,
+  selectedFeedback, currentFeedbackItems, selectionCounts, pluralCount,
 } from './state.js';
 import { renderCommunityDetail, renderFeedbackDetail } from './editor.js';
 
@@ -16,17 +17,17 @@ export function renderAll() {
 export function renderHeader() {
   const titles = {
     dashboard: ['Dashboard', '总览'],
-    review: ['Moderation', '投稿审核'],
-    content: ['Library', '内容管理'],
+    content: ['Content', '投稿内容'],
     feedback: ['Feedback', '反馈处理'],
   };
   const [kicker, title] = titles[state.view] || titles.dashboard;
   $('#viewKicker').textContent = kicker;
   $('#viewTitle').textContent = title;
   const meta = $('#viewMeta');
+  const dirty = state.dirty ? ' · 有未保存修改' : '';
   if (state.view === 'dashboard') meta.textContent = state.stats ? `更新于 ${formatDate(state.stats.generatedAt)}` : '';
-  else if (state.view === 'feedback') meta.textContent = `${FEEDBACK_LABELS[state.feedbackStatus]} · ${state.feedbackItems.length} 条`;
-  else meta.textContent = `${STATUS_LABELS[state.status]} · ${currentItems().length} / ${state.items.length} 条`;
+  else if (state.view === 'feedback') meta.textContent = `${FEEDBACK_LABELS[state.feedbackStatus]} · ${currentFeedbackItems().length} / ${state.feedbackItems.length} 条`;
+  else meta.textContent = `${STATUS_LABELS[state.status]} · ${currentItems().length} / ${state.items.length} 条${dirty}`;
 }
 
 export function renderNav() {
@@ -36,7 +37,6 @@ export function renderNav() {
   const counts = state.stats && state.stats.counts || {};
   $('#navDashCount').textContent = pluralCount(state.stats && state.stats.total);
   $('#navPendingCount').textContent = pluralCount(counts.pending);
-  $('#navContentCount').textContent = pluralCount((counts.approved || 0) + (counts.hidden || 0) + (counts.rejected || 0) + (counts.deleted || 0));
   $('#navFeedbackCount').textContent = state.view === 'feedback' ? pluralCount(state.feedbackItems.length) : '-';
 }
 
@@ -85,19 +85,27 @@ export function renderToolbar() {
   }
   toolbar.hidden = false;
   if (state.view === 'feedback') {
+    const items = currentFeedbackItems();
     toolbar.innerHTML = `
       <div class="segmented">
         ${Object.entries(FEEDBACK_LABELS).map(([key, label]) => `<button type="button" data-feedback-status="${key}" class="${state.feedbackStatus === key ? 'on' : ''}">${label}</button>`).join('')}
       </div>
-      <span class="toolbar-note">${pluralCount(state.feedbackItems.length)} 条反馈</span>
+      <span class="toolbar-note">${pluralCount(items.length)} / ${pluralCount(state.feedbackItems.length)} 条反馈</span>
       <span class="spacer"></span>
       <button class="soft-btn" type="button" data-reload>刷新反馈</button>`;
     return;
   }
 
   const statusSelect = state.view === 'content'
-    ? `<select id="statusFilter" aria-label="状态">${COMMUNITY_STATUSES.filter(s => s !== 'pending').map(status => `<option value="${status}"${state.status === status ? ' selected' : ''}>${STATUS_LABELS[status]}</option>`).join('')}</select>`
+    ? `<div class="segmented" role="tablist" aria-label="内容状态">${COMMUNITY_STATUSES.map(status => `<button type="button" role="tab" data-content-status="${status}" aria-selected="${state.status === status}" class="${state.status === status ? 'on' : ''}">${STATUS_LABELS[status]}</button>`).join('')}</div>`
     : `<span class="toolbar-note">待审队列</span>`;
+  const items = currentItems();
+  const selected = selectionCounts(items);
+  const allVisibleSelected = items.length > 0 && selected.visible === items.length;
+  const someVisibleSelected = selected.visible > 0 && !allVisibleSelected;
+  const selectionText = selected.total
+    ? `已选 ${selected.total} 条（当前可见 ${selected.visible}${selected.hidden ? `，隐藏 ${selected.hidden}` : ''}）`
+    : '未选择内容';
   toolbar.innerHTML = `
     ${statusSelect}
     <select id="categoryFilter" aria-label="分类">
@@ -109,17 +117,20 @@ export function renderToolbar() {
       <option value="sfw"${state.nsfw === 'sfw' ? ' selected' : ''}>只看 SFW</option>
       <option value="nsfw"${state.nsfw === 'nsfw' ? ' selected' : ''}>只看 NSFW</option>
     </select>
-    <span class="toolbar-note">已选 ${state.selectedIds.size} 条</span>
+    <label class="check-line">
+      <input id="selectAllVisible" type="checkbox"${allVisibleSelected ? ' checked' : ''}${!items.length || state.busy ? ' disabled' : ''}>
+      全选当前 ${items.length} 条
+    </label>
+    <span class="toolbar-note">${selectionText}</span>
+    ${selected.total ? '<button class="ghost-btn" type="button" data-clear-selection>清空选择</button>' : ''}
     <span class="spacer"></span>
-    <select id="batchCategory" aria-label="批量分类">
-      <option value="">移动分类</option>
-      ${COMMUNITY_CATEGORIES.map(cat => `<option value="${escAttr(cat)}">${escHtml(cat)}</option>`).join('')}
-    </select>
-    <button class="soft-btn" type="button" data-batch-action="moveCategory">应用分类</button>
-    <button class="soft-btn" type="button" data-batch-action="publish">批量上架</button>
-    <button class="soft-btn" type="button" data-batch-action="unpublish">批量下架</button>
-    <button class="danger-btn" type="button" data-batch-action="delete">批量删除</button>
-    <button class="danger-btn" type="button" data-batch-action="purge">永久删除</button>`;
+    ${selected.total ? renderBatchControls(state.status) : '<span class="toolbar-note">勾选后显示批量操作</span>'}
+    ${renderBatchFailures()}`;
+  const selectAll = $('#selectAllVisible', toolbar);
+  if (selectAll) {
+    selectAll.indeterminate = someVisibleSelected;
+    selectAll.setAttribute('aria-checked', someVisibleSelected ? 'mixed' : String(allVisibleSelected));
+  }
 }
 
 export function renderList() {
@@ -131,8 +142,9 @@ export function renderList() {
     return;
   }
   if (state.view === 'feedback') {
-    list.innerHTML = state.feedbackItems.map(feedbackRow).join('');
-    empty.hidden = state.feedbackItems.length > 0;
+    const items = currentFeedbackItems();
+    list.innerHTML = items.map(feedbackRow).join('');
+    empty.hidden = items.length > 0;
     return;
   }
   const items = currentItems();
@@ -142,8 +154,15 @@ export function renderList() {
 
 export function renderDetail() {
   const detail = $('#detail');
+  const hasOpenDetail = state.view === 'feedback'
+    ? !!selectedFeedback()
+    : state.view !== 'dashboard' && !!selectedItem();
+  detail.classList.toggle('is-open', hasOpenDetail);
+  detail.dataset.open = hasOpenDetail ? 'true' : 'false';
+  detail.dataset.dirty = state.dirty ? 'true' : 'false';
+  document.body.classList.toggle('detail-open', hasOpenDetail);
   if (state.view === 'feedback') detail.innerHTML = renderFeedbackDetail(selectedFeedback());
-  else if (state.view === 'dashboard') detail.innerHTML = `<div class="detail-empty"><b>运营提示</b><span>切到投稿审核或内容管理后，可以在这里编辑条目。</span></div>`;
+  else if (state.view === 'dashboard') detail.innerHTML = `<div class="detail-empty"><b>运营提示</b><span>切到投稿内容后，可以在这里审核和编辑条目。</span></div>`;
   else detail.innerHTML = renderCommunityDetail(selectedItem());
 }
 
@@ -152,8 +171,8 @@ function contentRow(item) {
   const category = (item.category || [])[0] || '随手分享';
   const checked = state.selectedIds.has(item.id) ? ' checked' : '';
   return `
-    <article class="content-row ${state.selectedId === item.id ? 'on' : ''}" data-id="${escAttr(item.id)}">
-      <input type="checkbox" data-select-id="${escAttr(item.id)}"${checked} aria-label="选择 ${escAttr(item.title)}">
+    <article class="content-row ${state.selectedId === item.id ? 'on' : ''}" data-id="${escAttr(item.id)}" aria-selected="${state.selectedId === item.id}">
+      <input type="checkbox" data-select-id="${escAttr(item.id)}"${checked}${state.busy ? ' disabled' : ''} aria-label="选择 ${escAttr(item.title)}">
       ${img ? `<img class="thumb" src="${escAttr(img.file)}" loading="lazy" alt="">` : '<div class="thumb empty">无图</div>'}
       <div class="row-main">
         <div class="row-title">
@@ -207,4 +226,40 @@ function barRow(label, value, max) {
 
 function todoItem(label, value) {
   return `<div class="todo-item"><span>${escHtml(label)}</span><b>${escHtml(pluralCount(value))}</b></div>`;
+}
+
+function renderBatchControls(status) {
+  const actions = BATCH_ACTIONS_BY_STATUS[status] || [];
+  const disabled = state.busy ? ' disabled' : '';
+  const labels = {
+    approve: ['批量通过', 'primary-btn'],
+    reject: ['批量拒绝', 'danger-btn'],
+    publish: [status === 'deleted' ? '重新上架' : '批量上架', 'primary-btn'],
+    unpublish: ['批量下架', 'soft-btn'],
+    delete: ['批量删除', 'danger-btn'],
+    restore: ['恢复为下架', 'soft-btn'],
+    purge: ['永久删除', 'danger-btn'],
+  };
+  const category = actions.includes('moveCategory') ? `
+    <select id="batchCategory" aria-label="批量分类"${disabled}>
+      <option value="">移动分类</option>
+      ${COMMUNITY_CATEGORIES.map(cat => `<option value="${escAttr(cat)}">${escHtml(cat)}</option>`).join('')}
+    </select>
+    <button class="soft-btn" type="button" data-batch-action="moveCategory"${disabled}>应用分类</button>` : '';
+  const buttons = actions.filter(action => action !== 'moveCategory').map(action => {
+    const [label, cls] = labels[action] || [action, 'soft-btn'];
+    return `<button class="${cls}" type="button" data-batch-action="${action}"${disabled}>${label}</button>`;
+  }).join('');
+  return category + buttons;
+}
+
+function renderBatchFailures() {
+  if (!state.batchFailures.length) return '';
+  return `
+    <details class="copy-block" open style="flex-basis:100%;max-height:none">
+      <summary>上次批量操作失败 ${state.batchFailures.length} 条</summary>
+      <ul>${state.batchFailures.map(failure => `<li><code>${escHtml(failure.id)}</code>：${escHtml(failure.error || '操作失败')}</li>`).join('')}</ul>
+      <button class="soft-btn" type="button" data-retry-failed${state.busy ? ' disabled' : ''}>仅重试失败项</button>
+      <button class="ghost-btn" type="button" data-dismiss-failures>收起并清除</button>
+    </details>`;
 }

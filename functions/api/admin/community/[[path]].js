@@ -64,8 +64,11 @@ async function getStats(env) {
   let nsfw = 0;
   let images = 0;
   let total = 0;
-  for (const status of COMMUNITY_STATUSES) {
-    const items = await listCommunityItems(env, status);
+  const groups = await Promise.all(COMMUNITY_STATUSES.map(async status => ({
+    status,
+    items: await listCommunityItems(env, status),
+  })));
+  for (const { status, items } of groups) {
     counts[status] = items.length;
     total += items.length;
     for (const item of items) {
@@ -78,34 +81,34 @@ async function getStats(env) {
   return json({ ok: true, counts, categories, nsfw, images, total, generatedAt: Date.now() });
 }
 
-async function mutate(env, action, body) {
+async function mutate(env, action, body, operation) {
   if (action === 'batch') return batchMutate(env, body);
   if (action === 'moveCategory' || action === 'updateCategory') {
     const category = body.category != null ? body.category : body.edits && body.edits.category;
-    return updateItem(env, { ...body, edits: { ...(body.edits || {}), category } });
+    return updateItem(env, { ...body, edits: { ...(body.edits || {}), category } }, operation);
   }
-  if (action === 'update') return updateItem(env, body);
-  if (action === 'approve') return approveItem(env, body);
-  if (action === 'reject') return rejectItem(env, body);
-  if (action === 'publish') return publishItem(env, body);
-  if (action === 'unpublish') return unpublishItem(env, body);
-  if (action === 'delete') return deleteItem(env, body);
-  if (action === 'restore') return restoreItem(env, body);
-  if (action === 'purge') return purgeItem(env, body);
+  if (action === 'update') return updateItem(env, body, operation);
+  if (action === 'approve') return approveItem(env, body, operation);
+  if (action === 'reject') return rejectItem(env, body, operation);
+  if (action === 'publish') return publishItem(env, body, operation);
+  if (action === 'unpublish') return unpublishItem(env, body, operation);
+  if (action === 'delete') return deleteItem(env, body, operation);
+  if (action === 'restore') return restoreItem(env, body, operation);
+  if (action === 'purge') return purgeItem(env, body, operation);
   throw httpError('未知管理操作', 404);
 }
 
-async function updateItem(env, body) {
+async function updateItem(env, body, operation) {
   const found = await requireItem(env, body.id, statusSearch(body.status));
   const result = applyCommunityEdits(found.record, body.edits || {});
   if (result.error) throw httpError(result.error);
   result.record.status = found.status;
   const saved = await writeCommunityRecord(env, found.status, result.record);
-  if (found.status === 'approved') await rebuildCommunity(env);
+  await refreshCommunity(env, operation, found.status === 'approved');
   return { action: 'update', item: toAdminEntry(env, saved, found.status) };
 }
 
-async function approveItem(env, body) {
+async function approveItem(env, body, operation) {
   const found = await requireItem(env, body.id, ['pending']);
   const result = applyCommunityEdits(found.record, body.edits || {});
   if (result.error) throw httpError(result.error);
@@ -113,11 +116,13 @@ async function approveItem(env, body) {
   const record = await moveCommunityRecord(env, found, 'approved', {
     now,
     fields: { ...result.record, reviewedAt: now, publishedAt: now, hiddenAt: 0, deletedAt: 0 },
+    rebuild: false,
   });
+  await refreshCommunity(env, operation, true);
   return { action: 'approve', item: toAdminEntry(env, record, 'approved') };
 }
 
-async function rejectItem(env, body) {
+async function rejectItem(env, body, operation) {
   const found = await requireItem(env, body.id, ['pending']);
   const now = Date.now();
   const record = await moveCommunityRecord(env, found, 'rejected', {
@@ -127,40 +132,46 @@ async function rejectItem(env, body) {
   return { action: 'reject', item: toAdminEntry(env, record, 'rejected') };
 }
 
-async function publishItem(env, body) {
+async function publishItem(env, body, operation) {
   const found = await requireItem(env, body.id, statusSearch(body.status, ['hidden', 'deleted', 'rejected', 'pending']));
-  if (found.status === 'pending') return approveItem(env, body);
+  if (found.status === 'pending') return approveItem(env, body, operation);
   const result = body.edits ? applyCommunityEdits(found.record, body.edits) : { record: found.record };
   if (result.error) throw httpError(result.error);
   const now = Date.now();
   const record = await moveCommunityRecord(env, { ...found, record: result.record }, 'approved', {
     now,
     fields: { hiddenAt: 0, deletedAt: 0, publishedAt: now },
+    rebuild: false,
   });
+  await refreshCommunity(env, operation, true);
   return { action: 'publish', item: toAdminEntry(env, record, 'approved') };
 }
 
-async function unpublishItem(env, body) {
+async function unpublishItem(env, body, operation) {
   const found = await requireItem(env, body.id, ['approved']);
   const now = Date.now();
   const record = await moveCommunityRecord(env, found, 'hidden', {
     now,
     fields: { hiddenAt: now, adminNote: cleanLine(body.reason || body.adminNote, 200) || found.record.adminNote },
+    rebuild: false,
   });
+  await refreshCommunity(env, operation, true);
   return { action: 'unpublish', item: toAdminEntry(env, record, 'hidden') };
 }
 
-async function deleteItem(env, body) {
+async function deleteItem(env, body, operation) {
   const found = await requireItem(env, body.id, statusSearch(body.status, ['pending', 'approved', 'hidden', 'rejected']));
   const now = Date.now();
   const record = await moveCommunityRecord(env, found, 'deleted', {
     now,
     fields: { deletedAt: now, previousStatus: found.status },
+    rebuild: false,
   });
+  await refreshCommunity(env, operation, found.status === 'approved');
   return { action: 'delete', item: toAdminEntry(env, record, 'deleted') };
 }
 
-async function restoreItem(env, body) {
+async function restoreItem(env, body, operation) {
   const found = await requireItem(env, body.id, ['deleted']);
   const target = statusParam(body.targetStatus || body.toStatus, 'hidden');
   if (!target || target === 'deleted' || target === 'pending') throw httpError('恢复目标状态无效');
@@ -168,15 +179,17 @@ async function restoreItem(env, body) {
   const record = await moveCommunityRecord(env, found, target, {
     now,
     fields: { deletedAt: 0, hiddenAt: target === 'hidden' ? now : 0 },
+    rebuild: false,
   });
+  await refreshCommunity(env, operation, target === 'approved');
   return { action: 'restore', status: target, item: toAdminEntry(env, record, target) };
 }
 
-async function purgeItem(env, body) {
+async function purgeItem(env, body, operation) {
   const found = await requireItem(env, body.id, statusSearch(body.status));
   await deleteImages(env, found.record.id);
   await env.STRINGS_BUCKET.delete(found.key);
-  if (found.status === 'approved') await rebuildCommunity(env);
+  await refreshCommunity(env, operation, found.status === 'approved');
   return { action: 'purge', id: found.record.id, status: found.status };
 }
 
@@ -185,17 +198,36 @@ async function batchMutate(env, body) {
   const action = cleanLine(body.action, 40);
   if (!ids.length) throw httpError('请选择要操作的内容');
   if (!action || action === 'batch' || !MUTATIONS.has(action)) throw httpError('批量操作无效');
-  const errors = [];
-  let changed = 0;
+  const succeeded = [];
+  const failed = [];
+  const operation = { deferCommunityRebuild: true, needsCommunityRebuild: false };
   for (const id of ids) {
     try {
-      await mutate(env, action, { ...body, id, ids: undefined });
-      changed += 1;
+      const result = await mutate(env, action, { ...body, id, ids: undefined }, operation);
+      succeeded.push({ id, ...result });
     } catch (e) {
-      errors.push({ id, error: e.message || '操作失败' });
+      failed.push({ id, error: e.message || '操作失败', status: e.status || 400 });
     }
   }
-  return { action: 'batch', batchAction: action, changed, errors };
+  if (operation.needsCommunityRebuild) await rebuildCommunity(env);
+  const errors = failed.map(({ id, error }) => ({ id, error }));
+  return {
+    action: 'batch',
+    batchAction: action,
+    succeeded,
+    failed,
+    changed: succeeded.length,
+    errors,
+  };
+}
+
+async function refreshCommunity(env, operation, needed) {
+  if (!needed) return;
+  if (operation && operation.deferCommunityRebuild) {
+    operation.needsCommunityRebuild = true;
+    return;
+  }
+  await rebuildCommunity(env);
 }
 
 async function requireItem(env, id, statuses = COMMUNITY_STATUSES) {

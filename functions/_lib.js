@@ -296,7 +296,11 @@ export async function moveCommunityRecord(env, found, nextStatus, updates = {}) 
   }
   await writeCommunityRecord(env, status, rec);
   if (fromStatus !== status) await env.STRINGS_BUCKET.delete(found.key);
-  if (fromStatus === 'approved' || status === 'approved') await rebuildCommunity(env);
+  // 旧调用方默认仍立即刷新公开聚合；统一管理 API 的批量操作可显式延迟，
+  // 待整批记录写完后只重建一次。
+  if ((fromStatus === 'approved' || status === 'approved') && updates.rebuild !== false) {
+    await rebuildCommunity(env);
+  }
   return rec;
 }
 

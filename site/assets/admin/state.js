@@ -17,6 +17,14 @@ export const FEEDBACK_LABELS = {
   ignored: '已忽略',
 };
 
+export const BATCH_ACTIONS_BY_STATUS = {
+  pending: ['approve', 'reject', 'moveCategory', 'delete'],
+  approved: ['unpublish', 'moveCategory', 'delete'],
+  hidden: ['publish', 'moveCategory', 'delete'],
+  rejected: ['publish', 'moveCategory', 'delete'],
+  deleted: ['restore', 'publish', 'purge'],
+};
+
 export const state = {
   view: 'dashboard',
   status: 'pending',
@@ -30,6 +38,13 @@ export const state = {
   selectedId: '',
   selectedFeedbackId: '',
   selectedIds: new Set(),
+  lastSelectedId: '',
+  batchFailures: [],
+  batchRetry: null,
+  dirty: false,
+  dirtyId: '',
+  busy: false,
+  loading: false,
 };
 
 export const $ = (selector, root = document) => root.querySelector(selector);
@@ -78,6 +93,38 @@ export function selectedItem() {
 
 export function selectedFeedback() {
   return state.feedbackItems.find(item => item.id === state.selectedFeedbackId) || null;
+}
+
+export function currentFeedbackItems() {
+  const q = state.query.trim().toLowerCase();
+  if (!q) return state.feedbackItems;
+  return state.feedbackItems.filter(item => {
+    const context = item.context || {};
+    const entry = context.entry || {};
+    const codex = context.codex || {};
+    const page = context.page || {};
+    return [
+      item.type, item.typeLabel, item.description, item.contact,
+      entry.id, entry.title, codex.id, codex.title, page.url,
+    ].join(' ').toLowerCase().includes(q);
+  });
+}
+
+export function selectionCounts(items = currentItems()) {
+  const visibleIds = new Set(items.map(item => item.id));
+  let visible = 0;
+  for (const id of state.selectedIds) {
+    if (visibleIds.has(id)) visible += 1;
+  }
+  return {
+    visible,
+    hidden: Math.max(0, state.selectedIds.size - visible),
+    total: state.selectedIds.size,
+  };
+}
+
+export function isBatchActionAllowed(status, action) {
+  return (BATCH_ACTIONS_BY_STATUS[status] || []).includes(action);
 }
 
 export function pluralCount(value) {

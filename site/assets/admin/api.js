@@ -31,12 +31,12 @@ export async function adminApi(path, opts = {}) {
   return data;
 }
 
-export function getCommunity(status) {
-  return adminApi('/api/admin/community?status=' + encodeURIComponent(status));
+export function getCommunity(status, opts = {}) {
+  return adminApi('/api/admin/community?status=' + encodeURIComponent(status), opts);
 }
 
-export function getStats() {
-  return adminApi('/api/admin/community/stats');
+export function getStats(opts = {}) {
+  return adminApi('/api/admin/community/stats', opts);
 }
 
 export function mutateCommunity(action, body = {}) {
@@ -47,8 +47,8 @@ export function mutateCommunity(action, body = {}) {
   });
 }
 
-export function getFeedback(status) {
-  return adminApi('/api/admin/feedback?status=' + encodeURIComponent(status));
+export function getFeedback(status, opts = {}) {
+  return adminApi('/api/admin/feedback?status=' + encodeURIComponent(status), opts);
 }
 
 export function decideFeedback(id, action) {
