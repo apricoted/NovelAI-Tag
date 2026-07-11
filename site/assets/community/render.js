@@ -163,13 +163,8 @@ export function renderGrid(entries, { onOpenDetail, onToggleFavorite } = {}) {
       <p>${escHtml(promptExcerpt(entry.prompt))}</p>
       <div class="card-tags">${(entry.tags || []).slice(0, 4).map(tag => `<span>${escHtml(tag)}</span>`).join('')}</div>
     `;
-    const likeButton = createLikeButton(entry, 'card-like-btn');
-    if (likeButton) {
-      const actions = document.createElement('div');
-      actions.className = 'community-card-actions';
-      actions.appendChild(likeButton);
-      body.appendChild(actions);
-    }
+    const likeButton = createLikeButton(entry, 'card-like-overlay');
+    if (likeButton) media.appendChild(likeButton);
 
     const fav = document.createElement('button');
     fav.type = 'button';
