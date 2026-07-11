@@ -7,7 +7,7 @@ import {
   SUBMIT_DISABLED,
   SUBMIT_DISABLED_MESSAGE,
 } from './constants.js';
-import { readImagePrompt } from './png-metadata.js';
+import { readImageParams } from './png-metadata.js';
 import { $, $$, escHtml } from './utils.js';
 
 let submitMask;
@@ -162,25 +162,49 @@ async function addFiles(list) {
     if (!/^image\//.test(file.type || '')) continue;
 
     try {
+      // 每张图都读参数（文本块 → EXIF → 隐写），角标与"含参数原图"标注按图记录；表单只吃第一张命中的
+      const meta = await readImageParams(file);
       if (!metadataConsumed) {
-        const meta = await readImagePrompt(file);
-        if (meta) {
+        if (meta && (meta.prompt || meta.negative)) {
           metadataConsumed = true;
-          if (fillPromptFromMetadata(meta)) toast(`已从${meta.source || '图片'}读出 prompt，可修改`);
+          const sourceText = meta.via === 'stealth' ? `${meta.source || '图片'}（隐写）` : (meta.source || '图片');
+          if (fillPromptFromMetadata(meta)) toast(`已从${sourceText}读出 prompt，可修改`);
           setPromptSource('read');
         } else {
           setPromptSource('none');
         }
       }
 
-      const blob = await compressImage(file);
-      files.push({ blob, url: URL.createObjectURL(blob) });
+      const { blob, width, height } = await compressImage(file);
+      const item = {
+        blob,
+        url: URL.createObjectURL(blob),
+        file,
+        width,
+        height,
+        params: meta ? { source: meta.source, via: meta.via } : null,
+      };
+      // 原图超限时降级：只收压缩图，原图与"原图参数"标注一并放弃
+      if (file.size > LIMITS.origBytes) {
+        item.noOriginal = true;
+        item.params = null;
+        toast(`第 ${files.length + 1} 张原图超过 ${Math.round(LIMITS.origBytes / 1024 / 1024)}MB，将只收录压缩图`, '!');
+      } else if (totalUploadBytes() + blob.size + file.size > LIMITS.totalBytes) {
+        item.noOriginal = true;
+        item.params = null;
+        toast('图片总体积接近上限，这张只收录压缩图', '!');
+      }
+      files.push(item);
       clearError();
     } catch (error) {
       showError(error.message || '图片处理失败');
     }
   }
   renderPreviews();
+}
+
+function totalUploadBytes() {
+  return files.reduce((sum, item) => sum + item.blob.size + (item.noOriginal ? 0 : item.file?.size || 0), 0);
 }
 
 function fillPromptFromMetadata(meta) {
@@ -207,9 +231,11 @@ async function compressImage(file) {
     throw new Error('无法读取图片：' + (file.name || ''));
   }
 
-  const scale = Math.min(1, max / Math.max(bitmap.width, bitmap.height));
-  const width = Math.max(1, Math.round(bitmap.width * scale));
-  const height = Math.max(1, Math.round(bitmap.height * scale));
+  const sourceWidth = bitmap.width;
+  const sourceHeight = bitmap.height;
+  const scale = Math.min(1, max / Math.max(sourceWidth, sourceHeight));
+  const width = Math.max(1, Math.round(sourceWidth * scale));
+  const height = Math.max(1, Math.round(sourceHeight * scale));
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
@@ -222,7 +248,7 @@ async function compressImage(file) {
   const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.85));
   if (!blob) throw new Error('图片压缩失败');
   if (blob.size > LIMITS.imageBytes) throw new Error('图片压缩后仍过大');
-  return blob;
+  return { blob, width: sourceWidth, height: sourceHeight };
 }
 
 function renderPreviews() {
@@ -232,8 +258,12 @@ function renderPreviews() {
   files.forEach((item, index) => {
     const card = document.createElement('div');
     card.className = 'sub-preview';
+    const paramBadge = item.params
+      ? `<i class="sub-param-badge" title="原图含生成参数（${escHtml(item.params.source || '')}），将随投稿保留">✦</i>`
+      : '';
     card.innerHTML = `
       <img src="${item.url}" alt="">
+      ${paramBadge}
       <button type="button" aria-label="移除第 ${index + 1} 张图">×</button>
       <span>图 ${index + 1}</span>
     `;
@@ -288,7 +318,19 @@ async function submitCommunity(event) {
   fd.append('tags', $('#subTags').value.trim());
   fd.append('submitter', $('#subName').value.trim());
   fd.append('nsfw', $('#subNsfw').checked ? '1' : '0');
-  files.forEach((item, index) => fd.append('images', item.blob, `${index + 1}.jpg`));
+  // images=压缩图（瀑布流）；originals=原图（放大 + 参数保全，文件名序号与压缩图配对）
+  files.forEach((item, index) => {
+    fd.append('images', item.blob, `${index + 1}.jpg`);
+    if (item.file && !item.noOriginal) {
+      const ext = /\.(png|jpe?g|webp)$/i.exec(item.file.name || '')?.[1]?.toLowerCase() || 'png';
+      fd.append('originals', item.file, `${index + 1}.${ext}`);
+    }
+  });
+  fd.append('imagesMeta', JSON.stringify(files.map(item => ({
+    width: item.width,
+    height: item.height,
+    params: item.params || undefined,
+  }))));
 
   busy = true;
   const submit = $('#subGo');

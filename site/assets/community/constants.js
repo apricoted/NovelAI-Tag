@@ -17,6 +17,8 @@ export const LIMITS = Object.freeze({
   tags: 8,
   imageCount: 6,
   imageBytes: 3 * 1024 * 1024,
+  origBytes: 10 * 1024 * 1024,
+  totalBytes: 60 * 1024 * 1024,
 });
 
 export const STRINGS_R2_BASE = 'https://pub-a66b6b5ffa0d44a89eb7dd6fa1070b58.r2.dev';

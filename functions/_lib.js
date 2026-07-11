@@ -12,9 +12,44 @@ export const LIMITS = {
   tagCount: 8,
   imageCount: 6,
   imageBytes: 3 * 1024 * 1024,
-  totalBytes: 15 * 1024 * 1024,
+  origBytes: 10 * 1024 * 1024,
+  totalBytes: 60 * 1024 * 1024,
   pendingMax: 300,
 };
+
+// 原图生成参数标注：source=生成器，via=读取途径，verified=是否服务端亲自解析确认
+// （text/exif 服务端可低成本复验=true；stealth 需全图像素解码，Workers CPU 配额跑不动，
+//   只能记录客户端读取结果=false，审核后台会用同一套解析在浏览器里自动复检）
+export const PARAMS_VIAS = ['text', 'exif', 'stealth'];
+
+export function normImageParams(v) {
+  if (!v || typeof v !== 'object') return null;
+  const source = cleanLine(v.source, 20);
+  const via = PARAMS_VIAS.includes(v.via) ? v.via : '';
+  if (!source || !via) return null;
+  return { source, via, verified: !!v.verified };
+}
+
+function clampDim(v) {
+  const n = Math.floor(Number(v || 0));
+  return Number.isFinite(n) && n > 0 && n <= 20000 ? n : 0;
+}
+
+export function normCommunityImage(im) {
+  if (!im || typeof im !== 'object') return null;
+  const out = {};
+  if (im.key) out.key = String(im.key);
+  if (im.file) out.file = String(im.file);
+  if (!out.key && !out.file) return null;
+  if (im.origKey) out.origKey = String(im.origKey);
+  const width = clampDim(im.width);
+  const height = clampDim(im.height);
+  if (width && height) { out.width = width; out.height = height; }
+  const params = normImageParams(im.params);
+  if (params) out.params = params;
+  if (IMAGE_LABELS.includes(im.label)) out.label = im.label; // 旧记录兼容
+  return out;
+}
 
 export const IMAGE_LABELS = ['gallery', 'face', 'scene', 'nsfw'];
 export const COMMUNITY_CATEGORIES = ['随手分享', '画风', '人物', '服装', '动作', '构图', '场景'];
@@ -172,7 +207,7 @@ export function normalizeCommunityRecord(record, status = DEFAULT_COMMUNITY_STAT
   rec.tags = normTags(rec.tags);
   rec.category = normCategory(rec.category);
   rec.nsfw = !!rec.nsfw;
-  rec.images = Array.isArray(rec.images) ? rec.images.filter(Boolean) : [];
+  rec.images = Array.isArray(rec.images) ? rec.images.map(normCommunityImage).filter(Boolean) : [];
   rec.createdAt = Number(rec.createdAt || now);
   rec.updatedAt = Number(rec.updatedAt || rec.createdAt || now);
   rec.reviewedAt = Number(rec.reviewedAt || 0);
@@ -321,6 +356,9 @@ export function toEntry(env, rec) {
     images: (rec.images || []).map(im => {
       const key = String(im && im.key || '');
       const image = { file: key ? imageUrl(env, key) : normalizeImageFile(im && im.file) };
+      if (im.origKey) image.original = imageUrl(env, im.origKey);
+      if (im.width && im.height) { image.width = im.width; image.height = im.height; }
+      if (im.params) image.params = im.params;
       if (IMAGE_LABELS.includes(im.label)) image.label = im.label;
       return image;
     }),
@@ -336,6 +374,11 @@ export function toAdminEntry(env, rec, status = rec && rec.status) {
       return {
         key,
         file: key ? imageUrl(env, key) : normalizeImageFile(im && im.file),
+        origKey: String(im && im.origKey || ''),
+        original: im && im.origKey ? imageUrl(env, im.origKey) : '',
+        width: Number(im && im.width || 0),
+        height: Number(im && im.height || 0),
+        params: im && im.params ? im.params : null,
         label: String(im && im.label || ''),
         index,
       };

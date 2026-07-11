@@ -47,6 +47,15 @@ export function mutateCommunity(action, body = {}) {
   });
 }
 
+// 取社区图片原始字节（隐写复检用；r2.dev 公开域拿不到 CORS 干净的字节流）
+export async function fetchCommunityAsset(key) {
+  const res = await fetch('/api/admin/community/asset?key=' + encodeURIComponent(key), {
+    headers: { authorization: 'Bearer ' + token() },
+  });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return res.blob();
+}
+
 export function getFeedback(status, opts = {}) {
   return adminApi('/api/admin/feedback?status=' + encodeURIComponent(status), opts);
 }

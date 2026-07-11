@@ -6,6 +6,7 @@ let detailMask;
 let detailBody;
 let activeEntry = null;
 let activeImageIndex = 0;
+let detailSeq = 0; // 原图垫底加载的换图守卫（对齐主站灯箱做法）
 
 export function initDetailDialog() {
   detailMask = $('#detailMask');
@@ -45,12 +46,21 @@ function renderDetail() {
   const current = images[activeImageIndex];
   const title = entry.title || category + '分享';
   const currentUrl = current ? imageUrl(current.file) : '';
+  const originalUrl = current?.original ? imageUrl(current.original) : '';
+  const params = current?.params || null;
+  const paramsTitle = params
+    ? `生成参数读取自 ${params.source || '图片'}${params.via === 'stealth' ? '（隐写通道）' : ''}，原图已原样保留`
+    : '';
 
   detailBody.innerHTML = `
     <button class="dialog-close" type="button" data-close-detail aria-label="关闭">×</button>
     <div class="community-detail-shell">
       <section class="community-detail-media${images.length > 1 ? ' has-thumbs' : ''}" aria-label="投稿图片">
-        ${current ? `<div class="community-detail-stage"><img id="detailImage" src="${escAttr(currentUrl)}" alt="${escAttr(title)}"></div>` : '<div class="community-detail-stage community-detail-stage-empty"><div class="community-detail-no-image">这条投稿没有例图</div></div>'}
+        ${current ? `<div class="community-detail-stage"><img id="detailImage" src="${escAttr(currentUrl)}" alt="${escAttr(title)}" decoding="async"></div>` : '<div class="community-detail-stage community-detail-stage-empty"><div class="community-detail-no-image">这条投稿没有例图</div></div>'}
+        ${params || originalUrl ? `<div class="community-detail-mediabar">
+          ${params ? `<span class="orig-param-badge" title="${escAttr(paramsTitle)}">✦ 原图 · 含生成参数</span>` : ''}
+          ${originalUrl ? `<a class="orig-link" href="${escAttr(originalUrl)}" target="_blank" rel="noopener">查看原图</a>` : ''}
+        </div>` : ''}
         ${entry.nsfw ? '<span class="nsfw-badge">NSFW</span>' : ''}
         ${images.length > 1 ? `<div class="community-detail-thumbs">${images.map((image, index) => `
           <button type="button" class="community-detail-thumb${index === activeImageIndex ? ' active' : ''}" data-image-index="${index}" aria-label="查看第 ${index + 1} 张图">
@@ -73,6 +83,17 @@ function renderDetail() {
       </section>
     </div>
   `;
+
+  // 垫底加载：压缩图先上屏，原图加载完成后无缝替换（与主站灯箱同思路）
+  const seq = ++detailSeq;
+  const stageImg = detailBody.querySelector('#detailImage');
+  if (stageImg && originalUrl && originalUrl !== currentUrl) {
+    const pre = new Image();
+    pre.onload = () => {
+      if (seq === detailSeq && stageImg.isConnected) stageImg.src = originalUrl;
+    };
+    pre.src = originalUrl;
+  }
 
   detailBody.querySelector('[data-close-detail]')?.addEventListener('click', closeCommunityDetail);
   detailBody.querySelectorAll('[data-image-index]').forEach(button => {

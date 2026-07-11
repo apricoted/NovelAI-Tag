@@ -3,7 +3,7 @@ import {
   BATCH_ACTIONS_BY_STATUS, escHtml, escAttr, formatDate, currentItems, selectedItem,
   selectedFeedback, currentFeedbackItems, selectionCounts, pluralCount,
 } from './state.js';
-import { renderCommunityDetail, renderFeedbackDetail } from './editor.js';
+import { renderCommunityDetail, renderFeedbackDetail, verifyPendingParams } from './editor.js';
 
 export function renderAll() {
   renderHeader();
@@ -163,7 +163,11 @@ export function renderDetail() {
   document.body.classList.toggle('detail-open', hasOpenDetail);
   if (state.view === 'feedback') detail.innerHTML = renderFeedbackDetail(selectedFeedback());
   else if (state.view === 'dashboard') detail.innerHTML = `<div class="detail-empty"><b>运营提示</b><span>切到投稿内容后，可以在这里审核和编辑条目。</span></div>`;
-  else detail.innerHTML = renderCommunityDetail(selectedItem());
+  else {
+    const item = selectedItem();
+    detail.innerHTML = renderCommunityDetail(item);
+    if (item) verifyPendingParams(item); // 隐写声明后台自动复检（异步，内部自兜错误）
+  }
 }
 
 function contentRow(item) {

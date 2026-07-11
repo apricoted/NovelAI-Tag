@@ -1,6 +1,8 @@
 import {
   COMMUNITY_CATEGORIES, STATUS_LABELS, escHtml, escAttr, formatDate,
 } from './state.js';
+import { fetchCommunityAsset, mutateCommunity } from './api.js';
+import { readImageParams } from '../community/png-metadata.js';
 
 export function renderCommunityDetail(item) {
   if (!item) {
@@ -23,7 +25,7 @@ export function renderCommunityDetail(item) {
         ${detailCloseButton()}
       </div>
     </div>
-    ${renderImageGallery(images, coverIndex, item.title || '未命名投稿')}
+    ${renderImageGallery(images, coverIndex, item.title || '未命名投稿', item.id)}
     <form class="editor-form" id="editorForm">
       <div class="field-row">
         ${field('标题', 'editTitle', 'input', item.title || '', '不填自动生成')}
@@ -138,27 +140,36 @@ function valueOf(id) {
   return document.getElementById(id)?.value || '';
 }
 
-function renderImageGallery(images, coverIndex, title) {
+function paramsBadgeText(params) {
+  if (!params) return '';
+  const source = params.source || '未知来源';
+  if (params.verified) return `✦ 参数已验证 · ${source}${params.via === 'stealth' ? '（隐写）' : ''}`;
+  return `✦ 参数待复检 · ${source}（隐写声明）`;
+}
+
+function renderImageGallery(images, coverIndex, title, itemId = '') {
   if (!images.length) {
     return `<section class="detail-media is-empty" aria-label="投稿图片"><div class="detail-stage-empty"><span>暂无图片</span></div></section>`;
   }
   const cover = images[coverIndex] || images[0];
   const coverAlt = `${title} · 第 ${coverIndex + 1} 张`;
+  const coverFull = cover.original || cover.file;
   return `
-    <section class="detail-media${images.length > 1 ? ' has-thumbs' : ''}" aria-label="投稿图片">
+    <section class="detail-media${images.length > 1 ? ' has-thumbs' : ''}" aria-label="投稿图片" data-gallery-item="${escAttr(itemId)}">
       <div class="detail-stage">
-        <a class="detail-stage-link" data-cover-preview href="${escAttr(cover.file)}" target="_blank" rel="noopener" aria-label="查看原图：${escAttr(coverAlt)}">
+        <a class="detail-stage-link" data-cover-preview href="${escAttr(coverFull)}" target="_blank" rel="noopener" aria-label="查看原图：${escAttr(coverAlt)}">
           <img data-cover-preview-image src="${escAttr(cover.file)}" alt="${escAttr(coverAlt)}">
-          <span class="stage-open-hint">查看原图 ↗</span>
+          <span class="stage-open-hint" data-cover-hint>${cover.original ? '查看原图 ↗' : '查看大图 ↗'}</span>
         </a>
         <span class="stage-count"><span data-cover-position>第 ${coverIndex + 1} 张</span> / ${images.length}</span>
+        <span class="stage-param-badge" data-params-badge="${Number(cover.index ?? coverIndex)}"${cover.params ? '' : ' hidden'}>${escHtml(paramsBadgeText(cover.params))}</span>
       </div>
       ${images.length > 1 ? `
         <div class="image-strip" role="radiogroup" aria-label="选择封面">
           ${images.map((image, index) => `
-            <label class="image-choice${index === coverIndex ? ' is-cover' : ''}" data-cover-choice data-image-src="${escAttr(image.file)}" data-image-index="${index}">
+            <label class="image-choice${index === coverIndex ? ' is-cover' : ''}" data-cover-choice data-image-src="${escAttr(image.file)}" data-image-full="${escAttr(image.original || image.file)}" data-image-index="${index}" data-params-text="${escAttr(paramsBadgeText(image.params))}" data-has-original="${image.original ? '1' : ''}">
               <input type="radio" name="coverIndex" value="${index}"${index === coverIndex ? ' checked' : ''} aria-label="设第 ${index + 1} 张为封面">
-              <span class="image-choice-frame"><img src="${escAttr(image.file)}" loading="lazy" alt=""></span>
+              <span class="image-choice-frame"><img src="${escAttr(image.file)}" loading="lazy" alt=""><i class="param-mini" data-params-mini="${index}" title="${escAttr(paramsBadgeText(image.params))}"${image.params ? '' : ' hidden'}>✦</i></span>
               <span class="image-choice-caption"><span>第 ${index + 1} 张</span><b>封面</b></span>
             </label>
           `).join('')}
@@ -170,7 +181,8 @@ function detailCloseButton() {
   return `<button class="detail-close-btn" type="button" data-detail-close aria-label="关闭详情" title="关闭详情"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"></path></svg></button>`;
 }
 
-/* 封面缩略图即时驱动主预览；数据保存仍由 collectCommunityEdits 统一完成。 */
+/* 封面缩略图即时驱动主预览；数据保存仍由 collectCommunityEdits 统一完成。
+   预览图用压缩图（快），链接与"查看原图"指向原图（有则用）。 */
 if (typeof document !== 'undefined') {
   document.addEventListener('change', event => {
     const input = event.target instanceof Element ? event.target.closest('input[name="coverIndex"]') : null;
@@ -178,6 +190,7 @@ if (typeof document !== 'undefined') {
     const panel = input.closest('.detail-panel') || document;
     const choice = input.closest('[data-cover-choice]');
     const src = choice?.dataset.imageSrc || '';
+    const full = choice?.dataset.imageFull || src;
     const index = Number(choice?.dataset.imageIndex || input.value || 0);
     panel.querySelectorAll('[data-cover-choice]').forEach(node => {
       node.classList.toggle('is-cover', node === choice);
@@ -185,8 +198,65 @@ if (typeof document !== 'undefined') {
     const preview = panel.querySelector('[data-cover-preview]');
     const image = panel.querySelector('[data-cover-preview-image]');
     const position = panel.querySelector('[data-cover-position]');
-    if (src && preview) preview.href = src;
+    const hint = panel.querySelector('[data-cover-hint]');
+    const badge = panel.querySelector('[data-params-badge]');
+    if (full && preview) preview.href = full;
     if (src && image) image.src = src;
     if (position) position.textContent = `第 ${index + 1} 张`;
+    if (hint) hint.textContent = choice?.dataset.hasOriginal ? '查看原图 ↗' : '查看大图 ↗';
+    if (badge && choice) {
+      const text = choice.dataset.paramsText || '';
+      badge.dataset.paramsBadge = String(index);
+      badge.hidden = !text;
+      badge.textContent = text;
+    }
   });
+}
+
+/* ---- 隐写声明自动复检 ----
+   verified:false 的参数标注来自投稿端浏览器（服务端 CPU 配额解不了全图像素），
+   打开详情时在审核端浏览器用同一套识别核心对存储的原图复检，并把结论写回记录：
+   检出 → verified:true；未检出 → 移除标注（公开页徽标随之消失）。 */
+const paramsChecked = new Set(); // `${id}:${index}`，成功复检过的本会话不重跑
+
+export function verifyPendingParams(item) {
+  if (!item || !Array.isArray(item.images)) return;
+  for (const image of item.images) {
+    const index = Number(image && image.index || 0);
+    if (!image || !image.params || image.params.verified || !image.origKey) continue;
+    const memoKey = `${item.id}:${index}`;
+    if (paramsChecked.has(memoKey)) continue;
+    paramsChecked.add(memoKey);
+    recheckImageParams(item, image, index).catch(error => {
+      paramsChecked.delete(memoKey); // 失败允许下次打开时重试
+      console.warn('隐写参数复检失败', error);
+    });
+  }
+}
+
+async function recheckImageParams(item, image, index) {
+  const blob = await fetchCommunityAsset(image.origKey);
+  const found = await readImageParams(blob);
+  const params = found ? { source: found.source, via: found.via, verified: true } : null;
+  await mutateCommunity('params', { id: item.id, imageIndex: index, params });
+  image.params = params; // item 是 state 引用，后续重渲染直接生效
+  updateParamsBadgeDom(item.id, index, params);
+}
+
+function updateParamsBadgeDom(itemId, index, params) {
+  const gallery = document.querySelector(`[data-gallery-item="${CSS.escape(String(itemId))}"]`);
+  if (!gallery) return; // 检查器已切到别的条目
+  const text = paramsBadgeText(params);
+  const mini = gallery.querySelector(`[data-params-mini="${index}"]`);
+  if (mini) {
+    mini.hidden = !params;
+    mini.title = text;
+  }
+  const choice = gallery.querySelector(`[data-cover-choice][data-image-index="${index}"]`);
+  if (choice) choice.dataset.paramsText = text;
+  const badge = gallery.querySelector('[data-params-badge]');
+  if (badge && Number(badge.dataset.paramsBadge) === index) {
+    badge.hidden = !params;
+    badge.textContent = text;
+  }
 }

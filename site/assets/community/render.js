@@ -137,6 +137,13 @@ export function renderGrid(entries, { onOpenDetail, onToggleFavorite } = {}) {
         count.textContent = `${entry.images.length} 张`;
         media.appendChild(count);
       }
+      if (firstImage.params) {
+        const param = document.createElement('span');
+        param.className = 'param-badge';
+        param.textContent = '✦';
+        param.title = '原图含生成参数，详情页可查看原图';
+        media.appendChild(param);
+      }
     } else {
       media.innerHTML = '<span>Prompt</span>';
     }

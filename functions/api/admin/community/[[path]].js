@@ -1,7 +1,7 @@
 'use strict';
 
 import {
-  json, err, requireAdmin, requireStorage, validId, cleanLine,
+  json, err, requireAdmin, requireStorage, validId, cleanLine, normImageParams,
   COMMUNITY_STATUSES, DEFAULT_COMMUNITY_STATUS,
   listAll, readJsonBatch, toAdminEntry, findCommunityRecord, writeCommunityRecord,
   moveCommunityRecord, applyCommunityEdits, rebuildCommunity, deleteImages,
@@ -9,8 +9,11 @@ import {
 
 const MUTATIONS = new Set([
   'update', 'approve', 'reject', 'publish', 'unpublish',
-  'delete', 'restore', 'purge', 'batch', 'moveCategory', 'updateCategory',
+  'delete', 'restore', 'purge', 'batch', 'moveCategory', 'updateCategory', 'params',
 ]);
+
+// 管理端取社区图片原始字节（浏览器端隐写复检需要 CORS 干净的字节流，r2.dev 公开域给不了）
+const ASSET_KEY_RE = /^community\/img\/[0-9a-fA-F-]{8,40}\/[\w][\w.-]*$/;
 
 export async function onRequestGet(context) {
   const denied = requireAdmin(context);
@@ -20,6 +23,7 @@ export async function onRequestGet(context) {
 
   const route = routeName(context);
   if (route === 'stats') return getStats(context.env);
+  if (route === 'asset') return getAsset(context);
   if (route) return err('未知管理接口', 404);
 
   const url = new URL(context.request.url);
@@ -58,6 +62,20 @@ async function listCommunityItems(env, status) {
     .sort((a, b) => sortTime(status, a) - sortTime(status, b));
 }
 
+async function getAsset(context) {
+  const url = new URL(context.request.url);
+  const key = String(url.searchParams.get('key') || '');
+  if (!ASSET_KEY_RE.test(key)) return err('图片 key 无效');
+  const obj = await context.env.STRINGS_BUCKET.get(key);
+  if (!obj) return err('图片不存在', 404);
+  return new Response(obj.body, {
+    headers: {
+      'content-type': obj.httpMetadata?.contentType || 'application/octet-stream',
+      'cache-control': 'no-store',
+    },
+  });
+}
+
 async function getStats(env) {
   const counts = {};
   const categories = {};
@@ -87,6 +105,7 @@ async function mutate(env, action, body, operation) {
     const category = body.category != null ? body.category : body.edits && body.edits.category;
     return updateItem(env, { ...body, edits: { ...(body.edits || {}), category } }, operation);
   }
+  if (action === 'params') return updateImageParams(env, body, operation);
   if (action === 'update') return updateItem(env, body, operation);
   if (action === 'approve') return approveItem(env, body, operation);
   if (action === 'reject') return rejectItem(env, body, operation);
@@ -96,6 +115,21 @@ async function mutate(env, action, body, operation) {
   if (action === 'restore') return restoreItem(env, body, operation);
   if (action === 'purge') return purgeItem(env, body, operation);
   throw httpError('未知管理操作', 404);
+}
+
+// 审核端隐写复检结果落库：params=null 表示复检未检出、移除标注；否则覆盖为复检结论
+async function updateImageParams(env, body, operation) {
+  const found = await requireItem(env, body.id, statusSearch(body.status));
+  const index = Math.floor(Number(body.imageIndex));
+  const images = found.record.images || [];
+  if (!Number.isFinite(index) || index < 0 || index >= images.length) throw httpError('图片序号无效');
+  const params = body.params == null ? null : normImageParams(body.params);
+  if (body.params != null && !params) throw httpError('参数标注格式无效');
+  if (params) images[index].params = params;
+  else delete images[index].params;
+  const saved = await writeCommunityRecord(env, found.status, found.record);
+  await refreshCommunity(env, operation, found.status === 'approved');
+  return { action: 'params', item: toAdminEntry(env, saved, found.status) };
 }
 
 async function updateItem(env, body, operation) {

@@ -13,7 +13,9 @@ function normalizeCommunityData(data) {
     const images = Array.isArray(entry.images) ? entry.images.map(image => {
       if (typeof image === 'string') return normalizeImageFile(image);
       if (!image || typeof image !== 'object') return image;
-      return { ...image, file: normalizeImageFile(image.file) };
+      const out = { ...image, file: normalizeImageFile(image.file) };
+      if (out.original) out.original = normalizeImageFile(out.original);
+      return out;
     }) : [];
     return { ...entry, category: normCategory(entry.category), images };
   }) : [];
