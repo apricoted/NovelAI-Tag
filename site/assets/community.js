@@ -23,11 +23,13 @@ async function loadAndRender() {
   try {
     const { collection, data, entries } = await loadCommunityData();
     state.collection = collection;
+    state.features = data.features;
     state.entries = entries;
     $('#communityTitle').textContent = data.title || '共创广场';
     $('#communityCount').textContent = `${entries.length} 条投稿`;
   } catch (error) {
     console.error('共创广场加载失败', error);
+    state.features = { likes: false };
     state.entries = [];
     $('#communityCount').textContent = '0 条投稿';
   } finally {

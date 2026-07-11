@@ -6,6 +6,7 @@ import {
   listAll, readJsonBatch, toAdminEntry, findCommunityRecord, writeCommunityRecord,
   moveCommunityRecord, applyCommunityEdits, rebuildCommunity, deleteImages,
 } from '../../../_lib.js';
+import { getCommunityLikesStats, purgeCommunityLikes } from '../../../_engagements.js';
 
 const MUTATIONS = new Set([
   'update', 'approve', 'reject', 'publish', 'unpublish',
@@ -82,11 +83,13 @@ async function getStats(env) {
   let nsfw = 0;
   let images = 0;
   let total = 0;
+  const allItems = [];
   const groups = await Promise.all(COMMUNITY_STATUSES.map(async status => ({
     status,
     items: await listCommunityItems(env, status),
   })));
   for (const { status, items } of groups) {
+    allItems.push(...items);
     counts[status] = items.length;
     total += items.length;
     for (const item of items) {
@@ -96,7 +99,8 @@ async function getStats(env) {
       categories[cat] = (categories[cat] || 0) + 1;
     }
   }
-  return json({ ok: true, counts, categories, nsfw, images, total, generatedAt: Date.now() });
+  const likes = await getCommunityLikesStats(env, allItems);
+  return json({ ok: true, counts, categories, nsfw, images, total, likes, generatedAt: Date.now() });
 }
 
 async function mutate(env, action, body, operation) {
@@ -221,6 +225,17 @@ async function restoreItem(env, body, operation) {
 
 async function purgeItem(env, body, operation) {
   const found = await requireItem(env, body.id, statusSearch(body.status));
+  // D1 已绑定时先清互动；清理失败必须中止，避免 R2 永久删除后留下孤儿计数。
+  try {
+    await purgeCommunityLikes(env, found.record.id);
+  } catch (error) {
+    console.error(JSON.stringify({
+      message: 'community engagement purge failed',
+      id: found.record.id,
+      error: error instanceof Error ? error.message : String(error || 'unknown error'),
+    }));
+    throw httpError('互动数据清理失败，已中止永久删除', 503);
+  }
   await deleteImages(env, found.record.id);
   await env.STRINGS_BUCKET.delete(found.key);
   await refreshCommunity(env, operation, found.status === 'approved');

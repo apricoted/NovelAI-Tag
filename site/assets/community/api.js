@@ -26,6 +26,7 @@ export function categoriesFromEntries(entries) {
 
 function normalizeEntry(entry) {
   const source = entry && typeof entry === 'object' ? entry : {};
+  const rawLikeCount = Number(source.likeCount);
   return {
     ...source,
     id: source.id || '',
@@ -39,6 +40,8 @@ function normalizeEntry(entry) {
     nsfw: Boolean(source.nsfw),
     images: Array.isArray(source.images) ? source.images.map(normalizeImage).filter(image => image.file) : [],
     createdAt: source.createdAt || 0,
+    likeCount: Number.isFinite(rawLikeCount) && rawLikeCount > 0 ? Math.floor(rawLikeCount) : 0,
+    liked: Boolean(source.liked),
   };
 }
 
@@ -70,6 +73,7 @@ export async function loadCommunityData() {
   const data = {
     title: '共创广场',
     author: raw.author || '',
+    features: { likes: Boolean(raw.features?.likes) },
     categories: categoriesFromEntries(entries),
     entries,
     imagedCount: entries.filter(entry => entry.images.length).length,

@@ -1,5 +1,6 @@
 import { closeMask, isMaskOpen, openMask, trapFocus } from '../app/modal.js';
 import { toast } from '../app/feedback.js';
+import { createLikeButton } from './likes.js';
 import { $, copyText, escAttr, escHtml, imageUrl } from './utils.js';
 
 let detailMask;
@@ -71,6 +72,7 @@ function renderDetail() {
         <div class="community-detail-kicker">${escHtml(category)}${entry.submitter ? ` · 投稿人 ${escHtml(entry.submitter)}` : ''}</div>
         <h2 id="detailTitle">${escHtml(title)}</h2>
         ${(entry.tags || []).length ? `<div class="community-detail-tags">${entry.tags.map(tag => `<span>${escHtml(tag)}</span>`).join('')}</div>` : ''}
+        <div class="community-detail-actions" data-detail-like-slot hidden></div>
         <div class="prompt-section">
           <div class="prompt-heading"><span>Prompt</span><button type="button" data-copy="prompt">复制</button></div>
           <pre>${escHtml(entry.prompt || '')}</pre>
@@ -83,6 +85,13 @@ function renderDetail() {
       </section>
     </div>
   `;
+
+  const likeButton = createLikeButton(entry, 'detail-like-btn');
+  const likeSlot = detailBody.querySelector('[data-detail-like-slot]');
+  if (likeButton && likeSlot) {
+    likeSlot.hidden = false;
+    likeSlot.appendChild(likeButton);
+  }
 
   // 垫底加载：压缩图先上屏，原图加载完成后无缝替换（与主站灯箱同思路）
   const seq = ++detailSeq;

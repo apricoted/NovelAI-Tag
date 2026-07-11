@@ -1,5 +1,6 @@
 import { COMMUNITY_CATEGORIES } from './constants.js';
 import { isFavorite } from './favorites.js';
+import { createLikeButton } from './likes.js';
 import { state } from './state.js';
 import { $, escHtml, imageUrl, promptExcerpt } from './utils.js';
 
@@ -162,6 +163,13 @@ export function renderGrid(entries, { onOpenDetail, onToggleFavorite } = {}) {
       <p>${escHtml(promptExcerpt(entry.prompt))}</p>
       <div class="card-tags">${(entry.tags || []).slice(0, 4).map(tag => `<span>${escHtml(tag)}</span>`).join('')}</div>
     `;
+    const likeButton = createLikeButton(entry, 'card-like-btn');
+    if (likeButton) {
+      const actions = document.createElement('div');
+      actions.className = 'community-card-actions';
+      actions.appendChild(likeButton);
+      body.appendChild(actions);
+    }
 
     const fav = document.createElement('button');
     fav.type = 'button';

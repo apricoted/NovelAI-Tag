@@ -73,7 +73,163 @@ export function renderDashboard() {
           ${todoItem('软删除留档', counts.deleted || 0)}
         </div>
       </section>
-    </div>`;
+    </div>
+    ${renderLikesOverview(stats.likes)}`;
+}
+
+function renderLikesOverview(rawLikes) {
+  const likes = normalizeLikes(rawLikes);
+  if (!likes.available) {
+    return `
+      <section class="likes-overview is-unavailable" aria-labelledby="likesOverviewTitle">
+        <div class="dash-section-head">
+          <div>
+            <p class="eyebrow">Engagement</p>
+            <h2 id="likesOverviewTitle">喜欢互动</h2>
+          </div>
+          <span class="availability-chip">暂不可用</span>
+        </div>
+        <p class="likes-unavailable">喜欢统计暂时不可用，投稿、分类与待办统计仍可正常使用。</p>
+      </section>`;
+  }
+
+  const trend = likes.trend14d;
+  const totalAdds = trend.reduce((sum, day) => sum + day.adds, 0);
+  const totalRemoves = trend.reduce((sum, day) => sum + day.removes, 0);
+  const totalNet = trend.reduce((sum, day) => sum + day.net, 0);
+  const maxActivity = Math.max(1, ...trend.flatMap(day => [day.adds, day.removes]));
+  const trendLabel = `近 14 日新增 ${pluralCount(totalAdds)}，取消 ${pluralCount(totalRemoves)}，净增长 ${signedCount(totalNet)}`;
+
+  return `
+    <section class="likes-overview" aria-labelledby="likesOverviewTitle">
+      <div class="dash-section-head">
+        <div>
+          <p class="eyebrow">Engagement</p>
+          <h2 id="likesOverviewTitle">喜欢互动</h2>
+        </div>
+        <span class="availability-chip is-online">匿名设备近似去重</span>
+      </div>
+      <div class="like-stat-grid">
+        ${statCard('总喜欢', likes.total)}
+        ${statCard('独立设备', likes.uniqueDevices)}
+        ${statCard('获赞投稿', likes.likedEntries)}
+      </div>
+      <div class="likes-split">
+        <section class="dash-box like-trend-box">
+          <div class="dash-box-head">
+            <h3>近 14 日趋势</h3>
+            <span class="net-chip ${netClass(totalNet)}">${signedCount(totalNet)}</span>
+          </div>
+          ${trend.length ? `
+            <div class="trend-legend" aria-hidden="true">
+              <span class="is-add">新增 ${pluralCount(totalAdds)}</span>
+              <span class="is-remove">取消 ${pluralCount(totalRemoves)}</span>
+            </div>
+            <ol class="like-trend-chart" aria-label="${escAttr(trendLabel)}">
+              ${trend.map((day, index) => trendDay(day, index, trend.length, maxActivity)).join('')}
+            </ol>` : '<p class="likes-empty">近 14 日暂无互动变化。</p>'}
+        </section>
+        <section class="dash-box likes-top-box">
+          <div class="dash-box-head">
+            <h3>Top 10 热门投稿</h3>
+            <span>${pluralCount(likes.top.length)} 条</span>
+          </div>
+          ${likes.top.length ? `<ol class="likes-top-list">${likes.top.map(topLikeRow).join('')}</ol>` : '<p class="likes-empty">还没有投稿获得喜欢。</p>'}
+        </section>
+      </div>
+    </section>`;
+}
+
+function normalizeLikes(rawLikes) {
+  if (!rawLikes || rawLikes.available !== true) {
+    return { available: false, total: 0, uniqueDevices: 0, likedEntries: 0, trend14d: [], top: [] };
+  }
+  const trend14d = Array.isArray(rawLikes.trend14d) ? rawLikes.trend14d.slice(-14).map(day => {
+    const adds = nonNegativeCount(day?.adds);
+    const removes = nonNegativeCount(day?.removes);
+    const suppliedNet = Number(day?.net);
+    return {
+      date: String(day?.date || ''),
+      adds,
+      removes,
+      net: Number.isFinite(suppliedNet) ? Math.trunc(suppliedNet) : adds - removes,
+    };
+  }) : [];
+  const top = Array.isArray(rawLikes.top) ? rawLikes.top
+    .filter(item => item && typeof item === 'object')
+    .slice(0, 10)
+    .map(item => ({
+      id: String(item.id || ''),
+      title: String(item.title || ''),
+      status: String(item.status || ''),
+      category: Array.isArray(item.category)
+        ? item.category.map(value => String(value || ''))
+        : String(item.category || ''),
+      likeCount: nonNegativeCount(item.likeCount),
+    })) : [];
+  return {
+    available: true,
+    total: nonNegativeCount(rawLikes.total),
+    uniqueDevices: nonNegativeCount(rawLikes.uniqueDevices),
+    likedEntries: nonNegativeCount(rawLikes.likedEntries),
+    trend14d,
+    top,
+  };
+}
+
+function trendDay(day, index, length, maxActivity) {
+  const showDate = index === 0 || index === Math.floor((length - 1) / 2) || index === length - 1;
+  const date = shortDate(day.date);
+  const label = `${day.date || '未知日期'}：新增 ${pluralCount(day.adds)}，取消 ${pluralCount(day.removes)}，净增长 ${signedCount(day.net)}`;
+  return `
+    <li class="like-trend-day${day.adds ? ' has-add' : ''}${day.removes ? ' has-remove' : ''}"
+        style="--like-add:${((day.adds / maxActivity) * 42).toFixed(2)}%;--like-remove:${((day.removes / maxActivity) * 42).toFixed(2)}%"
+        aria-label="${escAttr(label)}" title="${escAttr(label)}">
+      <span class="like-trend-bars" aria-hidden="true"><i class="like-bar-add"></i><i class="like-bar-remove"></i></span>
+      <span class="like-trend-date" aria-hidden="true">${showDate ? escHtml(date) : ''}</span>
+    </li>`;
+}
+
+function topLikeRow(item, index) {
+  const category = Array.isArray(item.category) ? item.category[0] : item.category;
+  const status = STATUS_LABELS[item.status] || item.status || '未知状态';
+  const title = item.title || item.id || '未命名投稿';
+  return `
+    <li class="likes-top-row">
+      <span class="likes-top-rank">${index + 1}</span>
+      <div class="likes-top-main">
+        <b title="${escAttr(title)}">${escHtml(title)}</b>
+        <div class="likes-top-meta">
+          <span class="badge accent">${escHtml(category || '随手分享')}</span>
+          <span>${escHtml(status)}</span>
+        </div>
+      </div>
+      <strong class="likes-top-count" aria-label="${escAttr(`${pluralCount(item.likeCount)} 个喜欢`)}"><span aria-hidden="true">♥</span> ${escHtml(pluralCount(item.likeCount))}</strong>
+    </li>`;
+}
+
+function nonNegativeCount(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.max(0, Math.trunc(number)) : 0;
+}
+
+function signedCount(value) {
+  const number = Number(value || 0);
+  if (!Number.isFinite(number) || number === 0) return '0';
+  return `${number > 0 ? '+' : '−'}${pluralCount(Math.abs(number))}`;
+}
+
+function netClass(value) {
+  const number = Number(value || 0);
+  if (number > 0) return 'is-positive';
+  if (number < 0) return 'is-negative';
+  return '';
+}
+
+function shortDate(value) {
+  const text = String(value || '');
+  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text);
+  return iso ? `${iso[2]}/${iso[3]}` : text.slice(0, 10);
 }
 
 export function renderToolbar() {

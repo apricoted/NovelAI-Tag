@@ -1,0 +1,14 @@
+{
+  // 仅供喜欢系统的 D1 migration 与本地 Pages Functions 开发使用。
+  // 文件名刻意不是 wrangler.jsonc，避免覆盖 Cloudflare Pages 现有的 Dashboard 配置。
+  "name": "novelai-tag-likes-local",
+  "compatibility_date": "2026-07-11",
+  "compatibility_flags": ["nodejs_compat"],
+  "d1_databases": [
+    {
+      "binding": "COMMUNITY_DB",
+      "database_name": "novelai-tag-community",
+      "migrations_dir": "migrations"
+    }
+  ]
+}

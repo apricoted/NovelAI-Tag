@@ -1,5 +1,6 @@
 export const state = {
   collection: null,
+  features: { likes: false },
   entries: [],
   filtered: [],
   activeCategory: null,
