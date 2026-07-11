@@ -41,53 +41,31 @@
     ]
   },
   {
-    "id": "artist_300",
+    "id": "artist_nai45_personal",
+    "aliases": [
+      "artist_300",
+      "artist_45_collection"
+    ],
     "type": "string",
-    "title": "300画师串",
-    "version": "2025.6.9",
-    "author": "未署名",
-    "entryCount": 301,
-    "imagedCount": 301,
+    "title": "NovelAI4.5单画师词典",
+    "version": "2026.7.12",
+    "author": "千早爱音 / 兔 / 未署名",
+    "entryCount": 4334,
+    "imagedCount": 4255,
     "hasOriginal": true,
-    "source": "未署名来源 · 300画师",
+    "source": "300画师(4.5F版) / 千早爱音的单画师收藏 / 兔兔的4.5画师收录",
     "contributors": [
       {
         "name": "未署名",
-        "role": "素材来源"
-      }
-    ]
-  },
-  {
-    "id": "artist_nai45_personal",
-    "type": "string",
-    "title": "Nai4.5Full个人单画师收藏",
-    "version": "2025.9.27",
-    "author": "千早爱音",
-    "entryCount": 3011,
-    "imagedCount": 2940,
-    "hasOriginal": true,
-    "source": "千早爱音 · Nai4.5Full个人单画师收藏",
-    "contributors": [
+        "role": "300画师(4.5F版) · 素材来源"
+      },
       {
         "name": "千早爱音",
-        "role": "词条整理 / 配图数据提供"
-      }
-    ]
-  },
-  {
-    "id": "artist_45_collection",
-    "type": "string",
-    "title": "4.5画师收录",
-    "version": "2026.4.18",
-    "author": "兔",
-    "entryCount": 1022,
-    "imagedCount": 1014,
-    "hasOriginal": true,
-    "source": "兔 · 4.5画师收录",
-    "contributors": [
+        "role": "单画师收藏 · 词条整理 / 配图数据提供"
+      },
       {
         "name": "兔",
-        "role": "词条整理 / 配图数据提供"
+        "role": "4.5画师收录 · 词条整理 / 配图数据提供"
       }
     ]
   },

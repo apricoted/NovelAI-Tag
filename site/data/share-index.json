@@ -7,6 +7,8 @@
   },
   "aliases": {
     "codex_70c0e66f": "qianteng",
+    "artist_300": "artist_nai45_personal",
+    "artist_45_collection": "artist_nai45_personal",
     "codex_3f60585d": "mengshen_r18"
   },
   "codexes": {
@@ -44,52 +46,23 @@
         "alt": "beatnik（垮掉服饰）"
       }
     },
-    "artist_300": {
-      "id": "artist_300",
-      "aliases": [],
+    "artist_nai45_personal": {
+      "id": "artist_nai45_personal",
+      "aliases": [
+        "artist_300",
+        "artist_45_collection"
+      ],
       "shareable": true,
-      "title": "300画师串",
+      "title": "NovelAI4.5单画师词典",
       "selectorTitle": "",
       "type": "string",
-      "entryCount": 301,
-      "shareCount": 301,
+      "entryCount": 4334,
+      "shareCount": 4334,
       "cover": {
         "url": "https://assets.quicktagcloud.com/images/artist_300/artist_300_0001.jpg?v=868c09e4f9ba0f13",
         "width": 753,
         "height": 1100,
         "alt": "ask_(askzy)"
-      }
-    },
-    "artist_nai45_personal": {
-      "id": "artist_nai45_personal",
-      "aliases": [],
-      "shareable": true,
-      "title": "Nai4.5Full个人单画师收藏",
-      "selectorTitle": "",
-      "type": "string",
-      "entryCount": 3011,
-      "shareCount": 3011,
-      "cover": {
-        "url": "https://assets.quicktagcloud.com/images/artist_nai45_personal/artist_nai45_personal_0001.jpg?v=fd2836fbb85a35ac",
-        "width": 753,
-        "height": 1100,
-        "alt": "yao liao wang"
-      }
-    },
-    "artist_45_collection": {
-      "id": "artist_45_collection",
-      "aliases": [],
-      "shareable": true,
-      "title": "4.5画师收录",
-      "selectorTitle": "",
-      "type": "string",
-      "entryCount": 1022,
-      "shareCount": 1022,
-      "cover": {
-        "url": "https://assets.quicktagcloud.com/images/artist_45_collection/artist_45_collection_0001.jpg?v=bc393fe56c7a9290",
-        "width": 512,
-        "height": 768,
-        "alt": "10mo"
       }
     },
     "composition_style": {
