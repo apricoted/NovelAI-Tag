@@ -74,18 +74,8 @@ start "fadian-strings-8768" /D "%~dp0" %PY% tools\strings_server.py
 goto menu
 
 :act_wrangler
-where node >nul 2>nul
-if errorlevel 1 (
-  echo [ERROR] 未找到 Node.js, 请先安装 https://nodejs.org/
-  pause
-  goto menu
-)
-echo 已在新窗口启动投稿本地测试 站+后端+R2 :8788
-echo   站点: http://localhost:8788/strings.html
-echo   审核: http://localhost:8788/review.html  口令 devtoken
-echo   首次运行会下载 wrangler, 请稍候...
-start "" http://localhost:8788/strings.html
-start "fadian-wrangler-8788" /D "%~dp0" cmd /k npx --yes wrangler@4 pages dev site --port 8788 --r2 STRINGS_BUCKET --compatibility-date=2025-01-01
+echo 已在新窗口启动投稿本地测试 站+后端+R2+D1 :8788
+start "fadian-wrangler-8788" /D "%~dp0" cmd /c call "单项工具\投稿本地测试.bat"
 goto menu
 
 :act_sync

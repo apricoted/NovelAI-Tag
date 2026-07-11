@@ -1,0 +1,27 @@
+{
+  "$schema": "https://raw.githubusercontent.com/cloudflare/workers-sdk/main/packages/wrangler/config-schema.json",
+  "name": "novelai-tag",
+  "pages_build_output_dir": "site",
+  "compatibility_date": "2026-06-07",
+  "env": {
+    "production": {
+      "vars": {
+        "STRINGS_PUBLIC_BASE": "https://novelai-strings.quicktagcloud.com",
+        "COMMUNITY_LIKES_ENABLED": "true"
+      },
+      "r2_buckets": [
+        {
+          "binding": "STRINGS_BUCKET",
+          "bucket_name": "novelai-strings"
+        }
+      ],
+      "d1_databases": [
+        {
+          "binding": "COMMUNITY_DB",
+          "database_name": "novelai-tag-community",
+          "database_id": "7388e38b-b28d-47f4-85d2-21ce3a3b9131"
+        }
+      ]
+    }
+  }
+}
