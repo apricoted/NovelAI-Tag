@@ -554,8 +554,15 @@ def run_suite(base_url: str, out_dir: Path, cdp: CDP) -> list[dict]:
         cdp.eval("""
 (() => {
   document.querySelector('#codexBtn')?.click();
-  const target = document.querySelector('#codexMenu .codex-item[data-id="qianteng"]') ||
-    [...document.querySelectorAll('#codexMenu .codex-item')].find(node => node.textContent.includes('衣柜'));
+  const stringType = document.querySelector('#codexMenu .codex-type[data-type="string"]');
+  if (!stringType) throw new Error('artist-string type item not found');
+  stringType.click();
+  const stringIds = [...document.querySelectorAll('#codexMenu .codex-item[data-id]')].map(node => node.dataset.id);
+  const expected = ['artist_nai45_personal', 'artist_nai45_strings', 'composition_style', 'qianteng'];
+  if (JSON.stringify(stringIds) !== JSON.stringify(expected)) {
+    throw new Error(`artist-string order mismatch: ${stringIds.join(',')}`);
+  }
+  const target = document.querySelector('#codexMenu .codex-item[data-id="qianteng"]');
   if (!target) throw new Error('wardrobe codex item not found');
   target.click();
   return true;
@@ -564,7 +571,7 @@ def run_suite(base_url: str, out_dir: Path, cdp: CDP) -> list[dict]:
         wait_for(cdp, "document.querySelector('#codexBtnText')?.textContent.includes('衣柜')", "wardrobe selected", timeout=10)
         wait_for(cdp, "document.querySelectorAll('.card').length >= 1", "wardrobe cards", timeout=10)
         settle(cdp, 350)
-        data = cdp.eval("({codex: document.querySelector('#codexBtnText')?.textContent || '', url: location.href, cards: document.querySelectorAll('.card').length, result: document.querySelector('#resultInfo')?.textContent || ''})")
+        data = cdp.eval("({codex: document.querySelector('#codexBtnText')?.textContent || '', url: location.href, cards: document.querySelectorAll('.card').length, result: document.querySelector('#resultInfo')?.textContent || '', type: 'string', position: 4})")
         if "衣柜" not in data["codex"]:
             raise CheckFailed("Codex switch did not select wardrobe")
         check_no_errors(cdp)
@@ -609,7 +616,7 @@ def run_suite(base_url: str, out_dir: Path, cdp: CDP) -> list[dict]:
         wait_for(cdp, "document.body.classList.contains('nsfw-unlocked')", "nsfw unlocked")
         cdp.eval("document.querySelector('#nsfwToggle').click()")
         wait_for(cdp, "!document.body.classList.contains('nsfw-unlocked')", "nsfw locked")
-        cdp.eval("document.querySelector('#settingsClose')?.click(); document.querySelector('#codexBtn')?.click();")
+        cdp.eval("document.querySelector('#settingsClose')?.click(); document.querySelector('#codexBtn')?.click(); document.querySelector('#codexMenu .codex-type[data-type=\"codex\"]')?.click();")
         wait_for(cdp, "document.querySelectorAll('#codexMenu .codex-item').length >= 1", "codex menu rebuilt")
         data = cdp.eval("({checked: document.querySelector('#nsfwToggle')?.checked, lockedItems: document.querySelectorAll('#codexMenu .codex-item.locked').length, toast: document.querySelector('#toast')?.textContent || ''})")
         if data["lockedItems"] < 2:

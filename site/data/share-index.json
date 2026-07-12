@@ -6,9 +6,9 @@
     "description": "按图挑选 NovelAI 提示词、画风串与法典条目。"
   },
   "aliases": {
-    "codex_70c0e66f": "qianteng",
     "artist_300": "artist_nai45_personal",
     "artist_45_collection": "artist_nai45_personal",
+    "codex_70c0e66f": "qianteng",
     "codex_3f60585d": "mengshen_r18"
   },
   "codexes": {
@@ -26,24 +26,6 @@
         "width": 753,
         "height": 1100,
         "alt": "NAI4.5时期："
-      }
-    },
-    "qianteng": {
-      "id": "qianteng",
-      "aliases": [
-        "codex_70c0e66f"
-      ],
-      "shareable": true,
-      "title": "叫我千藤就好了の衣柜",
-      "selectorTitle": "",
-      "type": "codex",
-      "entryCount": 125,
-      "shareCount": 125,
-      "cover": {
-        "url": "https://assets.quicktagcloud.com/images/qianteng/qianteng-0001.jpg?v=b083ef9b7cc9f078",
-        "width": 656,
-        "height": 958,
-        "alt": "beatnik（垮掉服饰）"
       }
     },
     "artist_nai45_personal": {
@@ -65,6 +47,22 @@
         "alt": "ask_(askzy)"
       }
     },
+    "artist_nai45_strings": {
+      "id": "artist_nai45_strings",
+      "aliases": [],
+      "shareable": true,
+      "title": "NovelAI4.5画师串词典",
+      "selectorTitle": "",
+      "type": "string",
+      "entryCount": 200,
+      "shareCount": 200,
+      "cover": {
+        "url": "https://assets.quicktagcloud.com/images/artist_nai45_strings/artist_nai45_strings_0001.jpg?v=0a7c58c519e2701e",
+        "width": 1024,
+        "height": 1024,
+        "alt": "W.O.F 001"
+      }
+    },
     "composition_style": {
       "id": "composition_style",
       "aliases": [],
@@ -79,6 +77,24 @@
         "width": 901,
         "height": 616,
         "alt": "运河小船上的静谧时刻"
+      }
+    },
+    "qianteng": {
+      "id": "qianteng",
+      "aliases": [
+        "codex_70c0e66f"
+      ],
+      "shareable": true,
+      "title": "叫我千藤就好了の衣柜",
+      "selectorTitle": "",
+      "type": "string",
+      "entryCount": 125,
+      "shareCount": 125,
+      "cover": {
+        "url": "https://assets.quicktagcloud.com/images/qianteng/qianteng-0001.jpg?v=b083ef9b7cc9f078",
+        "width": 656,
+        "height": 958,
+        "alt": "beatnik（垮掉服饰）"
       }
     },
     "jiegou_yuandian": {

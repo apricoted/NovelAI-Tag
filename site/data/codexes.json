@@ -21,26 +21,6 @@
     ]
   },
   {
-    "id": "qianteng",
-    "type": "codex",
-    "title": "叫我千藤就好了の衣柜",
-    "version": "2026.3.1",
-    "author": "叫我千藤就好了",
-    "entryCount": 125,
-    "imagedCount": 124,
-    "hasOriginal": false,
-    "aliases": [
-      "codex_70c0e66f"
-    ],
-    "source": "千藤 · 叫我千藤就好了の衣柜",
-    "contributors": [
-      {
-        "name": "叫我千藤就好了",
-        "role": "法典原作者"
-      }
-    ]
-  },
-  {
     "id": "artist_nai45_personal",
     "aliases": [
       "artist_300",
@@ -70,6 +50,23 @@
     ]
   },
   {
+    "id": "artist_nai45_strings",
+    "type": "string",
+    "title": "NovelAI4.5画师串词典",
+    "version": "2026.7.10",
+    "author": "PieDriver",
+    "entryCount": 200,
+    "imagedCount": 200,
+    "hasOriginal": true,
+    "source": "PieDriver · W.O.F_画风",
+    "contributors": [
+      {
+        "name": "PieDriver",
+        "role": "词条整理 / 配图数据提供"
+      }
+    ]
+  },
+  {
     "id": "composition_style",
     "type": "string",
     "title": "构图风格",
@@ -86,6 +83,26 @@
       }
     ],
     "selectorTitle": "构图风格(场景串)"
+  },
+  {
+    "id": "qianteng",
+    "type": "string",
+    "title": "叫我千藤就好了の衣柜",
+    "version": "2026.3.1",
+    "author": "叫我千藤就好了",
+    "entryCount": 125,
+    "imagedCount": 124,
+    "hasOriginal": false,
+    "aliases": [
+      "codex_70c0e66f"
+    ],
+    "source": "千藤 · 叫我千藤就好了の衣柜",
+    "contributors": [
+      {
+        "name": "叫我千藤就好了",
+        "role": "法典原作者"
+      }
+    ]
   },
   {
     "id": "jiegou_yuandian",
