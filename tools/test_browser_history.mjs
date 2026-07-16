@@ -152,6 +152,31 @@ assert.equal(replaced.parentId, entry.parentId);
   assert.equal(menuOpen, false);
 }
 
+// Closing a direct layer carries route changes made inside that layer back to
+// its parent record, so settings toggles are not reverted as the dialog closes.
+{
+  const env = configure();
+  let settingsOpen = false;
+  registerHistoryLayer('settings-filter', {
+    isOpen: () => settingsOpen,
+    open: () => { settingsOpen = true; },
+    close: () => { settingsOpen = false; },
+  });
+  const initial = initializeBrowserHistory();
+  settingsOpen = true;
+  openHistoryLayer('settings-filter');
+  env.route = { view: 'all', q: '', onlyImaged: true };
+  env.window.scrollY = 180;
+  commitHistoryRoute({ mode: 'replace' });
+
+  env.window.history.back();
+  await tick();
+  assert.equal(settingsOpen, false);
+  assert.equal(getManagedHistoryEntry().id, initial.id);
+  assert.equal(getManagedHistoryEntry().route.onlyImaged, true);
+  assert.equal(getManagedHistoryEntry().scrollY, 180);
+}
+
 // A layered search keeps one stable session: back closes the search layer while
 // retaining the latest query, then a second back restores the pre-search route.
 {

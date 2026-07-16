@@ -653,6 +653,37 @@ def run_suite(base_url: str, out_dir: Path, cdp: CDP, only: str = "") -> list[di
         cdp.eval(f"scrollTo(0,{int(initial_scroll)})")
         settle(cdp, 220)
 
+        # Escape closes the mobile codex picker exactly once and restores focus.
+        cdp.eval("document.querySelector('#codexBtn')?.click()")
+        wait_for(cdp, "!document.querySelector('#codexMenu')?.hidden && history.state?.layers?.at(-1)?.id === 'codex-menu'", "codex menu history layer")
+        cdp.eval("""
+(() => {
+  const item = document.querySelector('#codexMenu .codex-item');
+  if (!item) throw new Error('No codex menu item was found');
+  item.focus();
+  item.dispatchEvent(new KeyboardEvent('keydown', {key:'Escape', bubbles:true, cancelable:true}));
+  return true;
+})()
+""")
+        wait_for(cdp, "document.querySelector('#codexMenu')?.hidden && document.activeElement?.id === 'codexBtn' && history.state?.id === " + js_string(initial["id"]), "codex menu Escape focus return")
+
+        # Selecting the already-active directory only closes the sidebar; it
+        # must not leave an identical child route in browser history.
+        cdp.eval("document.querySelector('#menuBtn')?.click()")
+        wait_for(cdp, "history.state?.layers?.at(-1)?.id === 'mobile-sidebar'", "sidebar history layer for active category")
+        cdp.eval("""
+(() => {
+  const row = document.querySelector('#tree .tree-row.active');
+  if (!row) throw new Error('No active atlas category was found');
+  row.click();
+  return true;
+})()
+""")
+        wait_for(cdp, "document.querySelector('#sidebar')?.classList.contains('closed') && history.state?.id === " + js_string(initial["id"]), "active category avoids duplicate history")
+        cdp.eval(f"scrollTo(0,{int(initial_scroll)})")
+        settle(cdp, 220)
+        initial_scroll = cdp.eval("Math.round(scrollY)") or 0
+
         cdp.eval("document.querySelector('#menuBtn')?.click()")
         wait_for(cdp, "history.state?.layers?.at(-1)?.id === 'mobile-sidebar'", "sidebar history layer")
         cdp.eval("""
@@ -691,6 +722,8 @@ def run_suite(base_url: str, out_dir: Path, cdp: CDP, only: str = "") -> list[di
 
         cdp.eval("history.back()")
         wait_for(cdp, "!document.querySelector('#lightbox')?.classList.contains('is-open') && history.state?.id === " + js_string(before_detail["id"]), "atlas detail back")
+        if not cdp.eval("matchMedia('(prefers-reduced-motion: reduce)').matches") and cdp.eval("document.querySelector('#lightbox')?.hidden"):
+            raise CheckFailed("Atlas detail back skipped the lightbox close animation")
         if before_detail["y"] > 80:
             try:
                 wait_for(cdp, f"Math.abs(scrollY - {before_detail['y']}) < 90", "atlas scroll restoration", timeout=8)
@@ -701,6 +734,20 @@ def run_suite(base_url: str, out_dir: Path, cdp: CDP, only: str = "") -> list[di
         wait_for(cdp, "document.querySelector('#lightbox')?.classList.contains('is-open') && history.state?.transition === 'detail'", "atlas detail forward")
         cdp.eval("history.back()")
         wait_for(cdp, "!document.querySelector('#lightbox')?.classList.contains('is-open')", "atlas detail closes again")
+        wait_for(cdp, "document.querySelector('#lightbox')?.hidden", "atlas detail close animation finishes", timeout=2)
+
+        # Filter changes made inside settings belong to the underlying route
+        # and must survive when the settings history layer closes.
+        cdp.eval("document.querySelector('#settingsBtn')?.click()")
+        wait_for(cdp, "document.querySelector('#settings')?.classList.contains('show')", "settings filter layer")
+        cdp.eval("document.querySelector('#onlyImaged')?.click()")
+        wait_for(cdp, "document.querySelector('#onlyImaged')?.checked && history.state?.route?.onlyImaged === true", "settings filter route update")
+        cdp.eval("history.back()")
+        wait_for(cdp, "!document.querySelector('#settings')?.classList.contains('show') && document.querySelector('#onlyImaged')?.checked && history.state?.route?.onlyImaged === true", "settings filter survives close")
+        cdp.eval("document.querySelector('#settingsBtn')?.click(); document.querySelector('#onlyImaged')?.click()")
+        wait_for(cdp, "document.querySelector('#settings')?.classList.contains('show') && !document.querySelector('#onlyImaged')?.checked && history.state?.route?.onlyImaged === false", "settings filter reset")
+        cdp.eval("history.back()")
+        wait_for(cdp, "!document.querySelector('#settings')?.classList.contains('show') && history.state?.route?.onlyImaged === false", "reset filter survives close")
 
         # Settings -> NSFW confirmation is a nested pair of returnable layers.
         cdp.eval("document.querySelector('#settingsBtn')?.click()")

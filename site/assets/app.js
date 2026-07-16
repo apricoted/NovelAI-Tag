@@ -531,6 +531,18 @@ async function applyAtlasHistoryRoute(route = {}, context = {}) {
   const fallbackId = (browseMeta && !isCodexLocked(browseMeta) ? browseMeta.id : '') || firstUnlockedCodex()?.id || state.codex?.id;
   const targetId = targetLocked || targetUnknown ? fallbackId : (requestedId || fallbackId);
   if (!targetId) return;
+  const targetEntry = String(route.entry || '');
+  const closingOwnDetail = Boolean(
+    !targetEntry &&
+    state.lightbox.entry &&
+    context.departing?.transition === 'detail' &&
+    context.departing?.parentId === context.target?.id,
+  );
+  if (closingOwnDetail) {
+    state.searchHistorySessionId = String(context.target?.sessionId || '');
+    closeLightbox({ historyMode: 'none' });
+    return;
+  }
   const urlState = {
     codex: targetId,
     favorites: Boolean(route.favorites),
@@ -579,11 +591,11 @@ async function applyAtlasHistoryRoute(route = {}, context = {}) {
     }
 
     if (!currentRestore()) return;
-    const targetEntry = String(route.entry || '');
     if (state.lightbox.entry && state.lightbox.entry.id !== targetEntry) {
       closeLightbox({ historyMode: 'none', immediate: true });
     }
-    if (targetEntry && state.lightbox.entry?.id !== targetEntry) {
+    const lightboxOpen = $('#lightbox')?.classList.contains('is-open');
+    if (targetEntry && (state.lightbox.entry?.id !== targetEntry || !lightboxOpen)) {
       const opened = openEntryDeepLink(targetEntry, { imageIndex: Math.max(0, Number(route.imageIndex) || 0) });
       if (!opened) {
         return targetLocked

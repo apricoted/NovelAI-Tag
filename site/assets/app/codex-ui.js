@@ -91,7 +91,7 @@ export function setupCodexPicker() {
   registerHistoryLayer('codex-menu', {
     isOpen: () => !menu.hidden,
     open: () => openDirect(),
-    close: () => closeDirect(),
+    close: () => closeDirect({ focusButton: true }),
   });
   const open = ({ focus = false, historyMode = 'push' } = {}) => {
     const replaceLayer = isMobile() && topHistoryLayerId() === 'banner-about';
@@ -290,6 +290,7 @@ export function setupCodexPicker() {
     const current = list.indexOf(document.activeElement);
     if (ev.key === 'Escape') {
       ev.preventDefault();
+      ev.stopPropagation();
       close({ focusButton: true });
     } else if (ev.key === 'Tab') {
       close();
@@ -558,9 +559,20 @@ export function buildNodes(nodes, parent, prefix, depth) {
 
 export function selectPath(path, rowEl) {
   const parentScrollY = Math.max(0, window.scrollY || 0);
+  const isMobile = window.innerWidth <= 600;
+  const routeChanged = !samePath(state.activePath, path) || (!state.siteSearchView && Boolean(state.query.trim()));
+  if (!routeChanged) {
+    if (isMobile && closeHistoryLayer('mobile-sidebar')) return;
+    if (isMobile) {
+      $('#sidebar').classList.add('closed');
+      localStorage.setItem('fadian-sidebar', 'closed');
+      forgetHistoryLayer('mobile-sidebar');
+    }
+    return;
+  }
   document.querySelectorAll('.tree-row.active').forEach(r => r.classList.remove('active'));
   rowEl.classList.add('active');
-  if (window.innerWidth <= 600) {
+  if (isMobile) {
     $('#sidebar').classList.add('closed');
     localStorage.setItem('fadian-sidebar', 'closed');
   }

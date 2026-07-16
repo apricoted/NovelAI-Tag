@@ -359,19 +359,23 @@ async function handlePopState(event) {
   let target = cloneValue(event.state);
   const departingLayers = layerIds(departing);
   const targetLayers = layerIds(target);
-  const sameSearchSession = Boolean(
-    departing?.sessionId &&
-    target.sessionId &&
-    departing.sessionId === target.sessionId &&
+  const closingDirectLayer = Boolean(
+    departing?.parentId === target.id &&
     departingLayers.length > targetLayers.length,
   );
-  if (sameSearchSession) {
+  const sameSearchSession = Boolean(
+    closingDirectLayer &&
+    departing?.sessionId &&
+    target.sessionId &&
+    departing.sessionId === target.sessionId,
+  );
+  if (closingDirectLayer) {
     target = replaceManagedHistoryEntry(target, {
       route: departing.route,
       scrollY: currentScrollY(),
     });
     writeState('replace', target);
-    if (config.isEmptySearchRoute?.(target.route) && target.parentId) {
+    if (sameSearchSession && config.isEmptySearchRoute?.(target.route) && target.parentId) {
       reconcileLayers(target.layers);
       browserWindow().queueMicrotask(() => browserWindow().history.back());
       return;
