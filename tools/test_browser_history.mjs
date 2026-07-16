@@ -1,0 +1,210 @@
+import assert from 'node:assert/strict';
+import {
+  beginLayeredSearch,
+  commitHistoryRoute,
+  configureBrowserHistory,
+  createManagedHistoryEntry,
+  getManagedHistoryEntry,
+  initializeBrowserHistory,
+  isManagedHistoryEntry,
+  openHistoryLayer,
+  registerHistoryLayer,
+  replaceManagedHistoryEntry,
+} from '../site/assets/app/browser-history.js';
+
+const tick = () => new Promise(resolve => setTimeout(resolve, 0));
+
+class FakeWindow extends EventTarget {
+  constructor() {
+    super();
+    this.scrollY = 0;
+    this.setTimeout = setTimeout;
+    this.clearTimeout = clearTimeout;
+    this.queueMicrotask = queueMicrotask;
+    this.history = new FakeHistory(this);
+  }
+}
+
+class FakeHistory {
+  constructor(window) {
+    this.window = window;
+    this.entries = [{ state: null, url: '/page.html' }];
+    this.index = 0;
+  }
+
+  get state() { return this.entries[this.index]?.state ?? null; }
+  get length() { return this.entries.length; }
+
+  replaceState(state, _title, url) {
+    this.entries[this.index] = {
+      state: structuredClone(state),
+      url: url === undefined ? this.entries[this.index].url : url,
+    };
+  }
+
+  pushState(state, _title, url) {
+    this.entries.splice(this.index + 1);
+    this.entries.push({
+      state: structuredClone(state),
+      url: url === undefined ? this.entries[this.index].url : url,
+    });
+    this.index += 1;
+  }
+
+  back() { this.go(-1); }
+  forward() { this.go(1); }
+
+  go(delta) {
+    const next = this.index + delta;
+    if (next < 0 || next >= this.entries.length) return;
+    this.index = next;
+    const event = new Event('popstate');
+    Object.defineProperty(event, 'state', { value: structuredClone(this.state) });
+    this.window.dispatchEvent(event);
+  }
+}
+
+function configure(page = 'atlas', applyRoute = async () => undefined) {
+  const window = new FakeWindow();
+  let route = { view: 'all', q: '' };
+  configureBrowserHistory({
+    window,
+    page,
+    captureRoute: () => route,
+    applyRoute,
+    restoreScroll: async top => { window.scrollY = top; },
+    isEmptySearchRoute: value => !String(value?.q || '').trim(),
+  });
+  return {
+    window,
+    get route() { return route; },
+    set route(value) { route = value; },
+  };
+}
+
+// State construction and validation stay deterministic and clone caller-owned values.
+const sourceRoute = { view: 'all', nested: { value: 1 } };
+const entry = createManagedHistoryEntry({
+  page: 'atlas',
+  id: 'entry-1',
+  parentId: 'entry-0',
+  transition: 'route',
+  sessionId: 'search-1',
+  route: sourceRoute,
+  layers: [{ id: 'menu' }],
+  scrollY: 12.6,
+});
+sourceRoute.nested.value = 9;
+assert.equal(entry.route.nested.value, 1);
+assert.equal(entry.scrollY, 13);
+assert.ok(isManagedHistoryEntry(entry, 'atlas'));
+assert.equal(isManagedHistoryEntry(entry, 'community'), false);
+const replaced = replaceManagedHistoryEntry(entry, { route: { view: 'favorites' } });
+assert.equal(replaced.id, entry.id);
+assert.equal(replaced.parentId, entry.parentId);
+
+// Initial entries have no parent; push creates a child and replace keeps its identity.
+{
+  const env = configure();
+  const initial = initializeBrowserHistory();
+  assert.equal(initial.parentId, null);
+  assert.equal(env.window.history.length, 1);
+
+  env.route = { view: 'category', q: '' };
+  commitHistoryRoute({ mode: 'push', transition: 'route', parentScrollY: 77 });
+  const child = getManagedHistoryEntry();
+  assert.equal(child.parentId, initial.id);
+  assert.equal(env.window.history.entries[0].state.scrollY, 77);
+  assert.equal(env.window.history.length, 2);
+
+  env.route = { view: 'category', q: 'fox' };
+  commitHistoryRoute({ mode: 'replace', transition: 'search', sessionId: 's1' });
+  const search = getManagedHistoryEntry();
+  assert.equal(search.id, child.id);
+  assert.equal(search.parentId, initial.id);
+  assert.equal(search.route.q, 'fox');
+  assert.equal(env.window.history.length, 2);
+}
+
+// Swapping a transient layer consumes the current menu record instead of adding depth.
+{
+  const env = configure();
+  let menuOpen = false;
+  let dialogOpen = false;
+  registerHistoryLayer('menu', {
+    isOpen: () => menuOpen,
+    open: () => { menuOpen = true; },
+    close: () => { menuOpen = false; },
+  });
+  registerHistoryLayer('dialog', {
+    isOpen: () => dialogOpen,
+    open: () => { dialogOpen = true; },
+    close: () => { dialogOpen = false; },
+  });
+  initializeBrowserHistory();
+  menuOpen = true;
+  openHistoryLayer('menu');
+  assert.equal(env.window.history.length, 2);
+  dialogOpen = true;
+  openHistoryLayer('dialog', { mode: 'replace' });
+  assert.equal(env.window.history.length, 2);
+  assert.deepEqual(getManagedHistoryEntry().layers, [{ id: 'dialog' }]);
+  assert.equal(menuOpen, false);
+}
+
+// A layered search keeps one stable session: back closes the search layer while
+// retaining the latest query, then a second back restores the pre-search route.
+{
+  const env = configure();
+  let searchOpen = false;
+  registerHistoryLayer('mobile-search', {
+    isOpen: () => searchOpen,
+    open: () => { searchOpen = true; },
+    close: () => { searchOpen = false; },
+  });
+  const initial = initializeBrowserHistory();
+  searchOpen = true;
+  openHistoryLayer('mobile-search');
+  env.route = { view: 'all', q: 'f' };
+  beginLayeredSearch('mobile-search', 'stable-search');
+  env.route = { view: 'all', q: 'fox' };
+  env.window.scrollY = 240;
+  commitHistoryRoute({ mode: 'replace', transition: 'search', sessionId: 'stable-search' });
+  assert.equal(env.window.history.length, 3);
+
+  env.window.history.back();
+  await tick();
+  assert.equal(searchOpen, false);
+  assert.equal(getManagedHistoryEntry().route.q, 'fox');
+  assert.equal(getManagedHistoryEntry().scrollY, 240);
+  assert.deepEqual(getManagedHistoryEntry().layers, []);
+
+  env.window.history.back();
+  await tick();
+  assert.equal(getManagedHistoryEntry().id, initial.id);
+  assert.equal(getManagedHistoryEntry().route.q, '');
+}
+
+// Route adapters can downgrade stale records (for example a deleted community post).
+{
+  const applied = [];
+  const env = configure('community', async route => {
+    applied.push(route);
+    if (route.entry === 'missing') return { ...route, entry: '', imageIndex: 0 };
+    return undefined;
+  });
+  initializeBrowserHistory();
+  env.route = { view: 'all', q: '', entry: 'missing', imageIndex: 4 };
+  commitHistoryRoute({ mode: 'push', transition: 'detail' });
+  env.route = { view: 'other', q: '' };
+  commitHistoryRoute({ mode: 'push', transition: 'route' });
+
+  env.window.history.back();
+  await tick();
+  assert.equal(applied.at(-1).entry, 'missing');
+  assert.equal(getManagedHistoryEntry().route.entry, '');
+  assert.equal(getManagedHistoryEntry().transition, 'route');
+  assert.equal(env.window.history.state.route.imageIndex, 0);
+}
+
+console.log('browser history tests passed');
