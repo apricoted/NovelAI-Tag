@@ -1,10 +1,13 @@
 import assert from 'node:assert/strict';
 import {
   beginLayeredSearch,
+  checkpointHistoryScroll,
+  closeHistoryLayer,
   commitHistoryRoute,
   configureBrowserHistory,
   createManagedHistoryEntry,
   getManagedHistoryEntry,
+  goBackFrom,
   initializeBrowserHistory,
   isManagedHistoryEntry,
   openHistoryLayer,
@@ -230,6 +233,82 @@ assert.equal(replaced.parentId, entry.parentId);
   assert.equal(getManagedHistoryEntry().route.entry, '');
   assert.equal(getManagedHistoryEntry().transition, 'route');
   assert.equal(env.window.history.state.route.imageIndex, 0);
+}
+
+// Reload adoption: a managed record persisted in history.state keeps its
+// identity, transition, and scroll across re-init, so back navigation and
+// scroll restoration survive a page reload / cross-document return.
+{
+  const win = new FakeWindow();
+  let route = { view: 'all', q: '' };
+  let restored = -1;
+  const options = {
+    window: win,
+    page: 'atlas',
+    captureRoute: () => route,
+    applyRoute: async () => undefined,
+    restoreScroll: async top => { restored = top; win.scrollY = top; },
+  };
+  configureBrowserHistory(options);
+  const initial = initializeBrowserHistory();
+  route = { view: 'category', q: '' };
+  commitHistoryRoute({ mode: 'push', transition: 'detail' });
+  const before = getManagedHistoryEntry();
+  win.scrollY = 320;
+  checkpointHistoryScroll();
+
+  configureBrowserHistory(options);   // simulated reload: same window, same history
+  const adopted = initializeBrowserHistory();
+  assert.equal(adopted.id, before.id);
+  assert.equal(adopted.parentId, initial.id);
+  assert.equal(adopted.transition, 'detail');
+  assert.equal(adopted.scrollY, 320);
+  assert.equal(restored, 320);
+  assert.deepEqual(adopted.layers, []);
+
+  win.history.back();
+  await tick();
+  assert.equal(getManagedHistoryEntry().id, initial.id);
+}
+
+// While a back() is still in flight, further close requests are treated as
+// handled instead of popping extra records (rapid double-tap / double Escape).
+{
+  const env = configure();
+  let layerOpen = false;
+  registerHistoryLayer('guard-layer', {
+    isOpen: () => layerOpen,
+    open: () => { layerOpen = true; },
+    close: () => { layerOpen = false; },
+  });
+  initializeBrowserHistory();
+  env.route = { view: 'detail', q: '' };
+  commitHistoryRoute({ mode: 'push', transition: 'detail' });
+
+  const history = env.window.history;
+  const realBack = history.back.bind(history);
+  let backs = 0;
+  history.back = () => { backs += 1; };   // swallow traversal: popstate stays pending
+  assert.equal(goBackFrom('detail'), true);
+  assert.equal(goBackFrom('detail'), true);
+  assert.equal(backs, 1);
+  history.back = realBack;
+  history.back();                          // deliver the pending traversal
+  await tick();
+  assert.equal(getManagedHistoryEntry().transition, 'initial');
+  assert.equal(goBackFrom('detail'), false);   // pendingBack cleared by popstate
+
+  layerOpen = true;
+  openHistoryLayer('guard-layer');
+  backs = 0;
+  history.back = () => { backs += 1; };
+  assert.equal(closeHistoryLayer('guard-layer'), true);
+  assert.equal(closeHistoryLayer('guard-layer'), true);
+  assert.equal(backs, 1);
+  history.back = realBack;
+  history.back();
+  await tick();
+  assert.equal(layerOpen, false);
 }
 
 console.log('browser history tests passed');

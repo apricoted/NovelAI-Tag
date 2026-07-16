@@ -10,6 +10,7 @@ import { setupFavoritesBackup, subscribeFavoritesChanges } from './app/favorites
 import {
   configureCommunityHistory,
   initializeCommunityHistory,
+  restoreCommunityHistorySnapshot,
   setCommunityRouterActions,
 } from './community/router.js';
 
@@ -66,6 +67,7 @@ async function init() {
     });
   }
   await loadAndRender();
+  await restoreCommunityHistorySnapshot();
   initializeCommunityHistory();
 }
 

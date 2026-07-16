@@ -4,6 +4,7 @@ const HISTORY_VERSION = 1;
 let config = null;
 let initialized = false;
 let restoring = false;
+let pendingBack = false;
 let restoreToken = 0;
 let currentEntry = null;
 let scrollTimer = 0;
@@ -120,23 +121,38 @@ export function configureBrowserHistory(options = {}) {
   config = { ...options, window: win };
   initialized = false;
   restoring = false;
+  pendingBack = false;
   currentEntry = null;
   if ('scrollRestoration' in win.history) win.history.scrollRestoration = 'manual';
   win.addEventListener('popstate', handlePopState);
   win.addEventListener('pagehide', checkpointHistoryScroll);
 }
 
+export function persistedHistoryState() {
+  if (!config) return null;
+  const state = browserWindow()?.history?.state;
+  return isManagedHistoryEntry(state, config.page) ? cloneValue(state) : null;
+}
+
 export function initializeBrowserHistory({ transition = 'initial', route: routeOverride } = {}) {
   if (!config) throw new Error('Browser history is not configured');
+  /* 刷新 / 跨文档返回时 history.state 里仍留着本页的托管记录（pagehide 已存过
+     滚动位置）：沿用其身份、transition 与 scrollY，让返回链和滚动恢复跨重载
+     存活。浮层在重载后必然全部关闭，故 layers 一律清空。 */
+  const previous = persistedHistoryState();
   currentEntry = createManagedHistoryEntry({
     page: config.page,
-    transition,
+    id: previous?.id,
+    parentId: previous?.parentId ?? null,
+    transition: previous?.transition || transition,
+    sessionId: previous?.sessionId ?? null,
     route: routeOverride === undefined ? captureRoute() : cloneValue(routeOverride),
     layers: [],
-    scrollY: currentScrollY(),
+    scrollY: previous ? previous.scrollY : currentScrollY(),
   });
   initialized = true;
   writeState('replace', currentEntry);
+  if (previous && previous.scrollY > 0) config.restoreScroll?.(previous.scrollY, {});
   return cloneValue(currentEntry);
 }
 
@@ -239,7 +255,7 @@ export function closeHistoryLayer(id) {
     return false;
   }
   if (currentEntry.parentId) {
-    browserWindow().history.back();
+    if (!pendingBack) requestHistoryBack();
     return true;
   }
   forgetHistoryLayer(id);
@@ -332,9 +348,17 @@ export function canGoBackFrom(transition) {
   );
 }
 
+/* history.back() 到 popstate 之间有一段异步窗口，currentEntry 在此期间是旧值。
+   pendingBack 挡住这段窗口里的重复回退（快速双击关闭按钮 / 连按 Esc），
+   否则会多退一级。popstate 一到即清除。 */
+function requestHistoryBack() {
+  pendingBack = true;
+  browserWindow().history.back();
+}
+
 export function goBackFrom(transition) {
   if (!canGoBackFrom(transition)) return false;
-  browserWindow().history.back();
+  if (!pendingBack) requestHistoryBack();
   return true;
 }
 
@@ -352,6 +376,7 @@ export function scheduleHistoryScrollCheckpoint(delay = 150) {
 }
 
 async function handlePopState(event) {
+  pendingBack = false;
   if (!config || !isManagedHistoryEntry(event.state, config.page)) return;
   clearTimeout(scrollTimer);
   scrollTimer = 0;
@@ -377,7 +402,7 @@ async function handlePopState(event) {
     writeState('replace', target);
     if (sameSearchSession && config.isEmptySearchRoute?.(target.route) && target.parentId) {
       reconcileLayers(target.layers);
-      browserWindow().queueMicrotask(() => browserWindow().history.back());
+      browserWindow().queueMicrotask(() => requestHistoryBack());
       return;
     }
   } else {

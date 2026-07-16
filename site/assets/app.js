@@ -532,11 +532,16 @@ async function applyAtlasHistoryRoute(route = {}, context = {}) {
   const targetId = targetLocked || targetUnknown ? fallbackId : (requestedId || fallbackId);
   if (!targetId) return;
   const targetEntry = String(route.entry || '');
+  /* 快速路径仅限“详情覆盖在同一列表之上”的返回：最近浏览/恢复上次浏览推的
+     detail 记录可能同时切换法典、目录或清空搜索，列表上下文不一致时必须走
+     下面的完整恢复，否则底层列表会停留在错误状态。 */
+  const listContextOf = value => JSON.stringify({ ...(value || {}), entry: '', imageIndex: 0 });
   const closingOwnDetail = Boolean(
     !targetEntry &&
     state.lightbox.entry &&
     context.departing?.transition === 'detail' &&
-    context.departing?.parentId === context.target?.id,
+    context.departing?.parentId === context.target?.id &&
+    listContextOf(context.departing?.route) === listContextOf(route),
   );
   if (closingOwnDetail) {
     state.searchHistorySessionId = String(context.target?.sessionId || '');

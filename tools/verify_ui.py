@@ -793,6 +793,41 @@ def run_suite(base_url: str, out_dir: Path, cdp: CDP, only: str = "") -> list[di
         wait_for(cdp, "!document.body.classList.contains('search-mode') && history.state?.route?.q === 'hair long'", "first search back")
         cdp.eval("history.back()")
         wait_for(cdp, "history.state?.route?.q === ''", "second search back")
+
+        # Reload adopts the persisted managed record: identity and scroll
+        # position survive pull-to-refresh instead of resetting to the top.
+        reload_scroll = cdp.eval("Math.min(600, Math.max(0, document.documentElement.scrollHeight - innerHeight - 20))") or 0
+        cdp.eval(f"scrollTo(0,{int(reload_scroll)})")
+        settle(cdp, 260)
+        saved_id = cdp.eval("history.state.id")
+        cdp.command("Page.reload", {})
+        wait_for(cdp, "history.state?.page === 'atlas' && document.querySelectorAll('.card').length >= 1", "atlas reload keeps managed state")
+        if cdp.eval("history.state.id") != saved_id:
+            raise CheckFailed("Reload did not adopt the persisted managed history record")
+        if reload_scroll > 80:
+            wait_for(cdp, f"Math.abs(scrollY - {int(reload_scroll)}) < 90", "reload scroll restoration", timeout=8)
+
+        # A recent-entry detail may switch list context (query cleared, path
+        # changed) in a single record; back must restore the previous context
+        # instead of only closing the lightbox.
+        cdp.eval("document.querySelector('#mobileSearchBtn')?.click()")
+        wait_for(cdp, "document.body.classList.contains('search-mode')", "recent-entry search layer")
+        cdp.eval("""
+(() => {
+  const input = document.querySelector('#search');
+  input.value = 'hair';
+  input.dispatchEvent(new InputEvent('input', {bubbles:true, inputType:'insertText', data:'hair'}));
+})()
+""")
+        wait_for(cdp, "history.state?.route?.q === 'hair'", "recent-entry search context")
+        cdp.eval("history.back()")
+        wait_for(cdp, "!document.body.classList.contains('search-mode') && history.state?.route?.q === 'hair'", "recent-entry search layer closed")
+        cdp.eval("document.querySelector('#historyBtn')?.click()")
+        wait_for(cdp, "document.querySelectorAll('#recentList .recent-item').length >= 1", "recent entries panel")
+        cdp.eval("document.querySelector('#recentList .recent-item')?.click()")
+        wait_for(cdp, "document.querySelector('#lightbox')?.classList.contains('is-open') && history.state?.transition === 'detail' && history.state?.route?.q === ''", "recent entry detail record")
+        cdp.eval("history.back()")
+        wait_for(cdp, "!document.querySelector('#lightbox')?.classList.contains('is-open') && history.state?.route?.q === 'hair' && document.querySelector('#search')?.value === 'hair'", "recent entry back restores context")
         check_no_errors(cdp)
         return {
             "initialLength": initial["length"],
@@ -801,6 +836,7 @@ def run_suite(base_url: str, out_dir: Path, cdp: CDP, only: str = "") -> list[di
             "nestedLength": nested_length,
             "searchLength": search_length,
             "scrollY": before_detail["y"],
+            "reloadScroll": reload_scroll,
         }
 
     def community_history():
@@ -860,6 +896,17 @@ def run_suite(base_url: str, out_dir: Path, cdp: CDP, only: str = "") -> list[di
             raise CheckFailed("Community filters increased history depth")
         if cdp.eval("location.href") != initial["url"]:
             raise CheckFailed("Community route/filter state changed the address bar")
+
+        # The strings.html list context lives only in history.state; reload must
+        # restore category/search from the persisted managed record.
+        cdp.command("Page.reload", {})
+        wait_for(cdp, "history.state?.page === 'community' && document.querySelector('#search')?.value === 'sample composition'", "community reload restores context", timeout=12)
+        if cdp.eval("history.state?.route?.q") != "sample composition":
+            raise CheckFailed("Community reload lost the search query")
+        if not cdp.eval("history.state?.route?.category"):
+            raise CheckFailed("Community reload lost the active category")
+        if cdp.eval("history.length") != search_length:
+            raise CheckFailed("Community reload changed history depth")
 
         cdp.eval("document.querySelector('.community-card')?.click()")
         wait_for(cdp, "history.state?.transition === 'detail' && document.querySelector('#detailMask')?.classList.contains('show')", "community detail route")

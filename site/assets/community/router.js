@@ -4,6 +4,7 @@ import {
   getManagedHistoryEntry,
   initializeBrowserHistory,
   isHistoryRestoreToken,
+  persistedHistoryState,
 } from '../app/browser-history.js';
 import { COMMUNITY_CATEGORIES } from './constants.js';
 import { state } from './state.js';
@@ -86,6 +87,15 @@ export function configureCommunityHistory() {
     applyRoute: applyCommunityHistoryRoute,
     restoreScroll: restoreCommunityScroll,
   });
+}
+
+/* strings.html 的路由只存在 history.state 里（地址栏不带参数）：刷新或跨文档
+   返回时，把上次记录的分类/搜索/收藏筛选先应用回列表，再初始化托管历史。
+   详情弹窗不自动复原，只回列表态。 */
+export async function restoreCommunityHistorySnapshot() {
+  const previous = persistedHistoryState();
+  if (!previous) return;
+  await routerActions.applyListRoute(normalizeRoute(previous.route), { target: previous });
 }
 
 export function initializeCommunityHistory() {
